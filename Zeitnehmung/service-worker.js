@@ -3,8 +3,8 @@
  * und nie eine veraltete Version „hängenbleibt"), Cache nur als Offline-Reserve.
  * Bei schlechtem/keinem Netz am Berg läuft die App damit trotzdem.
  */
-const CACHE = 'alpin-v1';
-const SHELL = ['/', '/alpin-timing.html', '/manifest.json', '/icon.svg'];
+const CACHE = 'alpin-v2';
+const SHELL = ['/', '/alpin-timing.html', '/manifest.json', '/icon.svg', '/qrcode.js'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
