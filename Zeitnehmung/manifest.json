@@ -1,0 +1,17 @@
+{
+  "name": "ALPIN TIMING PRO — Skirennen Zeitnahme",
+  "short_name": "Alpin Timing",
+  "description": "Profi-Zeitnahme für Skirennen: Startliste, 2-Lauf-Wertung, Zwischenzeiten, Live-Ergebnisse und Anzeigetafel.",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#080b0f",
+  "theme_color": "#080b0f",
+  "categories": ["sports", "utilities"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

@@ -8,6 +8,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=Saira+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#080b0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Alpin Timing">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/icon.svg">
 <style>
   :root{
     --bg:#080b0f; --panel:#10161d; --panel2:#0c1117; --line:#1d2730;
@@ -87,6 +93,24 @@
 
   .grid{display:grid;grid-template-columns:1fr 1.4fr 1.05fr;gap:16px;margin-top:16px}
   @media(max-width:1180px){.grid{grid-template-columns:1fr}}
+  /* Bedien-Header: bricht auf kleineren Laptops/Tablets sauber um statt zu klippen */
+  @media(max-width:1080px){
+    header{gap:10px;padding:12px 14px}
+    .brand h1{font-size:19px}
+    .race-name{font-size:16px;min-width:120px}
+    .btn{padding:8px 11px;font-size:12.5px}
+    .conn .label{min-width:0}
+    .tod{font-size:13px}
+  }
+  @media(max-width:720px){
+    .wrap{padding:12px 12px 32px}
+    header{gap:8px}
+    .spacer{flex-basis:100%;height:0}            /* Zeilenumbruch: Status/Buttons in neue Reihe */
+    .brand{flex:1 1 auto}
+    .race-name{flex:1 1 140px}
+    .runsel button{padding:7px 11px}
+    .btn{padding:7px 10px;font-size:12px}
+  }
   .panel{border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--panel2));
     overflow:hidden;display:flex;flex-direction:column;min-height:200px}
   .phead{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
@@ -226,6 +250,12 @@
   .bd-li .tt{font-family:var(--mono);font-weight:700}
   .bd-flash{position:absolute;bottom:3vh;left:4vw;right:4vw;text-align:center;font-family:var(--cond);font-size:2.2vw;color:var(--amber);opacity:0;transition:opacity .3s}
   .bd-flash.show{opacity:1}
+  .bd-top .bd-org{font-family:var(--cond);font-weight:700;font-size:1.3vw;color:var(--dim);letter-spacing:.06em}
+  .bd-leadflash{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:0;
+    background:radial-gradient(circle at 50% 44%,rgba(0,229,138,.38),rgba(0,229,138,.06) 45%,transparent 65%)}
+  .bd-leadflash.show{animation:leadflash 1.7s cubic-bezier(.2,.7,.2,1)}
+  @keyframes leadflash{0%{opacity:0}10%{opacity:1}100%{opacity:0}}
+  .bd-flash.best{color:var(--green);font-weight:800;text-shadow:0 0 30px rgba(0,229,138,.5)}
 
   /* Modal (Hilfe/Info) */
   .modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);z-index:70;width:560px;max-width:94vw;max-height:88vh;overflow:auto;
@@ -416,7 +446,8 @@
 
 <!-- SCOREBOARD -->
 <div id="board">
-  <div class="bd-top"><svg class="bd-logo" viewBox="0 0 64 64"><use href="#atMark"/></svg><h2 id="bdRace">Rennen</h2><div class="run" id="bdRun">LAUF 1</div><div class="x" id="bdClose">Schließen (B)</div></div>
+  <div class="bd-leadflash" id="bdLeadFlash"></div>
+  <div class="bd-top"><svg class="bd-logo" viewBox="0 0 64 64"><use href="#atMark"/></svg><h2 id="bdRace">Rennen</h2><div class="run" id="bdRun">LAUF 1</div><div class="bd-org" id="bdOrg"></div><div class="x" id="bdClose">Schließen (B)</div></div>
   <div class="bd-main">
     <div class="bd-cur"><div class="lbl2">Auf der Strecke</div><div class="nm" id="bdName">—</div>
       <div class="bd-clock idle" id="bdClock">0<span class="cs">.00</span></div><div class="bd-split" id="bdSplit"></div></div>
@@ -555,7 +586,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.1";
+const VERSION="1.2";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -694,6 +725,7 @@ function doFinish(sw,hw){
   c.state='finished'; S.onCourse.shift(); S.history.push({type:'finish',id:r.id,run:S.activeRun});
   logEvent(`ZIEL · Nr ${r.bib} ${r.name} → ${fmt(c.runMs)} [${c.src}]`,'ev-finish');
   flashBoard(`Ziel Nr ${r.bib} ${r.name}: ${fmt(c.runMs)}`);
+  if(c.runMs!=null && $('board').classList.contains('show') && isNewLeader(r)){ leadFlash(); flashBoard(`★ BESTZEIT · Nr ${r.bib} ${r.name} · ${fmt(c.runMs)}`,true); }
   renderAll(); persist();
 }
 function bestInter(runIdx,exceptId){ let best=null; S.racers.forEach(r=>{ if(r.id===exceptId) return; const c=r.runs[runIdx];
@@ -852,8 +884,11 @@ function renderBoardList(){ const combined=S.numRuns>1 && everyoneRun1Done();
 function everyoneRun1Done(){ const started=S.racers.filter(r=>r.runs.some(c=>c.state!=='idle'&&c.state!=='DNS'&&c.state!=='ready'));
   return false; } // Gesamt nur, wenn Nutzer auf Lauf 2 ist und Lauf1 Ergebnisse existieren
 function boardCombinedReady(){ return S.numRuns>1 && S.activeRun>=1 && rankedRun(0).length>0; }
-function flashBoard(txt){ const f=$('bdFlash'); if(!$('board').classList.contains('show')) return;
-  f.textContent=txt; f.classList.add('show'); clearTimeout(flashBoard._t); flashBoard._t=setTimeout(()=>f.classList.remove('show'),4000); }
+function flashBoard(txt,best){ const f=$('bdFlash'); if(!$('board').classList.contains('show')) return;
+  f.textContent=txt; f.classList.toggle('best',!!best); f.classList.add('show'); clearTimeout(flashBoard._t); flashBoard._t=setTimeout(()=>f.classList.remove('show'),4000); }
+function isNewLeader(r){ const combined=boardCombinedReady(); const ranked=combined?rankedCombined():rankedRun(S.activeRun);
+  return ranked.length>1 && ranked[0].r.id===r.id; }
+function leadFlash(){ const f=$('bdLeadFlash'); if(!f) return; f.classList.remove('show'); void f.offsetWidth; f.classList.add('show'); }
 function toggleBoard(){ const b=$('board'); const open=!b.classList.contains('show');
   b.classList.toggle('show',open); if(open){ renderBoardList(); updateBoardName();
     if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }
@@ -1373,6 +1408,7 @@ function init(){
 const _origRenderBoardList=renderBoardList;
 renderBoardList=function(){ const combined=boardCombinedReady();
   $('bdRace').textContent=$('raceName').value; $('bdRun').textContent=combined?'GESAMT':'LAUF '+(S.activeRun+1);
+  $('bdOrg').textContent=[S.meta.organizer,S.meta.discipline].filter(Boolean).join(' · ');
   $('bdBoardLbl').textContent=combined?'Gesamtwertung':'Rangliste Lauf '+(S.activeRun+1);
   const ranked=(combined?rankedCombined():rankedRun(S.activeRun)).slice(0,8); const best=ranked.length?ranked[0].t:null;
   $('bdList').innerHTML=ranked.map((e,i)=>`<div class="bd-li ${i<3?'p'+(i+1):''}"><span class="r">${i+1}</span>
@@ -1381,6 +1417,11 @@ renderBoardList=function(){ const combined=boardCombinedReady();
     || '<div style="color:var(--dimmer);font-size:1.4vw">noch keine Ergebnisse</div>'; };
 
 document.addEventListener('DOMContentLoaded',init);
+
+/* Offline/PWA: Service Worker registrieren (nur über http/https, nicht bei lokaler Datei) */
+if('serviceWorker' in navigator && location.protocol!=='file:'){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('/service-worker.js').catch(()=>{}); });
+}
 </script>
 </body>
 </html>
