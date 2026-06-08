@@ -256,6 +256,25 @@
   .bd-leadflash.show{animation:leadflash 1.7s cubic-bezier(.2,.7,.2,1)}
   @keyframes leadflash{0%{opacity:0}10%{opacity:1}100%{opacity:0}}
   .bd-flash.best{color:var(--green);font-weight:800;text-shadow:0 0 30px rgba(0,229,138,.5)}
+  /* Sponsoren-Reel auf der Anzeigetafel (zeigt bei Leerlauf / vor dem Rennen) */
+  .bd-sponsors{position:absolute;inset:0;z-index:3;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(1200px 760px at 50% 42%,#0b1a15,transparent 62%),#05080b;opacity:0;transition:opacity .55s}
+  .bd-sponsors.show{opacity:1}
+  .bd-sp-lbl{font-family:var(--cond);font-weight:700;font-size:1.5vw;letter-spacing:.34em;text-transform:uppercase;color:var(--dimmer);margin-bottom:4vh}
+  .bd-sp-card{text-align:center;max-width:84vw;animation:spfade .55s ease-out}
+  .bd-sp-card img{max-width:62vw;max-height:50vh;object-fit:contain;filter:drop-shadow(0 12px 44px rgba(0,0,0,.55))}
+  .bd-sp-name{font-family:var(--cond);font-weight:800;font-size:5.2vw;line-height:1.05;color:var(--ink);letter-spacing:.03em;margin-top:3vh}
+  .bd-sp-dots{display:flex;gap:1vw;margin-top:5vh}
+  .bd-sp-dots i{width:.8vw;height:.8vw;border-radius:50%;background:#1d2730}.bd-sp-dots i.on{background:var(--green)}
+  @keyframes spfade{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  /* Sponsoren-Verwaltung (Modal) */
+  .sp-add{display:flex;gap:6px;align-items:center;margin:10px 0}
+  .sp-add input[type=text]{flex:1;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font-family:var(--sans);font-size:14px}
+  .sp-add input:focus{outline:none;border-color:var(--green)}
+  .sp-item{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:#0a0f15}
+  .sp-thumb{width:54px;height:40px;border-radius:6px;background:#070a0e;display:grid;place-items:center;overflow:hidden;flex:none;color:var(--dim)}
+  .sp-thumb img{max-width:100%;max-height:100%;object-fit:contain}
+  .sp-nm{flex:1;font-weight:600}
 
   /* Modal (Hilfe/Info) */
   .modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);z-index:70;width:560px;max-width:94vw;max-height:88vh;overflow:auto;
@@ -394,6 +413,7 @@
     <button class="btn primary" id="btnConnect">Hardware verbinden</button>
     <button class="btn warn" id="btnSim">Simulation</button>
     <button class="btn" id="btnBoard">Anzeigetafel</button>
+    <button class="btn" id="btnSponsors" title="Sponsoren auf der Anzeigetafel zeigen">★ Sponsoren</button>
     <button class="btn" id="btnStartView" title="Reine Anzeige für den Start (eigenes Fenster)">Start-Ansicht</button>
     <button class="btn primary" id="btnLive" title="Öffentlichen Link zum Live-Timing erzeugen und teilen">🔗 LiveTiming</button>
     <button class="btn ghost" id="btnAbout" title="Hilfe & Info">?</button>
@@ -447,6 +467,7 @@
 <!-- SCOREBOARD -->
 <div id="board">
   <div class="bd-leadflash" id="bdLeadFlash"></div>
+  <div class="bd-sponsors" id="bdSponsors"></div>
   <div class="bd-top"><svg class="bd-logo" viewBox="0 0 64 64"><use href="#atMark"/></svg><h2 id="bdRace">Rennen</h2><div class="run" id="bdRun">LAUF 1</div><div class="bd-org" id="bdOrg"></div><div class="x" id="bdClose">Schließen (B)</div></div>
   <div class="bd-main">
     <div class="bd-cur"><div class="lbl2">Auf der Strecke</div><div class="nm" id="bdName">—</div>
@@ -593,6 +614,25 @@ F 1051110   → Ziel
   </div>
 </div>
 
+<div class="overlay" id="spOverlay"></div>
+<div class="modal" id="spModal">
+  <div class="dh"><h3>Sponsoren</h3><div class="spacer"></div><button class="btn ghost" id="spClose">✕</button></div>
+  <div class="mb">
+    <p>Sponsoren laufen auf der <b>Anzeigetafel</b> durch, solange <b>niemand auf der Strecke</b> ist (vor dem Rennen & in Pausen). Sobald gestartet wird, blendet das Reel automatisch aus.</p>
+    <div class="sp-add">
+      <input type="text" id="spName" placeholder="Sponsor-Name (z. B. Bergbahnen AG)">
+      <button class="btn sm" id="spFileBtn" title="Logo wählen (optional)">Logo …</button>
+      <button class="btn sm primary" id="spAddBtn">+ Hinzufügen</button>
+    </div>
+    <div id="spFileName" class="hint" style="margin:-4px 0 10px">Optional: PNG/JPG-Logo – wird automatisch verkleinert.</div>
+    <input type="file" id="spFile" accept="image/*" class="hidden">
+    <div id="spList"></div>
+    <div class="toggle" style="margin-top:14px"><span>Auf der Anzeigetafel zeigen</span><div class="sw on" id="spEnabled"></div></div>
+    <div class="fld" style="margin-top:12px"><label>Sekunden pro Sponsor</label><input id="spSec" type="number" min="2" max="60" value="6" style="width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:13px"></div>
+    <div style="display:flex;gap:8px;margin-top:6px"><button class="btn sm" id="spPreview">Auf Anzeigetafel zeigen</button></div>
+  </div>
+</div>
+
 <input type="file" id="fileInput" accept=".json" class="hidden">
 <div class="toast" id="toast"></div>
 <div id="updateBar"><span>Neue Version <b id="upVer"></b> verfügbar.</span><button class="primary" id="upReload">Jetzt laden</button><button id="upLater">Später</button></div>
@@ -603,7 +643,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.3";
+const VERSION="1.4";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -620,6 +660,8 @@ const S = {
 };
 /* Laufzeit-Status für die LED-Anzeigetafel (serieller Ausgang) */
 const DISP={ port:null, writer:null, active:false, busy:false, _t:0, freeze:null };
+/* Sponsoren (lokal gespeichert, erscheinen auf der Anzeigetafel bei Leerlauf) */
+S.sponsors=[]; S.sponsorCfg={enabled:true, sec:6};
 
 const $=id=>document.getElementById(id);
 const now=()=>performance.now();
@@ -886,6 +928,7 @@ function tick(){
     else { sl.textContent=''; bs.textContent=''; } }
   else { sl.textContent=''; bs.textContent=''; }
   if($('board').classList.contains('show')) updateBoardName();
+  sponsorTick();
   requestAnimationFrame(tick);
 }
 setInterval(()=>{ $('tod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
@@ -917,6 +960,45 @@ function toggleBoard(){ const b=$('board'); const open=!b.classList.contains('sh
 
 /* override board run label logic */
 function refreshBoard(){ if($('board').classList.contains('show')) renderBoardList(); }
+
+/* ===== Sponsoren-Reel (lokal; auf der Anzeigetafel) ===== */
+const SPKEY="alpin_sponsors_v1";
+let spPendingImg='';
+const _spR={ i:0, t:0, idleSince:0 };
+function loadSponsors(){ try{ const j=localStorage.getItem(SPKEY); if(j){ const d=JSON.parse(j);
+  S.sponsors=Array.isArray(d.list)?d.list:[]; if(d.cfg){ S.sponsorCfg.enabled=d.cfg.enabled!==false; S.sponsorCfg.sec=Math.max(2,Math.min(60,parseInt(d.cfg.sec)||6)); } } }catch(e){} }
+function saveSponsors(){ try{ localStorage.setItem(SPKEY, JSON.stringify({list:S.sponsors,cfg:S.sponsorCfg})); }catch(e){ toast("Speicher voll – Logo evtl. zu groß"); } }
+function scaleImage(file,max,cb){ const url=URL.createObjectURL(file), img=new Image();
+  img.onload=()=>{ const s=Math.min(1,max/Math.max(img.width,img.height)), w=Math.max(1,Math.round(img.width*s)), h=Math.max(1,Math.round(img.height*s));
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h; try{ cv.getContext('2d').drawImage(img,0,0,w,h); }catch(e){}
+    let out=''; try{ out=cv.toDataURL('image/png'); }catch(e){} URL.revokeObjectURL(url); cb(out); };
+  img.onerror=()=>{ URL.revokeObjectURL(url); cb(''); }; img.src=url; }
+function openSponsors(){ renderSpList(); $('spEnabled').classList.toggle('on',S.sponsorCfg.enabled); $('spSec').value=S.sponsorCfg.sec;
+  spPendingImg=''; $('spFileName').textContent='Optional: PNG/JPG-Logo – wird automatisch verkleinert.';
+  $('spModal').classList.add('open'); $('spOverlay').classList.add('show'); setTimeout(()=>{ try{ $('spName').focus(); }catch(e){} },60); }
+function closeSponsors(){ $('spModal').classList.remove('open'); $('spOverlay').classList.remove('show'); }
+function renderSpList(){ const el=$('spList'); if(!el) return;
+  el.innerHTML = S.sponsors.length ? S.sponsors.map((s,i)=>`<div class="sp-item"><div class="sp-thumb">${s.img?`<img src="${esc(s.img)}">`:'★'}</div><div class="sp-nm">${esc(s.name||'(ohne Name)')}</div><button class="ib" data-sp-del="${i}" title="Entfernen">✕</button></div>`).join('')
+    : '<div style="color:var(--dimmer);font-style:italic;padding:8px 0">Noch keine Sponsoren – Name eintragen und/oder Logo wählen, dann „+ Hinzufügen".</div>'; }
+function spAdd(){ const nm=$('spName').value.trim(); if(!nm && !spPendingImg){ toast("Name oder Logo angeben"); return; }
+  S.sponsors.push({name:nm,img:spPendingImg||''}); spPendingImg=''; $('spName').value='';
+  $('spFileName').textContent='Optional: PNG/JPG-Logo – wird automatisch verkleinert.'; saveSponsors(); renderSpList(); toast("Sponsor hinzugefügt"); }
+function spDel(i){ S.sponsors.splice(i,1); saveSponsors(); renderSpList(); }
+function spPreview(){ if(!S.sponsors.length){ toast("Erst Sponsoren hinzufügen"); return; }
+  if(!S.sponsorCfg.enabled){ S.sponsorCfg.enabled=true; $('spEnabled').classList.add('on'); saveSponsors(); }
+  closeSponsors(); if(!$('board').classList.contains('show')) toggleBoard(); _spR.idleSince=now()-3000; }
+function sponsorTick(){
+  const el=$('bdSponsors'); if(!el) return; const tn=now();
+  const want = $('board').classList.contains('show') && S.sponsorCfg.enabled && S.sponsors.length>0 && S.onCourse.length===0;
+  if(!want){ if(el.classList.contains('show')) el.classList.remove('show'); _spR.idleSince=0; return; }
+  if(!_spR.idleSince) _spR.idleSince=tn;
+  if(tn-_spR.idleSince<2500){ if(el.classList.contains('show')) el.classList.remove('show'); return; }
+  if(!el.classList.contains('show')){ el.classList.add('show'); _spR.i=0; _spR.t=tn; renderSponsor(); }
+  else if(tn-_spR.t >= S.sponsorCfg.sec*1000){ _spR.i=(_spR.i+1)%S.sponsors.length; _spR.t=tn; renderSponsor(); }
+}
+function renderSponsor(){ const s=S.sponsors[_spR.i]; const el=$('bdSponsors'); if(!el) return; if(!s){ el.innerHTML=''; return; }
+  const dots=S.sponsors.length>1?`<div class="bd-sp-dots">${S.sponsors.map((_,k)=>`<i class="${k===_spR.i?'on':''}"></i>`).join('')}</div>`:'';
+  el.innerHTML=`<div class="bd-sp-lbl">Unsere Sponsoren</div><div class="bd-sp-card">${s.img?`<img src="${esc(s.img)}">`:''}${s.name?`<div class="bd-sp-name">${esc(s.name)}</div>`:''}</div>${dots}`; }
 
 /* Web Serial */
 async function connectSerial(){
@@ -1118,6 +1200,7 @@ const HELP=[
  {t:"Ergebnisse drucken / PDF / Urkunde", h:`<p><b>🖨</b> bei den Ergebnissen erzeugt die offizielle Liste mit Veranstaltungsdaten und Unterschriftenzeilen. Im Druckdialog „Als PDF speichern" wählen. Veranstaltungsdaten (Ort, Datum, Schiedsrichter …) in Einstellungen ⚙.</p>`},
  {t:"CSV / Excel-Export", h:`<p><b>CSV</b> bei den Ergebnissen exportiert alle Zeiten inkl. Gesamt- und Klassenrang – in Excel/Numbers öffenbar.</p>`},
  {t:"Anzeigetafel / Beamer", h:`<p>Knopf <b>Anzeigetafel</b> oder Taste <span class="kbd">B</span>: Vollbild mit aktuellem Läufer, großer Uhr, Live-Zwischenzeit und Top-Liste – für TV/Beamer am Zielgelände.</p>`},
+ {t:"Sponsoren auf der Anzeigetafel", h:`<p>Knopf <b>★ Sponsoren</b> oben: Sponsor-Namen und/oder <b>Logos</b> hinzufügen (Logo wird automatisch verkleinert). Auf der <b>Anzeigetafel</b> (Beamer/TV) laufen sie automatisch durch, solange <b>niemand auf der Strecke</b> ist – ideal vor dem Rennen und in Pausen. Sobald gestartet wird, blendet das Reel aus und die Zeit erscheint. Sekunden pro Sponsor einstellbar; „Auf Anzeigetafel zeigen" für eine Sofort-Vorschau.</p>`},
  {t:"LED-Anzeigetafel ansteuern (rote Ziel-Tafel)", h:`<p>Für eine <b>physische LED-Tafel</b> am Ziel: Einstellungen ⚙ → <b>LED-Anzeigetafel (serieller Ausgang)</b> → <b>Tafel verbinden</b> (zweiter serieller Anschluss / USB-Adapter, getrennt von der Lichtschranke). <b>Baudrate</b> wie im Tafel-Handbuch einstellen.</p>
    <p>Mit der <b>Vorlage</b>/dem <b>Format</b> bestimmst du die Zeichenkette, die laufend an die Tafel geht – Platzhalter <code>{time}</code>, <code>{mm}</code>, <code>{ss}</code>, <code>{cc}</code>, <code>{bib}</code> und Steuerzeichen <code>\\r</code> <code>\\n</code>. Das Feld <b>„Was rausgeht"</b> zeigt dir live die gesendete Zeile; mit <b>Test senden</b> prüfst du die Tafel. Beim Ziel friert die Endzeit kurz ein. Passt das Format nicht zur Tafel, einfach anpassen, bis die richtigen Ziffern erscheinen.</p>`},
  {t:"Start-Ansicht (Tablet am Start)", h:`<p>Adresse <code>…/?room=DEINBENUTZER#start</code> – reine Anzeige: wer ist bereit, wer ist auf der Strecke. „Vollbild" für die Tablet-Ansicht. Nur zum Schauen; nichts bedienen.</p>`},
@@ -1405,6 +1488,7 @@ function init(){
   if(hk==='start'){ initStartView(); return; }
   if(hk==='results'){ initResultsView(); return; }
   loadNet();
+  loadSponsors();
   applySettingsToUI(); buildRunSel(); buildViewSel(); tryRestore(); renderAll(); requestAnimationFrame(tick);
 
   $('btnAdd').onclick=()=>{ addRacer($('inBib').value,$('inName').value,$('inCat').value); $('inBib').value='';$('inName').value='';$('inCat').value='';$('inBib').focus(); };
@@ -1421,6 +1505,14 @@ function init(){
 
   $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
   $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
+  $('btnSponsors').onclick=openSponsors; $('spClose').onclick=closeSponsors; $('spOverlay').onclick=closeSponsors;
+  $('spAddBtn').onclick=spAdd; $('spName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); spAdd(); } });
+  $('spFileBtn').onclick=()=>$('spFile').click();
+  $('spFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; scaleImage(f,520,d=>{ spPendingImg=d||''; $('spFileName').textContent=d?('Logo bereit: '+(f.name||'Bild')):'Bild konnte nicht geladen werden'; }); e.target.value=''; };
+  $('spList').addEventListener('click',e=>{ const b=e.target.closest('[data-sp-del]'); if(b) spDel(+b.dataset.spDel); });
+  $('spEnabled').onclick=()=>{ S.sponsorCfg.enabled=!S.sponsorCfg.enabled; $('spEnabled').classList.toggle('on'); saveSponsors(); };
+  $('spSec').addEventListener('change',()=>{ S.sponsorCfg.sec=Math.max(2,Math.min(60,parseInt($('spSec').value)||6)); $('spSec').value=S.sponsorCfg.sec; saveSponsors(); });
+  $('spPreview').onclick=spPreview;
   $('btnStartView').onclick=openStartView;
   $('btnLive').onclick=openLiveShare;
   $('liveClose').onclick=closeLiveShare; $('liveOverlay').onclick=closeLiveShare;
