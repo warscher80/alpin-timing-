@@ -239,6 +239,12 @@
   .modal .mb ol{margin:0 0 4px 18px} .modal .mb li{margin-bottom:4px}
   .modal .mb code{font-family:var(--mono);font-size:12px;background:#0a0f15;padding:1px 5px;border-radius:4px;color:var(--cyan)}
   .modal .mb .disc{margin-top:16px;padding:12px;border:1px solid #3a2f12;background:#1a1408;border-radius:8px;font-size:12.5px;color:#d8c08a}
+  .modal .mb textarea{width:100%;min-height:210px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:11px 12px;font-family:var(--mono);font-size:13px;line-height:1.55;resize:vertical}
+  .modal .mb textarea:focus{outline:none;border-color:var(--green)}
+  .imp-opt{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink)}
+  .imp-opt input{width:16px;height:16px;accent-color:var(--green)}
+  .imp-foot{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .imp-foot .cnt{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--dim)}
   .help-search{position:sticky;top:0;padding:12px 16px;background:linear-gradient(180deg,#0e151c,#0e151cf0);border-bottom:1px solid var(--line);z-index:2}
   .help-search input{width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 12px;font-family:var(--sans);font-size:14px}
   .help-search input:focus{outline:none;border-color:var(--green)}
@@ -523,6 +529,22 @@ F 1051110   → Ziel
   </div>
 </div>
 
+<div class="overlay" id="importOverlay"></div>
+<div class="modal" id="importModal">
+  <div class="dh"><h3>Startliste importieren</h3><div class="spacer"></div><button class="btn ghost" id="importClose">✕</button></div>
+  <div class="mb">
+    <p>Eine <b>Zeile pro Läufer</b> einfügen – Spalten getrennt durch <b>Komma</b>, Semikolon oder Tab (auch direkt aus Excel/Numbers kopierbar):</p>
+    <textarea id="importText" placeholder="1, Anna Berger, U16&#10;2, Max Huber, U16&#10;3, Lena Vogt, U16&#10;…" spellcheck="false"></textarea>
+    <label class="imp-opt"><input type="checkbox" id="importHasBib" checked> Erste Spalte ist die Startnummer <span style="color:var(--dimmer)">(aus: Nr, Name, Kat.)</span></label>
+    <div class="imp-opt" id="importNoBibHint" style="display:none;color:var(--dim)">Ohne Startnummern wird automatisch fortlaufend nummeriert <span style="color:var(--dimmer)">(aus: Name, Kat.)</span></div>
+    <div class="imp-foot">
+      <button class="btn primary" id="importDo">Importieren</button>
+      <button class="btn" id="importCancel">Abbrechen</button>
+      <span class="cnt"><b id="importCount">0</b> Zeilen</span>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="fileInput" accept=".json" class="hidden">
 <div class="toast" id="toast"></div>
 <div id="updateBar"><span>Neue Version <b id="upVer"></b> verfügbar.</span><button class="primary" id="upReload">Jetzt laden</button><button id="upLater">Später</button></div>
@@ -533,7 +555,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.0";
+const VERSION="1.1";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -909,9 +931,23 @@ function exportCSV(){
     if(S.numRuns>1) row+=`;`; csv+=row+"\n"; });
   download(($('raceName').value||'rennen')+'_ergebnisse.csv',csv,'text/csv');
 }
-function importList(){ const txt=prompt("Startliste einfügen — eine Zeile pro Läufer:\nNr,Name,Kategorie\n\nBeispiel:\n1,Anna Berger,U16\n2,Max Huber,U16");
-  if(!txt) return; let n=0; txt.split(/\n/).forEach(line=>{ line=line.trim(); if(!line) return; const p=line.split(/[,;\t]/).map(x=>x.trim());
-    addRacer(p[0],p[1],p[2],true); n++; }); renderAll(); persist(); toast(n+" Läufer importiert"); }
+function openImport(){ $('importText').value=''; $('importHasBib').checked=true; $('importNoBibHint').style.display='none';
+  updateImportCount(); $('importModal').classList.add('open'); $('importOverlay').classList.add('show');
+  setTimeout(()=>{ try{ $('importText').focus(); }catch(e){} },60); }
+function closeImport(){ $('importModal').classList.remove('open'); $('importOverlay').classList.remove('show'); }
+function updateImportCount(){ const n=$('importText').value.split(/\n/).filter(l=>l.trim()).length; $('importCount').textContent=n; }
+function doImport(){
+  const hasBib=$('importHasBib').checked, lines=$('importText').value.split(/\n/);
+  let added=0, skipped=0;
+  lines.forEach(line=>{ line=line.trim(); if(!line) return;
+    const p=line.split(/[,;\t]/).map(x=>x.trim());
+    const bib=hasBib?p[0]:'', name=hasBib?p[1]:p[0], cat=hasBib?p[2]:p[1];
+    const before=S.racers.length; addRacer(bib,name,cat,true);
+    if(S.racers.length>before) added++; else skipped++;
+  });
+  renderAll(); persist(); closeImport();
+  toast(added+" Läufer importiert"+(skipped?` · ${skipped} übersprungen`:''));
+}
 function download(name,content,type){ const b=new Blob([content],{type}),u=URL.createObjectURL(b);
   const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
 function saveJson(){ download(($('raceName').value||'rennen')+'.json',exportState(),'application/json'); toast("Gesichert"); }
@@ -1299,7 +1335,13 @@ function init(){
   $('upReload').onclick=()=>location.reload();
   $('upLater').onclick=()=>{ $('updateBar').style.display='none'; };
   setTimeout(checkUpdate,3000); setInterval(checkUpdate,300000);
-  $('btnImport').onclick=importList; $('btnClearList').onclick=()=>{ if(confirm("Startliste löschen?")){ S.racers=[];S.onCourse=[];S.readyId=null;renderAll();persist(); } };
+  $('btnImport').onclick=openImport;
+  $('importClose').onclick=closeImport; $('importCancel').onclick=closeImport; $('importOverlay').onclick=closeImport;
+  $('importDo').onclick=doImport;
+  $('importText').addEventListener('input',updateImportCount);
+  $('importText').addEventListener('keydown',e=>{ if((e.ctrlKey||e.metaKey)&&e.key==='Enter') doImport(); else if(e.key==='Escape') closeImport(); });
+  $('importHasBib').addEventListener('change',()=>{ $('importNoBibHint').style.display=$('importHasBib').checked?'none':''; });
+  $('btnClearList').onclick=()=>{ if(confirm("Startliste löschen?")){ S.racers=[];S.onCourse=[];S.readyId=null;renderAll();persist(); } };
   $('btnSaveJson').onclick=saveJson; $('btnLoadJson').onclick=()=>$('fileInput').click();
   $('fileInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=()=>{ if(importState(rd.result)) toast("Geladen"); }; rd.readAsText(f); e.target.value=''; };
   $('btnReset').onclick=()=>{ if(confirm("Alles zurücksetzen?")){ S.racers=[];S.onCourse=[];S.readyId=null;S.nextId=1;S.history=[];S.activeRun=0;$('log').innerHTML='';buildRunSel();renderAll();persist(); } };
