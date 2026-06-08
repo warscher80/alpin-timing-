@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ALPIN TIMING PRO — Skirennen Zeitnahme</title>
+<title>ALPIN TIMING PRO — Zeitnehmung</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230e1620'/><circle cx='32' cy='33' r='20' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='9' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='30.5' y='52' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='51' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><rect x='8' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><path d='M20,41L27,29L32,34L37,27L44,41Z' fill='url(%23a)'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -404,7 +404,7 @@
   <header>
     <div class="brand"><div class="logo"><svg viewBox="0 0 64 64"><use href="#atMark"/></svg></div>
       <div><h1>ALPIN&nbsp;TIMING <span style="color:var(--green)">PRO</span></h1>
-      <div class="sub">Skirennen · Zeitnahme</div></div></div>
+      <div class="sub">Zeitnehmung</div></div></div>
     <input class="race-name" id="raceName" value="Rennen" spellcheck="false">
     <div class="runsel" id="runsel"></div>
     <div class="spacer"></div>
@@ -432,7 +432,7 @@
     </section>
 
     <section class="panel timing">
-      <div class="phead"><h2 id="timingTitle">Zeitnahme · Lauf 1</h2><span class="count" id="ocCount">0 auf Strecke</span></div>
+      <div class="phead"><h2 id="timingTitle">Zeitnehmung · Lauf 1</h2><span class="count" id="ocCount">0 auf Strecke</span></div>
       <div class="pbody timing">
         <div class="start-card"><div class="lbl">Am Start (bereit)</div><div class="ready-name" id="readyName"><span class="ready-empty">— niemand bereit —</span></div></div>
         <div class="bigclock"><div class="who" id="bigWho"></div><div class="t" id="bigClock">0<span class="cs">.00</span></div><div class="splitline" id="splitLine"></div></div>
@@ -543,6 +543,7 @@
     <div class="toggle"><span>Hardware-Zeitstempel nutzen</span><div class="sw on" id="swHwTs"></div></div>
     <div class="toggle"><span>Auto-Aufrücken am Start</span><div class="sw on" id="swAutoNext"></div></div>
     <div class="toggle"><span>Ton bei Impuls</span><div class="sw on" id="swBeep"></div></div>
+    <div class="toggle"><span>Hardware automatisch verbinden<br><small style="color:var(--dimmer)">bereits freigegebene Zeitmessung wird beim Start automatisch erkannt</small></span><div class="sw on" id="swAutoSerial"></div></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Vernetzung (Internet) & Konto</label></div>
     <div class="fld"><label>Konto</label><div id="netAuth"></div><div class="hint">Mit demselben Konto an Ziel und (optional) Start anmelden – keine PIN nötig. Zuschauer brauchen kein Konto.</div></div>
     <div class="toggle"><span>Diesen PC als Master senden (Ziel)<br><small style="color:var(--dimmer)">überträgt das Rennen live an die Anzeigen</small></span><div class="sw" id="swMaster"></div></div>
@@ -662,7 +663,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.5";
+const VERSION="1.6";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -674,7 +675,7 @@ const S = {
   meta:{organizer:'',location:'',date:'',discipline:'Slalom',referee:'',setter:'',gates:'',weather:'',snow:'',tempS:'',tempF:''}, licensee:'',
   settings:{ baud:115200, startKeys:["S","START","C0","IMP1","A"], interKeys:["Z","ZW","INT","C1","IMP2"],
     finishKeys:["F","FIN","ZIEL","C2","IMP3","B"], lockStart:1000,lockInter:1000,lockFinish:1500,
-    decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true,
+    decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true, autoSerial:true,
     disp:{ baud:9600, format:"{ss}.{cc}\\r", idle:"zeros", holdMs:5000 } }
 };
 /* Laufzeit-Status für die LED-Anzeigetafel (serieller Ausgang) */
@@ -860,7 +861,7 @@ function buildViewSel(){ const el=$('viewsel'); el.innerHTML='';
   for(let i=0;i<S.numRuns;i++) add('L'+(i+1),i);
   if(S.numRuns>1) add('Gesamt',99); }
 
-function renderAll(){ renderStartList(); renderCenter(); buildClassSel(); renderResults(); $('timingTitle').textContent='Zeitnahme · Lauf '+(S.activeRun+1);
+function renderAll(){ renderStartList(); renderCenter(); buildClassSel(); renderResults(); $('timingTitle').textContent='Zeitnehmung · Lauf '+(S.activeRun+1);
   document.querySelector('.triggers').className='triggers '+(S.settings.hasInter?'three':'two'); $('trigInter').classList.toggle('hidden',!S.settings.hasInter); }
 
 function renderStartList(){
@@ -1020,12 +1021,41 @@ function renderSponsor(){ const s=S.sponsors[_spR.i]; const el=$('bdSponsors'); 
   el.innerHTML=`<div class="bd-sp-lbl">Unsere Sponsoren</div><div class="bd-sp-card">${s.img?`<img src="${esc(s.img)}">`:''}${s.name?`<div class="bd-sp-name">${esc(s.name)}</div>`:''}</div>${dots}`; }
 
 /* Web Serial */
+/* Gerät merken, damit es beim nächsten Mal automatisch erkannt wird */
+function saveSerialId(port){ try{ const i=port.getInfo&&port.getInfo(); if(i&&i.usbVendorId!=null) localStorage.setItem('alpin_serial_in',JSON.stringify({v:i.usbVendorId,p:i.usbProductId})); }catch(e){} }
+function savedSerialId(){ try{ const j=localStorage.getItem('alpin_serial_in'); return j?JSON.parse(j):null; }catch(e){ return null; } }
+function portMatches(port,id){ try{ const i=port.getInfo&&port.getInfo(); return !!(i&&id&&i.usbVendorId===id.v&&i.usbProductId===id.p); }catch(e){ return false; } }
+async function openSerialPort(port,manual){
+  try{ await port.open({baudRate:S.settings.baud}); }
+  catch(e){ if(manual) logEvent("Öffnen fehlgeschlagen: "+e.message,"ev-warn"); return false; }
+  S.port=port; S.keepReading=true; if(manual) saveSerialId(port);
+  setConn(true,false,(manual?"Verbunden · ":"Auto · ")+S.settings.baud);
+  logEvent(manual?"Hardware verbunden":"Hardware automatisch erkannt & verbunden","ev-info"); readLoop(); return true;
+}
 async function connectSerial(){
   if(S.port){ await disconnectSerial(); return; }
   if(!('serial' in navigator)){ toast("Web Serial nur in Chrome/Edge"); logEvent("Web Serial nicht verfügbar","ev-warn"); return; }
-  try{ const port=await navigator.serial.requestPort(); await port.open({baudRate:S.settings.baud});
-    S.port=port; S.keepReading=true; setConn(true,false,"Verbunden · "+S.settings.baud); logEvent("Hardware verbunden","ev-info"); readLoop();
-  }catch(e){ logEvent("Verbindung abgebrochen: "+e.message,"ev-warn"); }
+  try{ const port=await navigator.serial.requestPort(); await openSerialPort(port,true); }
+  catch(e){ logEvent("Verbindung abgebrochen: "+e.message,"ev-warn"); }
+}
+/* Auto-Erkennung: bereits freigegebene Zeitmessung beim Start automatisch öffnen */
+async function autoConnectSerial(){
+  if(!('serial' in navigator) || S.port || S.settings.autoSerial===false) return;
+  let ports=[]; try{ ports=await navigator.serial.getPorts(); }catch(e){ return; }
+  ports=ports.filter(p=>p && p!==DISP.port);
+  if(!ports.length) return;
+  const id=savedSerialId(); let pick=null;
+  if(id){ const m=ports.filter(p=>portMatches(p,id)); if(m.length) pick=m[0]; }
+  if(!pick && !id && ports.length===1) pick=ports[0];   // genau ein bekanntes Gerät -> eindeutig
+  if(pick) await openSerialPort(pick,false);
+}
+function initSerialAuto(){
+  if(!('serial' in navigator)) return;
+  try{ navigator.serial.addEventListener('connect', ev=>{ const p=ev&&(ev.target||ev.port);
+    if(S.settings.autoSerial!==false && !S.port && p && p!==DISP.port){ const id=savedSerialId(); if(!id||portMatches(p,id)) openSerialPort(p,false); } }); }catch(e){}
+  try{ navigator.serial.addEventListener('disconnect', ev=>{ const p=ev&&(ev.target||ev.port);
+    if(p && p===S.port){ logEvent("Hardware entfernt","ev-warn"); disconnectSerial(); } }); }catch(e){}
+  autoConnectSerial();
 }
 async function readLoop(){
   const dec=new TextDecoder(); let buf='';
@@ -1207,7 +1237,9 @@ const HELP=[
    <li><b>Lauf 1 / Lauf 2</b> oben umschalten; Ergebnis-Ansicht L1 / L2 / Gesamt.</li></ol>`},
  {t:"Tasten / Tastatur", h:`<p><span class="kbd">Leertaste</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎ Enter</span> Ziel · <span class="kbd">Z</span> letzten Impuls rückgängig · <span class="kbd">B</span> Anzeigetafel.</p>`},
  {t:"Hardware / Lichtschranke verbinden", h:`<p>Funktioniert nur in <b>Chrome oder Edge am Computer</b> (nicht am Tablet). Knopf <b>Hardware verbinden</b>, Port wählen, Baudrate muss zur Hardware passen (Einstellungen ⚙).</p>
-   <p>Erwartetes Format je Zeile: <code>S</code> = Start, <code>Z</code> = Zwischenzeit, <code>F</code> = Ziel. Mit Hardware-Zeitstempel z. B. <code>S 1043920</code>. Schlüsselwörter sind in den Einstellungen anpassbar; ein Arduino-Beispiel steht dort ebenfalls.</p>`},
+   <p>Erwartetes Format je Zeile: <code>S</code> = Start, <code>Z</code> = Zwischenzeit, <code>F</code> = Ziel. Mit Hardware-Zeitstempel z. B. <code>S 1043920</code>. Schlüsselwörter sind in den Einstellungen anpassbar; ein Arduino-Beispiel steht dort ebenfalls.</p>
+   <p><b>Automatisch erkennen:</b> Einmal über „Hardware verbinden" das Gerät freigeben – danach merkt es sich die App und <b>verbindet beim nächsten Start automatisch</b> (auch beim Einstecken während des Betriebs). Schalter „Hardware automatisch verbinden" in den Einstellungen. Hinweis: Der Browser verlangt aus Sicherheitsgründen <b>einmalig</b> die manuelle Freigabe pro Gerät – ganz ohne ersten Klick geht es technisch nicht.</p>
+   <p><b>Start wie bei FIS:</b> Ein <b>Starttor/Startwand</b>, das einen Start-Impuls (Schlüsselwort <code>S</code>) auf die Zeitmessung gibt, löst den Start automatisch aus – genau wie eine Lichtschranke. Start und Ziel werden nicht über den Anschluss, sondern über das <b>Signal-Schlüsselwort</b> zugeordnet (S/Z/F); Haupt- und Backup-Zelle am selben Tor werden über die Sperrzeit automatisch entstört. Ist der Start räumlich getrennt, die <b>Startstation</b> übers Netzwerk nutzen.</p>`},
  {t:"Simulation (ohne Hardware testen)", h:`<p>Knopf <b>Simulation</b> feuert automatisch Start-, Zwischen- und Ziel-Impulse – ideal zum Üben und um Anzeigetafel/Live-Ansicht zu sehen.</p>`},
  {t:"Startliste & Läufer", h:`<p>Nr, Name und Kat. (Klasse) eingeben, <b>+</b> zum Hinzufügen. <b>Import</b> fügt viele auf einmal ein (eine Zeile <code>Nr,Name,Klasse</code>). Der bereite Läufer am Start ist grün markiert.</p>`},
  {t:"Status: DNF / DNS / DSQ", h:`<p><b>DNS</b> (nicht gestartet) in der Startliste; <b>DNF</b> (Aufgabe) beim Läufer auf der Strecke; per Klick auf ein Ergebnis lässt sich dieses zurücksetzen.</p>`},
@@ -1257,6 +1289,7 @@ function applySettingsToUI(){ $('setRuns').value=S.numRuns; $('setBaud').value=S
   $('setLockInter').value=S.settings.lockInter; $('setLockFinish').value=S.settings.lockFinish; $('setDecimals').value=S.settings.decimals;
   $('swInter').classList.toggle('on',S.settings.hasInter); $('swHwTs').classList.toggle('on',S.settings.useHwTs);
   $('swAutoNext').classList.toggle('on',S.settings.autoNext); $('swBeep').classList.toggle('on',S.settings.beep);
+  if($('swAutoSerial')) $('swAutoSerial').classList.toggle('on',S.settings.autoSerial!==false);
   if(!S.settings.disp) S.settings.disp={baud:9600,format:"{ss}.{cc}\\r",idle:"zeros",holdMs:5000};
   const dp=S.settings.disp; if($('dispBaud')){ $('dispBaud').value=dp.baud||9600; $('dispFormat').value=dp.format||''; $('dispIdle').value=dp.idle||'zeros';
     const ps=$('dispPreset'), vals=[...ps.options].map(o=>o.value); ps.value=vals.includes(dp.format)?dp.format:'__custom__'; }
@@ -1586,6 +1619,7 @@ function init(){
   $('swHwTs').onclick=()=>{ S.settings.useHwTs=!S.settings.useHwTs; $('swHwTs').classList.toggle('on'); persist(); };
   $('swAutoNext').onclick=()=>{ S.settings.autoNext=!S.settings.autoNext; $('swAutoNext').classList.toggle('on'); persist(); };
   $('swBeep').onclick=()=>{ S.settings.beep=!S.settings.beep; $('swBeep').classList.toggle('on'); persist(); };
+  $('swAutoSerial').onclick=()=>{ S.settings.autoSerial=!S.settings.autoSerial; $('swAutoSerial').classList.toggle('on'); persist(); if(S.settings.autoSerial) autoConnectSerial(); };
 
   document.addEventListener('keydown',e=>{ const tag=(e.target.tagName||'').toLowerCase(); if(tag==='input'||tag==='textarea'||tag==='select') return;
     if(e.code==='Space'){ e.preventDefault(); handleImpulse('start',null); flash('trigStart'); }
@@ -1598,6 +1632,7 @@ function init(){
   window.addEventListener('beforeunload',e=>{ if(S.racers.length){ e.preventDefault(); e.returnValue=''; } });
   updateNetUI();
   if(NET.master && NET.token && location.protocol!=='file:'){ netStartMaster(); }
+  initSerialAuto();
   logEvent("Bereit. Läufer hinzufügen, verbinden oder Simulation testen. Taste B = Anzeigetafel.","ev-info");
 }
 /* board label uses combined when on run 2 with run1 results */
