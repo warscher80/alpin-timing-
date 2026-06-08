@@ -528,6 +528,23 @@
     <div class="fld"><label>Status</label><div id="netStatus" class="hint">—</div></div>
     <div class="fld"><label>Öffentlicher Link / Anzeigen</label><div id="netLinks" class="hint">…</div>
       <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" id="btnOpenStart2">Start-Ansicht</button><button class="btn sm" id="btnOpenResults2">Live-Ergebnisse</button></div></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ LED-Anzeigetafel (serieller Ausgang)</label>
+      <div class="hint">Schickt laufende Zeit / Zielzeit an eine physische LED-Tafel am Ziel (zweiter serieller Anschluss, RS-232 / USB-Adapter). Nur Chrome/Edge am PC. Standard: aus.</div></div>
+    <div class="fld"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn sm" id="btnDispConnect">Tafel verbinden</button><span id="dispStatus" class="hint" style="margin:0">nicht verbunden</span></div></div>
+    <div class="fld"><label>Baudrate Tafel</label><select id="dispBaud"><option>1200</option><option>2400</option><option>4800</option><option selected>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option></select>
+      <div class="hint">Muss zur Tafel passen (steht meist im Handbuch / DIP-Schalter).</div></div>
+    <div class="fld"><label>Vorlage</label><select id="dispPreset">
+      <option value="{ss}.{cc}\r">Zeit · SS.cc · + CR</option>
+      <option value="{mm}:{ss}.{cc}\r">Zeit · M:SS.cc · + CR</option>
+      <option value="{bib} {ss}.{cc}\r">Startnr + Zeit · + CR</option>
+      <option value="{time}\r\n">Zeit · + CR/LF</option>
+      <option value="__custom__">Eigenes …</option>
+    </select></div>
+    <div class="fld"><label>Format (Zeichenkette an die Tafel)</label><input id="dispFormat" value="{ss}.{cc}\r" spellcheck="false">
+      <div class="hint">Platzhalter: <code>{time}</code> ganze Zeit · <code>{mm}</code> Min · <code>{ss}</code> Sek · <code>{cc}</code> Hundertstel · <code>{cs}</code> .cc · <code>{bib}</code> Startnr. Steuerzeichen: <code>\r</code> <code>\n</code> <code>\t</code>.</div></div>
+    <div class="fld"><label>Im Leerlauf (niemand auf der Strecke)</label><select id="dispIdle"><option value="zeros">Nullen senden (0.00)</option><option value="blank">Leer senden</option></select></div>
+    <div class="fld"><div style="display:flex;gap:8px;align-items:center"><button class="btn sm" id="btnDispTest">Test senden</button><span class="hint" style="margin:0">Was gerade rausgeht (sichtbar gemacht):</span></div>
+      <div class="codeblock" id="dispLast" style="margin-top:6px">—</div></div>
     <div class="fld" style="margin-top:20px"><label>Datenformat der Hardware</label>
       <div class="codeblock">S 1043920   → Start  (+ HW-Zeit ms)
 Z 1047500   → Zwischenzeit
@@ -586,7 +603,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.2";
+const VERSION="1.3";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -598,8 +615,11 @@ const S = {
   meta:{organizer:'',location:'',date:'',discipline:'Slalom',referee:'',setter:'',gates:'',weather:'',snow:'',tempS:'',tempF:''}, licensee:'',
   settings:{ baud:115200, startKeys:["S","START","C0","IMP1","A"], interKeys:["Z","ZW","INT","C1","IMP2"],
     finishKeys:["F","FIN","ZIEL","C2","IMP3","B"], lockStart:1000,lockInter:1000,lockFinish:1500,
-    decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true }
+    decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true,
+    disp:{ baud:9600, format:"{ss}.{cc}\\r", idle:"zeros", holdMs:5000 } }
 };
+/* Laufzeit-Status für die LED-Anzeigetafel (serieller Ausgang) */
+const DISP={ port:null, writer:null, active:false, busy:false, _t:0, freeze:null };
 
 const $=id=>document.getElementById(id);
 const now=()=>performance.now();
@@ -723,6 +743,7 @@ function doFinish(sw,hw){
   else { c.runMs=c.finSW-c.startSW; c.src='SW'; }
   if(c.runMs<0) c.runMs=null;
   c.state='finished'; S.onCourse.shift(); S.history.push({type:'finish',id:r.id,run:S.activeRun});
+  if(DISP.active && c.runMs!=null) DISP.freeze={bib:String(r.bib),time:c.runMs,until:now()+(S.settings.disp.holdMs||5000)};
   logEvent(`ZIEL · Nr ${r.bib} ${r.name} → ${fmt(c.runMs)} [${c.src}]`,'ev-finish');
   flashBoard(`Ziel Nr ${r.bib} ${r.name}: ${fmt(c.runMs)}`);
   if(c.runMs!=null && $('board').classList.contains('show') && isNewLeader(r)){ leadFlash(); flashBoard(`★ BESTZEIT · Nr ${r.bib} ${r.name} · ${fmt(c.runMs)}`,true); }
@@ -929,6 +950,45 @@ async function disconnectSerial(){ S.keepReading=false; try{ if(S.reader) await 
   try{ if(S.port) await S.port.close(); }catch(e){} S.port=null; S.reader=null; setConn(false,false,"Nicht verbunden"); logEvent("Hardware getrennt","ev-info"); }
 function setConn(on,sim,label){ $('connDot').className='dot'+(on?' on':'')+(sim?' sim':''); $('connLabel').textContent=label; $('btnConnect').textContent=on?"Trennen":"Hardware verbinden"; }
 
+/* ===== LED-Anzeigetafel: serieller Ausgang (zweiter Port) ===== */
+function dispEscapes(s){ return String(s).replace(/\\r/g,'\r').replace(/\\n/g,'\n').replace(/\\t/g,'\t'); }
+function dispVisible(s){ return String(s).replace(/\r/g,'\\r').replace(/\n/g,'\\n').replace(/\t/g,'\\t')||'(leer)'; }
+function dispRender(){
+  const cfg=S.settings.disp, tNow=now(); let bib='', ms=null, idle=false;
+  if(DISP.freeze && tNow<DISP.freeze.until){ bib=DISP.freeze.bib; ms=DISP.freeze.time; }
+  else if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget); if(r&&cur(r).startSW!=null){ bib=String(r.bib); ms=tNow-cur(r).startSW; } }
+  if(ms==null){ idle=true; ms=0; bib=''; }
+  if(ms<0) ms=0;
+  const p=fmtParts(ms), cc=p.cs.replace('.',''), total=ms/1000, mm=Math.floor(total/60), ss=Math.floor(total-mm*60);
+  const rep={ '{time}':p.main+p.cs, '{bib}':bib, '{cc}':cc, '{cs}':p.cs,
+    '{mm}':String(mm).padStart(2,'0'), '{ss}':String(ss).padStart(2,'0'), '{sp}':' ' };
+  let out=cfg.format||''; Object.keys(rep).forEach(k=> out=out.split(k).join(rep[k]));
+  out=dispEscapes(out);
+  if(idle && cfg.idle==='blank') out=out.replace(/[^\r\n\t]/g,' ');
+  return out;
+}
+async function dispWrite(str){ if(!DISP.writer) return; try{ await DISP.writer.write(new TextEncoder().encode(str)); }
+  catch(e){ logEvent("Tafel-Sendefehler: "+e.message,"ev-warn"); dispDisconnect(); } }
+function dispTickSend(){ if(!DISP.active||!DISP.writer||DISP.busy) return; const s=dispRender();
+  const el=$('dispLast'); if(el) el.textContent=dispVisible(s);
+  DISP.busy=true; dispWrite(s).finally(()=>{ DISP.busy=false; }); }
+function dispStart(){ clearInterval(DISP._t); DISP._t=setInterval(dispTickSend,100); }
+async function dispConnect(){
+  if(DISP.port){ await dispDisconnect(); return; }
+  if(!('serial' in navigator)){ toast("Web Serial nur in Chrome/Edge"); return; }
+  try{ const port=await navigator.serial.requestPort(); await port.open({baudRate:S.settings.disp.baud});
+    DISP.port=port; DISP.writer=port.writable.getWriter(); DISP.active=true; dispUpdateUI();
+    logEvent("LED-Tafel verbunden ("+S.settings.disp.baud+" Baud)","ev-info"); dispStart();
+  }catch(e){ logEvent("Tafel: "+e.message,"ev-warn"); }
+}
+async function dispDisconnect(){ DISP.active=false; clearInterval(DISP._t);
+  try{ if(DISP.writer){ await DISP.writer.close(); } }catch(e){ try{ DISP.writer.releaseLock(); }catch(_){} }
+  try{ if(DISP.port) await DISP.port.close(); }catch(e){} DISP.port=null; DISP.writer=null; dispUpdateUI(); logEvent("LED-Tafel getrennt","ev-info"); }
+function dispUpdateUI(){ const b=$('btnDispConnect'), st=$('dispStatus'); if(b) b.textContent=DISP.port?"Tafel trennen":"Tafel verbinden";
+  if(st) st.innerHTML=DISP.port?'<span style="color:var(--green)">● verbunden · '+S.settings.disp.baud+' Baud</span>':'nicht verbunden'; }
+function dispTest(){ if(!DISP.writer){ toast("Erst Tafel verbinden"); return; }
+  const s=dispRender(); const el=$('dispLast'); if(el) el.textContent=dispVisible(s); dispWrite(s); toast("Testzeile an Tafel gesendet"); }
+
 /* Simulation */
 function toggleSim(){
   if(S.sim){ S.sim=false; S.simTimers.forEach(clearTimeout); S.simTimers=[]; $('btnSim').classList.remove('primary'); $('btnSim').textContent="Simulation";
@@ -1058,6 +1118,8 @@ const HELP=[
  {t:"Ergebnisse drucken / PDF / Urkunde", h:`<p><b>🖨</b> bei den Ergebnissen erzeugt die offizielle Liste mit Veranstaltungsdaten und Unterschriftenzeilen. Im Druckdialog „Als PDF speichern" wählen. Veranstaltungsdaten (Ort, Datum, Schiedsrichter …) in Einstellungen ⚙.</p>`},
  {t:"CSV / Excel-Export", h:`<p><b>CSV</b> bei den Ergebnissen exportiert alle Zeiten inkl. Gesamt- und Klassenrang – in Excel/Numbers öffenbar.</p>`},
  {t:"Anzeigetafel / Beamer", h:`<p>Knopf <b>Anzeigetafel</b> oder Taste <span class="kbd">B</span>: Vollbild mit aktuellem Läufer, großer Uhr, Live-Zwischenzeit und Top-Liste – für TV/Beamer am Zielgelände.</p>`},
+ {t:"LED-Anzeigetafel ansteuern (rote Ziel-Tafel)", h:`<p>Für eine <b>physische LED-Tafel</b> am Ziel: Einstellungen ⚙ → <b>LED-Anzeigetafel (serieller Ausgang)</b> → <b>Tafel verbinden</b> (zweiter serieller Anschluss / USB-Adapter, getrennt von der Lichtschranke). <b>Baudrate</b> wie im Tafel-Handbuch einstellen.</p>
+   <p>Mit der <b>Vorlage</b>/dem <b>Format</b> bestimmst du die Zeichenkette, die laufend an die Tafel geht – Platzhalter <code>{time}</code>, <code>{mm}</code>, <code>{ss}</code>, <code>{cc}</code>, <code>{bib}</code> und Steuerzeichen <code>\\r</code> <code>\\n</code>. Das Feld <b>„Was rausgeht"</b> zeigt dir live die gesendete Zeile; mit <b>Test senden</b> prüfst du die Tafel. Beim Ziel friert die Endzeit kurz ein. Passt das Format nicht zur Tafel, einfach anpassen, bis die richtigen Ziffern erscheinen.</p>`},
  {t:"Start-Ansicht (Tablet am Start)", h:`<p>Adresse <code>…/?room=DEINBENUTZER#start</code> – reine Anzeige: wer ist bereit, wer ist auf der Strecke. „Vollbild" für die Tablet-Ansicht. Nur zum Schauen; nichts bedienen.</p>`},
  {t:"LiveTiming – öffentlicher Link teilen", h:`<p>Knopf <b>🔗 LiveTiming</b> zeigt den öffentlichen Link (<code>…/?room=DEINBENUTZER#results</code>) mit <b>Link kopieren</b>. Diesen Link teilen – Zuschauer sehen die Zeiten live, ohne Anmeldung, nur ansehen.</p>`},
  {t:"Konto & Anmeldung (keine PIN)", h:`<p>Statt PIN gibt es <b>Benutzerkonten</b>. Einstellungen ⚙ → <b>Vernetzung &amp; Konto</b> → Benutzer + Passwort → <b>Registrieren</b> (erstmalig) bzw. <b>Anmelden</b>. Ein Konto = ein Rennen. Wer mit dem Konto angemeldet ist, darf senden; Zuschauer brauchen kein Konto.</p>`},
@@ -1092,7 +1154,11 @@ function applySettingsToUI(){ $('setRuns').value=S.numRuns; $('setBaud').value=S
   $('setFinishKeys').value=S.settings.finishKeys.join(','); $('setLockStart').value=S.settings.lockStart;
   $('setLockInter').value=S.settings.lockInter; $('setLockFinish').value=S.settings.lockFinish; $('setDecimals').value=S.settings.decimals;
   $('swInter').classList.toggle('on',S.settings.hasInter); $('swHwTs').classList.toggle('on',S.settings.useHwTs);
-  $('swAutoNext').classList.toggle('on',S.settings.autoNext); $('swBeep').classList.toggle('on',S.settings.beep); }
+  $('swAutoNext').classList.toggle('on',S.settings.autoNext); $('swBeep').classList.toggle('on',S.settings.beep);
+  if(!S.settings.disp) S.settings.disp={baud:9600,format:"{ss}.{cc}\\r",idle:"zeros",holdMs:5000};
+  const dp=S.settings.disp; if($('dispBaud')){ $('dispBaud').value=dp.baud||9600; $('dispFormat').value=dp.format||''; $('dispIdle').value=dp.idle||'zeros';
+    const ps=$('dispPreset'), vals=[...ps.options].map(o=>o.value); ps.value=vals.includes(dp.format)?dp.format:'__custom__'; }
+  if(typeof dispUpdateUI==='function') dispUpdateUI(); }
 function readSettingsFromUI(){
   const newRuns=parseInt($('setRuns').value);
   if(newRuns!==S.numRuns){ S.numRuns=newRuns; S.racers.forEach(migrate); if(S.activeRun>=S.numRuns) S.activeRun=0;
@@ -1109,6 +1175,8 @@ function readSettingsFromUI(){
   const m=S.meta; m.organizer=$('mOrg').value; m.location=$('mLoc').value; m.date=$('mDate').value; m.discipline=$('mDisc').value;
   m.referee=$('mRef').value; m.setter=$('mSetter').value; m.gates=$('mGates').value; m.weather=$('mWeather').value; m.snow=$('mSnow').value;
   m.tempS=$('mTempS').value; m.tempF=$('mTempF').value; S.licensee=$('mLic').value;
+  if(!S.settings.disp) S.settings.disp={};
+  const dp=S.settings.disp; if($('dispBaud')){ dp.baud=parseInt($('dispBaud').value)||9600; dp.format=$('dispFormat').value; dp.idle=$('dispIdle').value; if(dp.holdMs==null) dp.holdMs=5000; }
   persist(); renderAll();
 }
 
@@ -1385,7 +1453,10 @@ function init(){
   const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); };
   const closeD=()=>{ $('drawer').classList.remove('open'); $('overlay').classList.remove('show'); readSettingsFromUI(); refreshBoard(); };
   $('btnSettings').onclick=openD; $('btnCloseSettings').onclick=closeD; $('overlay').onclick=closeD;
-  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  $('btnDispConnect').onclick=dispConnect; $('btnDispTest').onclick=dispTest;
+  $('dispPreset').onchange=()=>{ const v=$('dispPreset').value; if(v!=='__custom__'){ $('dispFormat').value=v; } readSettingsFromUI(); };
+  $('dispFormat').addEventListener('input',()=>{ const el=$('dispLast'); if(el && DISP.active) el.textContent=dispVisible(dispRender()); });
   $('swInter').onclick=()=>{ S.settings.hasInter=!S.settings.hasInter; $('swInter').classList.toggle('on'); renderAll(); persist(); };
   $('swHwTs').onclick=()=>{ S.settings.useHwTs=!S.settings.useHwTs; $('swHwTs').classList.toggle('on'); persist(); };
   $('swAutoNext').onclick=()=>{ S.settings.autoNext=!S.settings.autoNext; $('swAutoNext').classList.toggle('on'); persist(); };
