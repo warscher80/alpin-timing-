@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ALPIN TIMING PRO — Skirennen Zeitnahme</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230e1620'/><circle cx='32' cy='33' r='20' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='9' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='30.5' y='52' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='51' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><rect x='8' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><path d='M20,41L27,29L32,34L37,27L44,41Z' fill='url(%23a)'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=Saira+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#080b0f; --panel:#10161d; --panel2:#0c1117; --line:#1d2730;
+    --ink:#e8eef2; --dim:#7e8c98; --dimmer:#4d5862;
+    --green:#00e58a; --green-dim:#0a7a4d; --cyan:#22d3ee;
+    --amber:#ffb020; --red:#ff4d4d; --blue:#4d8cff;
+    --mono:'JetBrains Mono',ui-monospace,'SF Mono',Consolas,monospace;
+    --sans:'Saira',system-ui,sans-serif;
+    --cond:'Saira Condensed','Saira',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #0e2a24 0%, transparent 55%),
+      radial-gradient(900px 500px at -10% 110%, #142033 0%, transparent 50%),
+      var(--bg);
+    color:var(--ink); font-family:var(--sans); font-size:15px;
+    background-attachment:fixed; -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.035;
+    background-image:linear-gradient(var(--ink) 1px,transparent 1px),linear-gradient(90deg,var(--ink) 1px,transparent 1px);
+    background-size:46px 46px;
+  }
+  body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.06;
+    background-repeat:no-repeat; background-position:center 44%; background-size:min(62vw,560px);
+    background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><circle cx='32' cy='33' r='22' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='7' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='30.5' y='53.5' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='53.5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><rect x='5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><path d='M19,42L27,28L32,34L37,26L45,42Z' fill='url(%23a)'/></svg>");
+  }
+  .credit{position:relative;z-index:1;text-align:center;margin-top:18px;padding-top:10px;color:var(--dimmer);font-size:11px;letter-spacing:.12em}
+  #updateBar{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:120;display:none;align-items:center;gap:12px;
+    background:#0e1620;border:1px solid rgba(0,229,138,.5);box-shadow:0 8px 30px rgba(0,0,0,.5);border-radius:12px;padding:9px 14px;font-size:13px}
+  #updateBar b{color:var(--green)}
+  #updateBar button{font:inherit;cursor:pointer;border-radius:8px;padding:6px 10px;border:1px solid var(--line);background:#101820;color:var(--ink)}
+  #updateBar button.primary{background:linear-gradient(135deg,var(--green),var(--cyan));color:#04130d;border:none;font-weight:700}
+  .wrap{position:relative;z-index:1;max-width:1760px;margin:0 auto;padding:16px 18px 40px}
+
+  header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:14px 18px;
+    border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,#121a22,#0c1117);
+    box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;
+    background:#0e1620;border:1px solid rgba(0,229,138,.55);box-shadow:0 0 22px rgba(0,229,138,.28)}
+  .logo svg{width:30px;height:30px;display:block}
+  .bd-logo{width:38px;height:38px;display:block;margin-right:4px;flex:0 0 auto}
+  .brand h1{font-family:var(--cond);font-weight:800;font-size:21px;letter-spacing:.05em;line-height:1}
+  .brand .sub{font-size:10px;color:var(--dim);letter-spacing:.2em;text-transform:uppercase}
+  .race-name{background:transparent;border:none;border-bottom:1px dashed var(--line);color:var(--ink);
+    font-family:var(--cond);font-size:18px;font-weight:700;padding:4px 6px;min-width:150px;letter-spacing:.04em}
+  .race-name:focus{outline:none;border-bottom-color:var(--green)}
+  .runsel{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .runsel button{padding:8px 14px;background:#0c1117;color:var(--dim);font-family:var(--cond);font-weight:700;
+    letter-spacing:.08em;font-size:14px;border:none;border-right:1px solid var(--line)}
+  .runsel button:last-child{border-right:none}
+  .runsel button.act{background:var(--green);color:#04110c}
+  .spacer{flex:1}
+  .tod{font-family:var(--mono);font-size:14px;color:var(--dim);font-weight:500}
+  .tod b{color:var(--ink)}
+  .conn{display:flex;align-items:center;gap:8px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--dimmer)}
+  .dot.on{background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 2s infinite}
+  .dot.sim{background:var(--amber);box-shadow:0 0 12px var(--amber)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .conn .label{font-size:12px;color:var(--dim);min-width:110px}
+
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:9px;font-weight:600}
+  .btn{padding:9px 13px;font-size:13px;letter-spacing:.03em;background:#1a242e;color:var(--ink);border:1px solid var(--line)}
+  .btn:hover{background:#212d39;border-color:#2c3a47}
+  .btn.primary{background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;border:none}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent}
+  .btn.warn{color:var(--amber);border-color:#3a2f12}
+  .btn.danger{color:var(--red);border-color:#3a1717}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.sm{padding:5px 9px;font-size:12px}
+
+  .grid{display:grid;grid-template-columns:1fr 1.4fr 1.05fr;gap:16px;margin-top:16px}
+  @media(max-width:1180px){.grid{grid-template-columns:1fr}}
+  .panel{border:1px solid var(--line);border-radius:14px;background:linear-gradient(180deg,var(--panel),var(--panel2));
+    overflow:hidden;display:flex;flex-direction:column;min-height:200px}
+  .phead{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}
+  .phead h2{font-family:var(--cond);font-size:15px;font-weight:700;letter-spacing:.16em;text-transform:uppercase}
+  .phead .count{font-family:var(--mono);font-size:12px;color:var(--dim);background:#0c1117;border:1px solid var(--line);padding:2px 8px;border-radius:20px}
+  .phead .ph-actions{margin-left:auto;display:flex;gap:6px}
+  .pbody{padding:12px 14px;overflow:auto;flex:1}
+
+  .add-row{display:grid;grid-template-columns:54px 1fr 64px auto;gap:6px;margin-bottom:10px}
+  .add-row input{background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:7px 8px;font-family:var(--mono);font-size:13px}
+  .add-row input:focus{outline:none;border-color:var(--green)}
+  .add-row .nm{font-family:var(--sans)}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dimmer);text-align:left;padding:6px 8px;font-weight:600}
+  td{padding:7px 8px;border-top:1px solid var(--line);font-size:14px;vertical-align:middle}
+  .bib{font-family:var(--mono);font-weight:700;color:var(--cyan)}
+  tr.next td{background:rgba(0,229,138,.08)} tr.next .bib{color:var(--green)}
+  .pill{font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;font-weight:600;font-family:var(--mono);white-space:nowrap}
+  .pill.idle{color:var(--dim);background:#11181f;border:1px solid var(--line)}
+  .pill.ready{color:#03130c;background:var(--green)}
+  .pill.running{color:#04110c;background:var(--amber)}
+  .pill.finished{color:var(--cyan);background:#0a2530;border:1px solid #134155}
+  .pill.DNF,.pill.DNS,.pill.DSQ{color:var(--red);background:#2a1414;border:1px solid #3a1717}
+  .rowbtns{display:flex;gap:4px;justify-content:flex-end}
+  .ib{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:3px 7px;font-size:11px}
+  .ib:hover{color:var(--ink);border-color:#2c3a47}
+  .ib.go:hover{color:var(--green);border-color:var(--green-dim)}
+
+  .timing{gap:14px}
+  .start-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#0a0f15}
+  .lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--dimmer);margin-bottom:6px}
+  .ready-name{font-family:var(--cond);font-size:26px;font-weight:800}
+  .ready-name .b{color:var(--green);margin-right:10px;font-family:var(--mono);font-size:22px}
+  .ready-empty{color:var(--dimmer);font-style:italic;font-weight:500;font-size:18px;font-family:var(--sans)}
+
+  .bigclock{text-align:center;padding:8px 0 2px}
+  .bigclock .who{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);min-height:16px}
+  .bigclock .t{font-family:var(--mono);font-weight:800;font-size:clamp(46px,7.5vw,82px);line-height:1;
+    font-variant-numeric:tabular-nums;color:var(--ink);text-shadow:0 0 30px rgba(0,229,138,.18)}
+  .bigclock .t.live{color:var(--green);text-shadow:0 0 34px rgba(0,229,138,.4)}
+  .bigclock .t .cs{color:var(--dim);font-size:.62em} .bigclock .t.live .cs{color:var(--green-dim)}
+  .splitline{font-family:var(--mono);font-size:14px;color:var(--dim);min-height:20px;margin-top:4px}
+  .delta.pos{color:var(--red)} .delta.neg{color:var(--green)}
+
+  .triggers{display:grid;gap:10px}
+  .triggers.three{grid-template-columns:1fr 1fr 1fr}
+  .triggers.two{grid-template-columns:1fr 1fr}
+  .trig{border-radius:12px;padding:14px 10px;text-align:center;border:1px solid var(--line);background:#0a0f15;user-select:none;transition:transform .05s}
+  .trig:active{transform:scale(.97)}
+  .trig .k{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer)}
+  .trig .big{font-family:var(--cond);font-weight:800;font-size:23px;letter-spacing:.06em;margin-top:4px}
+  .trig.start{background:linear-gradient(180deg,#0c2018,#0a0f15)} .trig.start .big{color:var(--green)} .trig.start:hover{border-color:var(--green-dim)}
+  .trig.inter{background:linear-gradient(180deg,#0a1a22,#0a0f15)} .trig.inter .big{color:var(--cyan)} .trig.inter:hover{border-color:#134155}
+  .trig.finish{background:linear-gradient(180deg,#221a08,#0a0f15)} .trig.finish .big{color:var(--amber)} .trig.finish:hover{border-color:#3a2f12}
+
+  .oncourse{border:1px solid var(--line);border-radius:12px;background:#0a0f15;overflow:hidden}
+  .oncourse .h{display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer)}
+  .oc-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border-top:1px solid #141c24}
+  .oc-row:first-child{border-top:none} .oc-row.lead{background:rgba(255,176,32,.06)}
+  .oc-row .bib{min-width:30px} .oc-row .nm{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .oc-row .sp{font-family:var(--mono);font-size:12px;color:var(--cyan);min-width:64px;text-align:right}
+  .oc-row .tm{font-family:var(--mono);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;color:var(--amber);min-width:74px;text-align:right}
+  .oc-empty{padding:18px 13px;text-align:center;color:var(--dimmer);font-style:italic}
+
+  .viewsel{display:flex;gap:4px}
+  .viewsel button{padding:4px 9px;font-size:11px;background:#0c1117;color:var(--dim);border:1px solid var(--line);border-radius:7px;font-family:var(--cond);letter-spacing:.06em;font-weight:700}
+  .viewsel button.act{background:#16212b;color:var(--ink);border-color:#2c3a47}
+  .classsel{background:#0c1117;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:4px 8px;font-family:var(--cond);font-weight:700;letter-spacing:.04em;font-size:12px}
+  .classsel:focus{outline:none;border-color:var(--green)}
+  .res-row .rank{font-family:var(--mono);font-weight:800;color:var(--dim);width:24px}
+  .res-row.p1 .rank{color:#ffd24d}.res-row.p2 .rank{color:#d7e0e6}.res-row.p3 .rank{color:#d8954b}
+  .res-row .tm{font-family:var(--mono);font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;cursor:pointer}
+  .res-row .tm:hover{color:var(--green)}
+  .res-row .diff{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right}
+  .res-row.out .tm{color:var(--red)}
+  .src-tag{font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:4px;margin-left:5px}
+  .src-tag.hw{color:var(--green);background:#0a2018}.src-tag.sw{color:var(--amber);background:#221a08}.src-tag.hand{color:var(--blue);background:#0c1626}
+
+  .logwrap{margin-top:16px}
+  .log{font-family:var(--mono);font-size:12px;line-height:1.7;max-height:140px;overflow:auto;color:var(--dim)}
+  .log .ts{color:var(--dimmer)}
+  .log .ev-start{color:var(--green)}.log .ev-finish{color:var(--amber)}.log .ev-inter{color:var(--cyan)}
+  .log .ev-warn{color:var(--red)}.log .ev-info{color:var(--blue)}
+
+  .drawer{position:fixed;top:0;right:0;height:100%;width:390px;max-width:92vw;z-index:50;
+    background:linear-gradient(180deg,#0e151c,#0a0f15);border-left:1px solid var(--line);
+    transform:translateX(100%);transition:transform .25s ease;overflow:auto;box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+  .drawer.open{transform:translateX(0)}
+  .drawer .dh{display:flex;align-items:center;padding:16px;border-bottom:1px solid var(--line)}
+  .drawer .dh h3{font-family:var(--cond);letter-spacing:.14em;text-transform:uppercase;font-size:16px}
+  .drawer .db{padding:16px}
+  .fld{margin-bottom:16px}
+  .fld label{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:6px}
+  .fld input,.fld select{width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font-family:var(--mono);font-size:13px}
+  .fld input:focus,.fld select:focus{outline:none;border-color:var(--green)}
+  .fld .hint{font-size:11px;color:var(--dimmer);margin-top:5px;font-family:var(--sans);line-height:1.5}
+  .toggle{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #141c24}
+  .toggle span{font-size:13px}
+  .sw{width:42px;height:23px;border-radius:20px;background:#1d2730;position:relative;transition:background .2s;cursor:pointer;flex:none}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:19px;height:19px;border-radius:50%;background:#5a6772;transition:.2s}
+  .sw.on{background:var(--green-dim)} .sw.on::after{left:21px;background:var(--green)}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s}
+  .overlay.show{opacity:1;pointer-events:auto}
+  .codeblock{background:#070a0e;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:var(--mono);font-size:11px;color:var(--green);white-space:pre;overflow:auto;line-height:1.5}
+  .kbd{font-family:var(--mono);font-size:11px;background:#0a0f15;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;color:var(--ink)}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#121a22;border:1px solid var(--line);color:var(--ink);padding:11px 18px;border-radius:10px;font-size:13px;z-index:90;opacity:0;transition:.25s;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .hidden{display:none!important}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#1d2730;border-radius:10px}
+  .foot{margin-top:18px;text-align:center;color:var(--dimmer);font-size:11px}
+
+  /* Scoreboard */
+  #board{position:fixed;inset:0;z-index:80;background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient><g id='m' opacity='0.07'><circle cx='32' cy='33' r='22' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='7' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='30.5' y='53.5' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='53.5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><rect x='5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><path d='M19,42L27,28L32,34L37,26L45,42Z' fill='url(%23a)'/></g></defs><use href='%23m'/></svg>") center 46%/min(46vw,520px) no-repeat, radial-gradient(1400px 800px at 50% -20%,#0e2a24,transparent 60%),#05080b;
+    display:none;flex-direction:column;padding:3vw 4vw}
+  #board.show{display:flex}
+  .bd-top{display:flex;align-items:baseline;gap:20px;border-bottom:1px solid #18222b;padding-bottom:2vh}
+  .bd-credit{position:absolute;right:4vw;bottom:2vh;color:#46586a;font-size:13px;letter-spacing:.14em;z-index:1}
+  .bd-top h2{font-family:var(--cond);font-size:4vw;letter-spacing:.04em;color:var(--ink)}
+  .bd-top .run{font-family:var(--cond);font-size:2vw;color:var(--green);letter-spacing:.1em}
+  .bd-top .x{margin-left:auto;font-size:1.4vw;color:var(--dim);cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:.6vw 1.2vw}
+  .bd-main{flex:1;display:grid;grid-template-columns:1.3fr 1fr;gap:4vw;align-items:center}
+  .bd-cur .lbl2{font-size:1.4vw;letter-spacing:.2em;color:var(--dimmer);text-transform:uppercase}
+  .bd-cur .nm{font-family:var(--cond);font-size:4.5vw;font-weight:800;line-height:1.05}
+  .bd-cur .nm .b{color:var(--green);margin-right:1.5vw;font-family:var(--mono)}
+  .bd-clock{font-family:var(--mono);font-weight:800;font-size:13vw;line-height:1;color:var(--green);
+    font-variant-numeric:tabular-nums;text-shadow:0 0 50px rgba(0,229,138,.4)}
+  .bd-clock.idle{color:var(--ink);text-shadow:none}
+  .bd-clock .cs{font-size:.6em;color:var(--green-dim)}
+  .bd-split{font-family:var(--mono);font-size:2.4vw;color:var(--cyan);min-height:3vw}
+  .bd-split .delta.pos{color:var(--red)} .bd-split .delta.neg{color:var(--green)}
+  .bd-board .lbl2{font-size:1.4vw;letter-spacing:.2em;color:var(--dimmer);text-transform:uppercase;margin-bottom:1vh}
+  .bd-li{display:flex;align-items:center;gap:1.5vw;font-size:2vw;padding:.7vh 0;border-bottom:1px solid #11181f}
+  .bd-li .r{font-family:var(--mono);color:var(--dim);width:2.5vw}
+  .bd-li.p1 .r{color:#ffd24d}.bd-li.p2 .r{color:#d7e0e6}.bd-li.p3 .r{color:#d8954b}
+  .bd-li .bb{font-family:var(--mono);color:var(--cyan);width:3vw}
+  .bd-li .nn{flex:1;font-family:var(--cond);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bd-li .tt{font-family:var(--mono);font-weight:700}
+  .bd-flash{position:absolute;bottom:3vh;left:4vw;right:4vw;text-align:center;font-family:var(--cond);font-size:2.2vw;color:var(--amber);opacity:0;transition:opacity .3s}
+  .bd-flash.show{opacity:1}
+
+  /* Modal (Hilfe/Info) */
+  .modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);z-index:70;width:560px;max-width:94vw;max-height:88vh;overflow:auto;
+    background:linear-gradient(180deg,#0e151c,#0a0f15);border:1px solid var(--line);border-radius:16px;box-shadow:0 30px 80px rgba(0,0,0,.6);opacity:0;pointer-events:none;transition:.2s}
+  .modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .modal .dh{display:flex;align-items:center;padding:16px;border-bottom:1px solid var(--line)}
+  .modal .dh h3{font-family:var(--cond);letter-spacing:.12em;text-transform:uppercase;font-size:17px}
+  .modal .mb{padding:18px 20px;line-height:1.6;font-size:14px;color:var(--ink)}
+  .modal .mb h4{font-family:var(--cond);letter-spacing:.1em;text-transform:uppercase;font-size:13px;color:var(--green);margin:16px 0 6px}
+  .modal .mb .ver{color:var(--dim);font-family:var(--mono);font-size:12px}
+  .modal .mb ol{margin:0 0 4px 18px} .modal .mb li{margin-bottom:4px}
+  .modal .mb code{font-family:var(--mono);font-size:12px;background:#0a0f15;padding:1px 5px;border-radius:4px;color:var(--cyan)}
+  .modal .mb .disc{margin-top:16px;padding:12px;border:1px solid #3a2f12;background:#1a1408;border-radius:8px;font-size:12.5px;color:#d8c08a}
+  .help-search{position:sticky;top:0;padding:12px 16px;background:linear-gradient(180deg,#0e151c,#0e151cf0);border-bottom:1px solid var(--line);z-index:2}
+  .help-search input{width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:10px 12px;font-family:var(--sans);font-size:14px}
+  .help-search input:focus{outline:none;border-color:var(--green)}
+  .help-sec{padding:12px 0;border-bottom:1px solid #141c24}
+  .help-sec:last-child{border-bottom:none}
+  .help-sec h4{margin:0 0 6px}
+  .help-sec p,.help-sec ol,.help-sec ul{margin:0 0 6px} .help-sec li{margin-bottom:3px}
+  .help-none{color:var(--dimmer);font-style:italic;padding:14px 0}
+
+  /* Print result sheet */
+  #printsheet{display:none}
+  @media print{
+    body{background:#fff!important}
+    body::before,body::after,.wrap,.drawer,.overlay,#board,.modal,.toast,#fileInput{display:none!important}
+    #printsheet{display:block!important;color:#000;font-family:Georgia,'Times New Roman',serif;padding:0;margin:0}
+    #printsheet *{color:#000!important}
+    .ps-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #000;padding-bottom:10px;margin-bottom:6px}
+    .ps-title{font-size:24px;font-weight:700;font-family:Arial,sans-serif;letter-spacing:.02em}
+    .ps-sub{font-size:13px;color:#333;margin-top:3px;font-family:Arial,sans-serif}
+    .ps-org{text-align:right;font-size:12px;font-family:Arial,sans-serif}
+    .ps-meta{display:flex;flex-wrap:wrap;gap:4px 26px;font-size:11px;font-family:Arial,sans-serif;margin:8px 0 14px;color:#222}
+    .ps-meta b{color:#000}
+    #printsheet table{width:100%;border-collapse:collapse;font-size:12.5px}
+    #printsheet thead th{border-bottom:2px solid #000;text-align:left;padding:5px 6px;font-family:Arial,sans-serif;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+    #printsheet tbody td{border-bottom:1px solid #bbb;padding:5px 6px}
+    #printsheet td.r,#printsheet th.r{text-align:right;font-variant-numeric:tabular-nums}
+    #printsheet .rk{font-weight:700}
+    #printsheet .out td{color:#777!important;font-style:italic}
+    .ps-foot{margin-top:18px;padding-top:8px;border-top:1px solid #000;display:flex;justify-content:space-between;font-size:10.5px;font-family:Arial,sans-serif;color:#333}
+    .ps-sign{margin-top:34px;display:flex;gap:60px;font-size:11px;font-family:Arial,sans-serif}
+    .ps-sign div{border-top:1px solid #000;padding-top:4px;min-width:180px}
+    .ps-cls{font-family:Arial,sans-serif;font-size:14px;font-weight:700;margin:18px 0 4px;border-bottom:1px solid #000;padding-bottom:2px}
+    @page{margin:16mm 14mm}
+  }
+
+  /* Read-only START view (separate window) */
+  #startview{position:fixed;inset:0;z-index:75;background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient><g id='m' opacity='0.06'><circle cx='32' cy='33' r='22' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='7' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='30.5' y='53.5' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='53.5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><rect x='5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><path d='M19,42L27,28L32,34L37,26L45,42Z' fill='url(%23a)'/></g></defs><use href='%23m'/></svg>") center 48%/min(42vw,460px) no-repeat,radial-gradient(1200px 700px at 50% -10%,#0e2a24,transparent 60%),#05080b;display:none;flex-direction:column;padding:2.5vw 3vw;color:var(--ink)}
+  #startview.show{display:flex}
+  .sv-top{display:flex;align-items:baseline;gap:18px;border-bottom:1px solid #18222b;padding-bottom:1.4vh}
+  .sv-top h2{font-family:var(--cond);font-size:3.2vw;letter-spacing:.04em}
+  .sv-top .tag{font-family:var(--cond);font-size:1.8vw;color:var(--green);letter-spacing:.16em}
+  .sv-top .run{font-family:var(--cond);font-size:1.4vw;color:var(--dim);letter-spacing:.1em}
+  .sv-top .right{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:1.05vw;color:var(--dim)}
+  .sv-top .ctrl{border:1px solid var(--line);border-radius:8px;padding:.5vw 1vw;cursor:pointer;color:var(--dim);font-size:1vw}
+  .sv-top .ctrl:hover{color:var(--ink);border-color:#2c3a47}
+  .sv-main{flex:1;display:grid;grid-template-columns:1.25fr 1fr;gap:3vw;padding-top:2vh}
+  .view-credit{position:absolute;right:3vw;bottom:1.6vh;color:#46586a;font-size:13px;letter-spacing:.14em;z-index:1}
+  .sv-ready{display:flex;flex-direction:column;justify-content:center}
+  .sv-ready .lbl{font-size:1.5vw;letter-spacing:.2em;text-transform:uppercase;color:var(--dimmer)}
+  .sv-ready .bib{font-family:var(--mono);font-size:9vw;font-weight:800;color:var(--green);line-height:1;text-shadow:0 0 40px rgba(0,229,138,.35);min-height:9vw}
+  .sv-ready .nm{font-family:var(--cond);font-size:4.5vw;font-weight:800;line-height:1.05;margin-top:.5vh}
+  .sv-ready .nm.empty{color:var(--dimmer);font-style:italic;font-size:3vw}
+  .sv-interval{margin-top:2.5vh;font-size:1.4vw;color:var(--dim)}
+  .sv-interval b{font-family:var(--mono);color:var(--amber);font-size:2.2vw;font-variant-numeric:tabular-nums}
+  .sv-side{display:flex;flex-direction:column;gap:2.5vh}
+  .sv-box{border:1px solid var(--line);border-radius:14px;background:rgba(10,15,21,.6);padding:1.4vw 1.6vw;flex:1;overflow:hidden}
+  .sv-box .h{font-size:1.15vw;letter-spacing:.16em;text-transform:uppercase;color:var(--dimmer);margin-bottom:1vh}
+  .sv-li{display:flex;align-items:center;gap:1.4vw;font-size:1.9vw;padding:.7vh 0;border-bottom:1px solid #11181f}
+  .sv-li .bb{font-family:var(--mono);color:var(--cyan);min-width:3vw}
+  .sv-li .nn{flex:1;font-family:var(--cond);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sv-li .tt{font-family:var(--mono);font-weight:700;color:var(--amber);font-variant-numeric:tabular-nums}
+  .sv-empty{color:var(--dimmer);font-style:italic;font-size:1.3vw;padding:1vh 0}
+  .sv-startbtn{margin-top:3vh;width:100%;padding:3.5vh 0;border-radius:16px;border:none;cursor:pointer;
+    background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;font-family:var(--cond);font-weight:800;
+    font-size:4vw;letter-spacing:.06em;box-shadow:0 0 50px rgba(0,229,138,.35);transition:filter .1s}
+  .sv-startbtn:active{filter:brightness(.9) saturate(1.2)}
+  .src-tag.net{color:#4d8cff;background:#0c1626}
+
+  /* Public results view */
+  #resultsview{position:fixed;inset:0;z-index:75;background:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient><g id='m' opacity='0.06'><circle cx='32' cy='33' r='22' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='7' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='30.5' y='53.5' width='3' height='5.5' rx='1.2' fill='url(%23a)'/><rect x='53.5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><rect x='5' y='31.5' width='5.5' height='3' rx='1.2' fill='url(%23a)'/><path d='M19,42L27,28L32,34L37,26L45,42Z' fill='url(%23a)'/></g></defs><use href='%23m'/></svg>") center 46%/min(42vw,460px) no-repeat,radial-gradient(1200px 700px at 50% -10%,#0a2230,transparent 60%),#05080b;display:none;flex-direction:column;padding:2vw 3vw;color:var(--ink)}
+  #resultsview.show{display:flex}
+  .rv-wrap{flex:1;overflow:auto;margin-top:1vh}
+  .rv-tabs{display:flex;gap:.6vw;flex-wrap:wrap;margin-top:1.4vh}
+  .rv-tab{font-family:var(--cond);font-weight:700;letter-spacing:.04em;font-size:1.3vw;padding:.5vh 1.2vw;border-radius:8px;
+    background:#0c1117;color:var(--dim);border:1px solid var(--line);cursor:pointer}
+  .rv-tab.act{background:var(--cyan);color:#04131a;border-color:var(--cyan)}
+  .rv-list{display:flex;flex-direction:column}
+  .rv-li{display:grid;grid-template-columns:3vw 4vw 1fr auto auto;align-items:center;gap:1.5vw;font-size:2vw;padding:.8vh 1vw;border-bottom:1px solid #11181f}
+  .rv-li .r{font-family:var(--mono);font-weight:800;color:var(--dim);text-align:right}
+  .rv-li.p1{background:rgba(255,210,77,.08)} .rv-li.p1 .r{color:#ffd24d}
+  .rv-li.p2 .r{color:#d7e0e6} .rv-li.p3 .r{color:#d8954b}
+  .rv-li .bb{font-family:var(--mono);color:var(--cyan)}
+  .rv-li .nn{font-family:var(--cond);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rv-li .tt{font-family:var(--mono);font-weight:800;font-variant-numeric:tabular-nums;min-width:7vw;text-align:right}
+  .rv-li .df{font-family:var(--mono);font-size:1.3vw;color:var(--dim);min-width:6vw;text-align:right}
+  .rv-empty{color:var(--dimmer);font-style:italic;font-size:1.6vw;padding:3vh 1vw}
+  .rv-foot{border-top:1px solid #18222b;padding-top:1.4vh;margin-top:1vh;font-size:1.4vw;color:var(--dim);display:flex;gap:1vw;align-items:center;flex-wrap:wrap;min-height:4vh}
+  .rv-foot-lbl{letter-spacing:.12em;text-transform:uppercase;font-size:1.1vw;color:var(--dimmer)}
+  .rv-foot .chip{font-family:var(--cond);background:rgba(255,176,32,.08);border:1px solid #2a2310;border-radius:8px;padding:.4vh 1vw;margin-right:.6vw}
+  .rv-foot .chip b{font-family:var(--mono);color:var(--cyan)} .rv-foot .chip i{font-family:var(--mono);color:var(--amber);font-style:normal}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="atg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00e58a"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+      <symbol id="atMark" viewBox="0 0 64 64">
+        <circle cx="32" cy="33" r="22" fill="none" stroke="url(#atg)" stroke-width="2.6"/>
+        <rect x="30.5" y="7" width="3" height="5.5" rx="1.2" fill="url(#atg)"/>
+        <rect x="30.5" y="53.5" width="3" height="5.5" rx="1.2" fill="url(#atg)"/>
+        <rect x="53.5" y="31.5" width="5.5" height="3" rx="1.2" fill="url(#atg)"/>
+        <rect x="5" y="31.5" width="5.5" height="3" rx="1.2" fill="url(#atg)"/>
+        <path d="M19 42 L27 28 L32 34 L37 26 L45 42 Z" fill="url(#atg)"/>
+      </symbol>
+    </defs>
+  </svg>
+  <header>
+    <div class="brand"><div class="logo"><svg viewBox="0 0 64 64"><use href="#atMark"/></svg></div>
+      <div><h1>ALPIN&nbsp;TIMING <span style="color:var(--green)">PRO</span></h1>
+      <div class="sub">Skirennen · Zeitnahme</div></div></div>
+    <input class="race-name" id="raceName" value="Rennen" spellcheck="false">
+    <div class="runsel" id="runsel"></div>
+    <div class="spacer"></div>
+    <div class="tod">Uhrzeit <b id="tod">--:--:--</b></div>
+    <div class="conn"><span class="dot" id="connDot"></span><span class="label" id="connLabel">Nicht verbunden</span></div>
+    <button class="btn primary" id="btnConnect">Hardware verbinden</button>
+    <button class="btn warn" id="btnSim">Simulation</button>
+    <button class="btn" id="btnBoard">Anzeigetafel</button>
+    <button class="btn" id="btnStartView" title="Reine Anzeige für den Start (eigenes Fenster)">Start-Ansicht</button>
+    <button class="btn primary" id="btnLive" title="Öffentlichen Link zum Live-Timing erzeugen und teilen">🔗 LiveTiming</button>
+    <button class="btn ghost" id="btnAbout" title="Hilfe & Info">?</button>
+    <button class="btn ghost" id="btnSettings" title="Einstellungen">⚙</button>
+  </header>
+
+  <div class="grid">
+    <section class="panel">
+      <div class="phead"><h2>Startliste</h2><span class="count" id="slCount">0</span>
+        <div class="ph-actions"><button class="btn sm ghost" id="btnPrintStart" title="Startliste drucken">🖨</button><button class="btn sm ghost" id="btnImport">Import</button><button class="btn sm ghost" id="btnClearList">Leeren</button></div></div>
+      <div class="pbody">
+        <div class="add-row"><input id="inBib" placeholder="Nr" inputmode="numeric"><input id="inName" class="nm" placeholder="Name"><input id="inCat" placeholder="Kat." list="catList"><button class="btn sm primary" id="btnAdd">+</button></div>
+        <datalist id="catList"><option value="U8"><option value="U10"><option value="U12"><option value="U14"><option value="U16"><option value="U18"><option value="U21"><option value="Herren"><option value="Damen"><option value="Senioren"></datalist>
+        <table><thead><tr><th>Nr</th><th>Name</th><th>Kat</th><th>Status</th><th></th></tr></thead><tbody id="startBody"></tbody></table>
+      </div>
+    </section>
+
+    <section class="panel timing">
+      <div class="phead"><h2 id="timingTitle">Zeitnahme · Lauf 1</h2><span class="count" id="ocCount">0 auf Strecke</span></div>
+      <div class="pbody timing">
+        <div class="start-card"><div class="lbl">Am Start (bereit)</div><div class="ready-name" id="readyName"><span class="ready-empty">— niemand bereit —</span></div></div>
+        <div class="bigclock"><div class="who" id="bigWho"></div><div class="t" id="bigClock">0<span class="cs">.00</span></div><div class="splitline" id="splitLine"></div></div>
+        <div class="triggers three" id="triggers">
+          <div class="trig start" id="trigStart"><div class="k">Start <span class="kbd">␣</span></div><div class="big">▶ START</div></div>
+          <div class="trig inter" id="trigInter"><div class="k">Zwischen <span class="kbd">M</span></div><div class="big">⏲ ZW</div></div>
+          <div class="trig finish" id="trigFinish"><div class="k">Ziel <span class="kbd">⏎</span></div><div class="big">⏱ ZIEL</div></div>
+        </div>
+        <div class="oncourse"><div class="h"><span style="flex:1">Auf der Strecke (FIFO)</span><span style="min-width:64px;text-align:right">Zw.</span><span style="min-width:74px;text-align:right">Laufzeit</span></div>
+          <div id="onCourseList"><div class="oc-empty">keine Läufer auf der Strecke</div></div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="phead"><h2>Ergebnisse</h2><span class="count" id="resCount">0</span>
+        <div class="ph-actions"><select id="classSel" class="classsel" title="Altersklasse"></select><div class="viewsel" id="viewsel"></div><button class="btn sm ghost" id="btnPrintRes" title="Offizielle Ergebnisliste drucken/PDF">🖨</button><button class="btn sm ghost" id="btnExport" title="CSV exportieren">CSV</button></div></div>
+      <div class="pbody">
+        <table><thead><tr><th>#</th><th>Nr</th><th>Name</th><th style="text-align:right">Zeit</th><th style="text-align:right">Diff</th></tr></thead><tbody id="resBody"></tbody></table>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel logwrap">
+    <div class="phead"><h2>Protokoll</h2><div class="ph-actions"><button class="btn sm ghost" id="btnSaveJson">Sichern</button><button class="btn sm ghost" id="btnLoadJson">Laden</button><button class="btn sm danger" id="btnReset">Reset</button></div></div>
+    <div class="pbody"><div class="log" id="log"></div></div>
+  </section>
+
+  <div class="foot">Tasten: <span class="kbd">␣</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎</span> Ziel · <span class="kbd">Z</span> rückgängig · <span class="kbd">B</span> Anzeigetafel · Zeit in Ergebnis anklicken = Handzeit eingeben</div>
+  <div class="credit">Made by Nico Warscher</div>
+</div>
+
+<!-- SCOREBOARD -->
+<div id="board">
+  <div class="bd-top"><svg class="bd-logo" viewBox="0 0 64 64"><use href="#atMark"/></svg><h2 id="bdRace">Rennen</h2><div class="run" id="bdRun">LAUF 1</div><div class="x" id="bdClose">Schließen (B)</div></div>
+  <div class="bd-main">
+    <div class="bd-cur"><div class="lbl2">Auf der Strecke</div><div class="nm" id="bdName">—</div>
+      <div class="bd-clock idle" id="bdClock">0<span class="cs">.00</span></div><div class="bd-split" id="bdSplit"></div></div>
+    <div class="bd-board"><div class="lbl2" id="bdBoardLbl">Rangliste</div><div id="bdList"></div></div>
+  </div>
+  <div class="bd-flash" id="bdFlash"></div>
+  <div class="bd-credit">Made by Nico Warscher</div>
+</div>
+
+<div id="startview">
+  <div class="sv-top">
+    <h2 id="svRace">Rennen</h2><div class="tag">START</div><div class="run" id="svRun">Lauf 1</div>
+    <div class="right"><span class="dot" id="svDot"></span><span id="svSync">…</span><span id="svTod" style="font-family:var(--mono)"></span>
+      <span class="ctrl" id="svStation">Als Startstation</span><span class="ctrl" id="svFull">Vollbild</span><span class="ctrl" id="svClose">Schließen</span></div>
+  </div>
+  <div class="sv-main">
+    <div class="sv-ready">
+      <div class="lbl">Am Start — bereit</div>
+      <div class="bib" id="svReadyBib"></div>
+      <div class="nm" id="svReadyName">—</div>
+      <div class="sv-interval">seit letztem Start: <b id="svInterval">—</b></div>
+      <button id="svStartBtn" class="sv-startbtn" style="display:none">▶ START senden</button>
+    </div>
+    <div class="sv-side">
+      <div class="sv-box"><div class="h">Als Nächstes</div><div id="svNext"></div></div>
+      <div class="sv-box"><div class="h">Auf der Strecke (<span id="svCourseCount">0</span>)</div><div id="svCourse"></div></div>
+    </div>
+  </div>
+  <div class="view-credit">Made by Nico Warscher</div>
+</div>
+
+<div id="resultsview">
+  <div class="sv-top">
+    <h2 id="rvRace">Rennen</h2><div class="tag" style="color:var(--cyan)">LIVE</div><div class="run" id="rvLabel">Lauf 1</div>
+    <div class="right"><span class="dot" id="rvDot"></span><span id="rvSync">…</span><span id="rvTod" style="font-family:var(--mono)"></span>
+      <span class="ctrl" id="rvFull">Vollbild</span><span class="ctrl" id="rvClose">Schließen</span></div>
+  </div>
+  <div class="rv-tabs" id="rvTabs"></div>
+  <div class="rv-wrap">
+    <div class="rv-list" id="rvList"></div>
+  </div>
+  <div class="rv-foot"><span class="rv-foot-lbl">Auf der Strecke:</span><span id="rvCourse"></span><span style="margin-left:auto;color:#46586a;letter-spacing:.14em;font-size:13px">Made by Nico Warscher</span></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer">
+  <div class="dh"><h3>Einstellungen</h3><div class="spacer"></div><button class="btn ghost" id="btnCloseSettings">✕</button></div>
+  <div class="db">
+    <div class="fld"><label style="color:var(--green)">▣ Veranstaltung (für Ergebnisliste)</label></div>
+    <div class="fld"><label>Veranstalter / Verein</label><input id="mOrg" placeholder="z.B. SC Musterstadt"></div>
+    <div class="fld"><label>Ort</label><input id="mLoc" placeholder="z.B. Musterberg"></div>
+    <div class="fld"><label>Datum</label><input id="mDate" type="date"></div>
+    <div class="fld"><label>Disziplin</label><select id="mDisc"><option>Slalom</option><option>Riesenslalom</option><option>Super-G</option><option>Abfahrt</option><option>Parallel</option><option>Training</option></select></div>
+    <div class="fld"><label>Schiedsrichter</label><input id="mRef" placeholder="Name"></div>
+    <div class="fld"><label>Kurssetzer / Tore</label><div style="display:flex;gap:6px"><input id="mSetter" placeholder="Kurssetzer"><input id="mGates" placeholder="Tore" style="max-width:80px"></div></div>
+    <div class="fld"><label>Wetter / Schnee</label><div style="display:flex;gap:6px"><input id="mWeather" placeholder="Wetter"><input id="mSnow" placeholder="Schnee"></div></div>
+    <div class="fld"><label>Temperatur Start / Ziel (°C)</label><div style="display:flex;gap:6px"><input id="mTempS" placeholder="Start"><input id="mTempF" placeholder="Ziel"></div></div>
+    <div class="fld"><label>Lizenziert für (White-Label)</label><input id="mLic" placeholder="erscheint auf Ausdrucken"></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Zeitnahme</label></div>
+    <div class="fld"><label>Anzahl Läufe</label><select id="setRuns"><option value="1">1 Lauf</option><option value="2" selected>2 Läufe (Gesamtwertung)</option></select></div>
+    <div class="toggle"><span>Zwischenzeit-Messpunkt</span><div class="sw on" id="swInter"></div></div>
+    <div class="fld" style="margin-top:16px"><label>Baudrate</label><select id="setBaud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select>
+      <div class="hint">Muss mit deiner Hardware übereinstimmen.</div></div>
+    <div class="fld"><label>Schlüsselwörter Start</label><input id="setStartKeys" value="S,START,C0,IMP1,A"></div>
+    <div class="fld"><label>Schlüsselwörter Zwischenzeit</label><input id="setInterKeys" value="Z,ZW,INT,C1,IMP2"></div>
+    <div class="fld"><label>Schlüsselwörter Ziel</label><input id="setFinishKeys" value="F,FIN,ZIEL,C2,IMP3,B">
+      <div class="hint">Tipp: Haupt- und Backup-Ziel-Fotozelle einfach beide auf Ziel-Wörter legen – die Sperrzeit ignoriert das zweite Signal automatisch (Redundanz).</div></div>
+    <div class="fld"><label>Sperrzeit Start / Zwischen / Ziel (ms)</label>
+      <div style="display:flex;gap:6px"><input id="setLockStart" type="number" value="1000"><input id="setLockInter" type="number" value="1000"><input id="setLockFinish" type="number" value="1500"></div></div>
+    <div class="fld"><label>Genauigkeit der Anzeige</label><select id="setDecimals"><option value="2" selected>1/100 s</option><option value="3">1/1000 s</option><option value="1">1/10 s</option></select></div>
+    <div class="toggle"><span>Hardware-Zeitstempel nutzen</span><div class="sw on" id="swHwTs"></div></div>
+    <div class="toggle"><span>Auto-Aufrücken am Start</span><div class="sw on" id="swAutoNext"></div></div>
+    <div class="toggle"><span>Ton bei Impuls</span><div class="sw on" id="swBeep"></div></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Vernetzung (Internet) & Konto</label></div>
+    <div class="fld"><label>Konto</label><div id="netAuth"></div><div class="hint">Mit demselben Konto an Ziel und (optional) Start anmelden – keine PIN nötig. Zuschauer brauchen kein Konto.</div></div>
+    <div class="toggle"><span>Diesen PC als Master senden (Ziel)<br><small style="color:var(--dimmer)">überträgt das Rennen live an die Anzeigen</small></span><div class="sw" id="swMaster"></div></div>
+    <div class="fld"><label>Status</label><div id="netStatus" class="hint">—</div></div>
+    <div class="fld"><label>Öffentlicher Link / Anzeigen</label><div id="netLinks" class="hint">…</div>
+      <div style="display:flex;gap:6px;margin-top:8px"><button class="btn sm" id="btnOpenStart2">Start-Ansicht</button><button class="btn sm" id="btnOpenResults2">Live-Ergebnisse</button></div></div>
+    <div class="fld" style="margin-top:20px"><label>Datenformat der Hardware</label>
+      <div class="codeblock">S 1043920   → Start  (+ HW-Zeit ms)
+Z 1047500   → Zwischenzeit
+F 1051110   → Ziel
+(oder ohne Zahl: nur S / Z / F)</div>
+      <div class="hint">Eine Zeile pro Impuls. Die Zahl = Hardware-Zeitstempel (z.B. <code>millis()</code>). Anderes Gerät? Schlüsselwörter anpassen.</div></div>
+  </div>
+</div>
+
+<div id="printsheet"></div>
+
+<div class="overlay" id="aboutOverlay"></div>
+<div class="modal" id="aboutModal">
+  <div class="dh"><h3>Hilfe &amp; Handbuch</h3><span style="margin-left:8px;color:var(--dim);font-family:var(--mono);font-size:11px">v<span id="aboutVer"></span></span><div class="spacer"></div><button class="btn ghost" id="btnCloseAbout">✕</button></div>
+  <div class="help-search"><input id="helpSearch" placeholder="🔍 Suchen … z. B. Lichtschranke, Klassen, Tablet, Cloud, Firewall"></div>
+  <div class="mb" id="helpContent"></div>
+</div>
+
+<div class="overlay" id="liveOverlay"></div>
+<div class="modal" id="liveModal">
+  <div class="dh"><h3>🔗 LiveTiming teilen</h3><div class="spacer"></div><button class="btn ghost" id="liveClose">✕</button></div>
+  <div class="mb">
+    <p>Diesen Link <b>öffentlich teilen</b> – Zuschauer sehen die Zeiten live mit (nur ansehen):</p>
+    <input id="liveUrl" readonly style="width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--green);border-radius:8px;padding:11px 12px;font-family:var(--mono);font-size:14px">
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="btn primary" id="btnCopyLive">Link kopieren</button>
+      <button class="btn" id="btnOpenLivePreview">Vorschau öffnen</button>
+    </div>
+    <div id="liveHint" class="disc" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".json" class="hidden">
+<div class="toast" id="toast"></div>
+<div id="updateBar"><span>Neue Version <b id="upVer"></b> verfügbar.</span><button class="primary" id="upReload">Jetzt laden</button><button id="upLater">Später</button></div>
+
+<script>
+"use strict";
+/* ALPIN TIMING PRO — 2-Lauf-Wertung, Zwischenzeiten, Handzeit-Backup,
+   Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
+   Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
+
+const VERSION="1.0";
+const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
+  runMs:null,interMs:null,src:null,hand:null,state:'idle'});
+
+const S = {
+  racers:[], nextId:1, numRuns:2, activeRun:0,
+  onCourse:[], readyId:null,
+  port:null,reader:null,keepReading:false, sim:false,simTimers:[],
+  lastImpulse:{start:0,inter:0,finish:0}, history:[], resultView:0, resultClass:'', /* 0,1 = run idx, 99 = combined */
+  meta:{organizer:'',location:'',date:'',discipline:'Slalom',referee:'',setter:'',gates:'',weather:'',snow:'',tempS:'',tempF:''}, licensee:'',
+  settings:{ baud:115200, startKeys:["S","START","C0","IMP1","A"], interKeys:["Z","ZW","INT","C1","IMP2"],
+    finishKeys:["F","FIN","ZIEL","C2","IMP3","B"], lockStart:1000,lockInter:1000,lockFinish:1500,
+    decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true }
+};
+
+const $=id=>document.getElementById(id);
+const now=()=>performance.now();
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const cur=r=>r.runs[S.activeRun];
+
+function fmt(ms){
+  if(ms==null||isNaN(ms)) return "—";
+  const dec=S.settings.decimals, total=ms/1000, m=Math.floor(total/60), s=total-m*60;
+  let str=s.toFixed(dec).padStart(dec>0?3+dec:2,'0');
+  return m>0 ? `${m}:${str.padStart(3+dec,'0')}` : str;
+}
+function fmtParts(ms){
+  const dec=S.settings.decimals, total=ms/1000, m=Math.floor(total/60), s=total-m*60;
+  let whole=Math.floor(s), frac=Math.round((s-whole)*Math.pow(10,dec));
+  if(frac>=Math.pow(10,dec)){frac=0;whole++;}
+  const main=m>0?`${m}:${String(whole).padStart(2,'0')}`:String(whole);
+  return {main, cs:"."+String(frac).padStart(dec,'0')};
+}
+function fmtDelta(ms){ const s=(ms>=0?'+':'−')+fmt(Math.abs(ms)); return s; }
+function parseTime(str){
+  if(!str) return null; str=str.trim().replace(',','.');
+  let m=0,s;
+  if(str.includes(':')){ const p=str.split(':'); m=parseInt(p[0])||0; s=parseFloat(p[1]); }
+  else s=parseFloat(str);
+  if(isNaN(s)) return null; return Math.round((m*60+s)*1000);
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1900); }
+function logEvent(text,cls){ const time=new Date().toLocaleTimeString('de-DE'); const d=document.createElement('div');
+  d.innerHTML=`<span class="ts">${time}</span> <span class="${cls||''}">${esc(text)}</span>`; const l=$('log'); l.prepend(d);
+  while(l.children.length>200) l.removeChild(l.lastChild); }
+let audioCtx=null;
+function beep(freq=880,dur=0.07){ if(!S.settings.beep) return; try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.value=freq;o.type='square';o.connect(g);g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.08,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+dur);
+  o.start();o.stop(audioCtx.currentTime+dur);}catch(e){} }
+
+/* Persistence */
+const LS_KEY="alpin_timing_pro_v1";
+function exportState(){ return JSON.stringify({v:VERSION,raceName:$('raceName').value,racers:S.racers,nextId:S.nextId,
+  numRuns:S.numRuns,activeRun:S.activeRun,onCourse:S.onCourse,readyId:S.readyId,resultClass:S.resultClass,meta:S.meta,licensee:S.licensee,settings:S.settings}); }
+function persist(){ try{ if(window.localStorage) localStorage.setItem(LS_KEY,exportState()); }catch(e){} netPush(); }
+function migrate(r){ if(!r.runs){ r.runs=[]; } while(r.runs.length<Math.max(2,S.numRuns)) r.runs.push(emptyRun()); return r; }
+function importState(json){
+  try{ const d=JSON.parse(json); if(!d.racers) return false;
+    S.numRuns=d.numRuns||2; S.activeRun=d.activeRun||0;
+    S.racers=d.racers.map(migrate); S.nextId=d.nextId||(Math.max(0,...S.racers.map(r=>r.id))+1);
+    S.onCourse=d.onCourse||[]; S.readyId=d.readyId??null;
+    if(d.settings) Object.assign(S.settings,d.settings);
+    if(d.meta) Object.assign(S.meta,d.meta); if(d.licensee!=null) S.licensee=d.licensee;
+    if(d.raceName) $('raceName').value=d.raceName;
+    rebaseRunning();
+    applySettingsToUI(); buildRunSel(); buildViewSel(); renderAll(); return true;
+  }catch(e){ toast("Datei unlesbar"); return false; }
+}
+function rebaseRunning(){ const tNow=now(), wNow=Date.now();
+  S.racers.forEach(r=>r.runs.forEach(c=>{ if(c.state==='running' && c.startWall){ c.startSW=tNow-(wNow-c.startWall); } })); }
+function tryRestore(){ try{ if(window.localStorage){ const j=localStorage.getItem(LS_KEY); if(j) importState(j); } }catch(e){} }
+
+/* Start list */
+function makeRacer(bib,name,cat){
+  const runs=[]; for(let i=0;i<Math.max(2,S.numRuns);i++) runs.push(emptyRun());
+  return {id:S.nextId++,bib:String(bib),name:name||('Nr '+bib),cat:cat||'',runs};
+}
+function addRacer(bib,name,cat,silent){
+  bib=String(bib||'').trim(); name=String(name||'').trim(); cat=(cat||'').trim();
+  if(!bib && !name){ if(!silent) toast("Nr oder Name eingeben"); return; }
+  if(!bib) bib=String((Math.max(0,...S.racers.map(r=>parseInt(r.bib)||0))+1));
+  if(S.racers.some(r=>r.bib===bib)){ if(!silent) toast("Startnummer "+bib+" existiert schon"); return; }
+  const r=makeRacer(bib,name,cat); S.racers.push(r);
+  if(S.settings.autoNext && S.readyId==null) setReady(r.id);
+  if(!silent){ renderAll(); persist(); }
+}
+function delRacer(id){ S.racers=S.racers.filter(r=>r.id!==id); S.onCourse=S.onCourse.filter(x=>x!==id);
+  if(S.readyId===id) S.readyId=null; renderAll(); persist(); }
+function setReady(id){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
+  if(c.state!=='idle' && c.state!=='DNS'){ toast("Läufer ist nicht am Start"); return; }
+  if(S.readyId!=null){ const o=S.racers.find(x=>x.id===S.readyId); if(o&&cur(o).state==='ready') cur(o).state='idle'; }
+  c.state='ready'; S.readyId=id; renderAll(); persist(); }
+function nextIdle(){ const idle=S.racers.filter(r=>cur(r).state==='idle').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)); return idle.length?idle[0].id:null; }
+function recomputeRunState(){
+  S.onCourse=S.racers.filter(r=>cur(r).state==='running').sort((a,b)=>(cur(a).startSW||0)-(cur(b).startSW||0)).map(r=>r.id);
+  const rd=S.racers.find(r=>cur(r).state==='ready'); S.readyId=rd?rd.id:null;
+  if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
+}
+
+/* Timing core */
+function handleImpulse(ch,hwTs){
+  const t=now(), lock=ch==='start'?S.settings.lockStart:ch==='inter'?S.settings.lockInter:S.settings.lockFinish;
+  if(t-S.lastImpulse[ch]<lock){ logEvent(`${ch} ignoriert (Sperrzeit)`,'ev-warn'); return; }
+  S.lastImpulse[ch]=t; beep(ch==='start'?990:ch==='inter'?770:660);
+  if(ch==='start') doStart(t,hwTs); else if(ch==='inter') doInter(t,hwTs); else doFinish(t,hwTs);
+}
+function doStart(sw,hw){
+  const r=S.racers.find(x=>x.id===S.readyId);
+  if(!r){ logEvent("Start ohne bereiten Läufer – verworfen","ev-warn"); toast("Niemand am Start!"); return; }
+  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); S.onCourse.push(r.id);
+  S.history.push({type:'start',id:r.id,run:S.activeRun});
+  logEvent(`START · Nr ${r.bib} ${r.name}`+(hw!=null?` (HW ${hw})`:''),'ev-start');
+  S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
+  renderAll(); persist();
+}
+function doInter(sw,hw){
+  const id=S.onCourse.find(x=>cur(S.racers.find(r=>r.id===x)).interSW==null);
+  if(id==null){ logEvent("Zwischenzeit ohne passenden Läufer – verworfen","ev-warn"); return; }
+  const r=S.racers.find(x=>x.id===id), c=cur(r); c.interSW=sw; c.interHW=(hw??null);
+  c.interMs = (S.settings.useHwTs && c.startHW!=null && c.interHW!=null) ? c.interHW-c.startHW : c.interSW-c.startSW;
+  if(c.interMs<0) c.interMs=null;
+  const best=bestInter(S.activeRun,r.id);
+  let dtxt=''; if(best!=null && c.interMs!=null){ const dd=c.interMs-best; dtxt=` (${fmtDelta(dd)})`; }
+  logEvent(`ZWISCHEN · Nr ${r.bib} → ${fmt(c.interMs)}${dtxt}`,'ev-inter');
+  flashBoard(`Zwischenzeit Nr ${r.bib}: ${fmt(c.interMs)}${dtxt}`);
+  renderAll(); persist();
+}
+function doFinish(sw,hw){
+  if(S.onCourse.length===0){ logEvent("Ziel ohne Läufer auf Strecke – verworfen","ev-warn"); toast("Kein Läufer auf der Strecke"); return; }
+  const id=S.onCourse[0], r=S.racers.find(x=>x.id===id), c=cur(r);
+  c.finSW=sw; c.finHW=(hw??null); c.finServerT=NET.synced?serverNow():null;
+  if(c.startServerT!=null && c.finServerT!=null){ c.runMs=c.finServerT-c.startServerT; c.src='NET'; }
+  else if(S.settings.useHwTs && c.startHW!=null && c.finHW!=null){ c.runMs=c.finHW-c.startHW; c.src='HW'; }
+  else { c.runMs=c.finSW-c.startSW; c.src='SW'; }
+  if(c.runMs<0) c.runMs=null;
+  c.state='finished'; S.onCourse.shift(); S.history.push({type:'finish',id:r.id,run:S.activeRun});
+  logEvent(`ZIEL · Nr ${r.bib} ${r.name} → ${fmt(c.runMs)} [${c.src}]`,'ev-finish');
+  flashBoard(`Ziel Nr ${r.bib} ${r.name}: ${fmt(c.runMs)}`);
+  renderAll(); persist();
+}
+function bestInter(runIdx,exceptId){ let best=null; S.racers.forEach(r=>{ if(r.id===exceptId) return; const c=r.runs[runIdx];
+  if(c.interMs!=null && (best==null||c.interMs<best)) best=c.interMs; }); return best; }
+function undoLast(){
+  const h=S.history.pop(); if(!h){ toast("Nichts zum Rückgängigmachen"); return; }
+  const r=S.racers.find(x=>x.id===h.id); if(!r) return; const c=r.runs[h.run];
+  const wasActive=S.activeRun; S.activeRun=h.run;
+  if(h.type==='finish'){ c.state='running'; c.finSW=c.finHW=c.runMs=null; c.src=null; }
+  else if(h.type==='start'){ c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=null; }
+  S.activeRun=wasActive; recomputeRunState();
+  logEvent(`↩ ${h.type==='finish'?'Ziel':'Start'} zurückgenommen · Nr ${r.bib} (Lauf ${h.run+1})`,'ev-info');
+  renderAll(); persist();
+}
+function setStatus(id,st){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
+  S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null;
+  c.state=st; c.runMs=null; c.src=null;
+  logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${S.activeRun+1})`,'ev-warn');
+  if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
+  renderAll(); persist(); }
+function reopen(id){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
+  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=null; c.src=null;
+  S.onCourse=S.onCourse.filter(x=>x!==id); renderAll(); persist(); }
+function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+  if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
+  const inp=prompt(`Handzeit für Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})\nFormat  SS,cc  oder  M:SS,cc  — leer = löschen:`, c.hand!=null?fmt(c.hand):'');
+  if(inp===null) return;
+  if(inp.trim()===''){ c.hand=null; if(c.runMs==null && c.state==='finished') c.state='idle'; }
+  else { const ms=parseTime(inp); if(ms==null){ toast("Ungültige Zeit"); return; } c.hand=ms; c.state='finished';
+      if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null;
+        if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); } } }
+  logEvent(`Handzeit Nr ${r.bib} (Lauf ${runIdx+1}): ${c.hand!=null?fmt(c.hand):'gelöscht'}`,'ev-info');
+  renderAll(); persist(); }
+
+/* effective time of a run (electronic, else hand backup) */
+function effRun(c){ if(c.state==='finished') return c.runMs!=null?c.runMs:c.hand; return null; }
+function effSrc(c){ if(c.runMs!=null) return c.src; if(c.hand!=null) return 'Hand'; return c.src; }
+function withRanks(ranked){ const out=[]; ranked.forEach((e,i)=>{ const rank=(i>0 && ranked[i-1].t===e.t)? out[i-1].rank : i+1; out.push({e,rank}); }); return out; }
+function distinctClasses(){ const s=new Set(); S.racers.forEach(r=>{ const c=(r.cat||'').trim(); if(c) s.add(c); });
+  return [...s].sort((a,b)=>a.localeCompare(b,'de',{numeric:true})); }
+
+/* Rendering */
+function buildRunSel(){ const el=$('runsel'); el.innerHTML='';
+  for(let i=0;i<S.numRuns;i++){ const b=document.createElement('button'); b.textContent='Lauf '+(i+1);
+    if(i===S.activeRun) b.classList.add('act'); b.onclick=()=>{ S.activeRun=i; recomputeRunState();
+      buildRunSel(); if(S.resultView!==99) S.resultView=i; buildViewSel(); renderAll(); persist(); }; el.appendChild(b); } }
+function buildViewSel(){ const el=$('viewsel'); el.innerHTML='';
+  const add=(label,v)=>{ const b=document.createElement('button'); b.textContent=label; if(S.resultView===v) b.classList.add('act');
+    b.onclick=()=>{ S.resultView=v; buildViewSel(); renderResults(); }; el.appendChild(b); };
+  for(let i=0;i<S.numRuns;i++) add('L'+(i+1),i);
+  if(S.numRuns>1) add('Gesamt',99); }
+
+function renderAll(){ renderStartList(); renderCenter(); buildClassSel(); renderResults(); $('timingTitle').textContent='Zeitnahme · Lauf '+(S.activeRun+1);
+  document.querySelector('.triggers').className='triggers '+(S.settings.hasInter?'three':'two'); $('trigInter').classList.toggle('hidden',!S.settings.hasInter); }
+
+function renderStartList(){
+  const body=$('startBody'); body.innerHTML='';
+  [...S.racers].sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).forEach(r=>{
+    const c=cur(r), tr=document.createElement('tr'); if(r.id===S.readyId) tr.className='next';
+    const txt={idle:'wartet',ready:'bereit',running:'läuft',finished:'Ziel',DNF:'DNF',DNS:'DNS',DSQ:'DSQ'}[c.state];
+    tr.innerHTML=`<td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}</td><td style="color:var(--dim)">${esc(r.cat)}</td>
+      <td><span class="pill ${c.state}">${txt}</span></td>
+      <td><div class="rowbtns">
+      ${(c.state==='idle'||c.state==='DNS')?`<button class="ib go" data-act="ready" data-id="${r.id}" title="An den Start">▶</button>`:''}
+      ${(c.state==='idle'||c.state==='ready')?`<button class="ib" data-act="dns" data-id="${r.id}" title="Nicht am Start">DNS</button>`:''}
+      <button class="ib" data-act="del" data-id="${r.id}" title="Löschen">✕</button></div></td>`;
+    body.appendChild(tr);
+  });
+  $('slCount').textContent=S.racers.length;
+}
+let bigTarget=null;
+function renderCenter(){
+  const r=S.racers.find(x=>x.id===S.readyId);
+  $('readyName').innerHTML = r?`<span class="b">${esc(r.bib)}</span>${esc(r.name)}`:`<span class="ready-empty">— niemand bereit —</span>`;
+  const list=$('onCourseList');
+  if(S.onCourse.length===0){ list.innerHTML='<div class="oc-empty">keine Läufer auf der Strecke</div>'; bigTarget=null; }
+  else { list.innerHTML=''; S.onCourse.forEach((id,i)=>{ const rr=S.racers.find(x=>x.id===id),c=cur(rr);
+      let sp=''; if(c.interMs!=null){ const b=bestInter(S.activeRun,rr.id); sp=fmt(c.interMs)+(b!=null?` ${fmtDelta(c.interMs-b)}`:''); }
+      const row=document.createElement('div'); row.className='oc-row'+(i===0?' lead':'');
+      row.innerHTML=`<span class="bib">${esc(rr.bib)}</span><span class="nm">${esc(rr.name)}</span>
+        <span class="sp">${sp}</span><span class="tm" data-clock="${rr.id}">0.00</span>
+        <button class="ib" data-dnf="${rr.id}" title="Aufgabe / DNF" style="margin-left:8px">DNF</button>`;
+      list.appendChild(row); }); bigTarget=S.onCourse[0]; }
+  $('ocCount').textContent=S.onCourse.length+' auf Strecke';
+  const t=bigTarget!=null?S.racers.find(x=>x.id===bigTarget):null;
+  $('bigWho').textContent=t?`Nr ${t.bib} · ${t.name}`:'';
+}
+function rankedRun(runIdx){
+  return S.racers.filter(r=>effRun(r.runs[runIdx])!=null).map(r=>({r,t:effRun(r.runs[runIdx])})).sort((a,b)=>a.t-b.t);
+}
+function rankedCombined(){
+  return S.racers.filter(r=>{ for(let i=0;i<S.numRuns;i++) if(effRun(r.runs[i])==null) return false; return true; })
+    .map(r=>{ let tot=0; for(let i=0;i<S.numRuns;i++) tot+=effRun(r.runs[i]); return {r,t:tot}; }).sort((a,b)=>a.t-b.t);
+}
+function buildClassSel(){ const el=$('classSel'); if(!el) return; const cls=distinctClasses();
+  if(cls.length && S.resultClass && cls.indexOf(S.resultClass)<0 && S.resultClass!=='') S.resultClass='';
+  el.innerHTML='<option value="">Alle Klassen</option>'+cls.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  el.value=S.resultClass; el.style.display=cls.length?'':'none'; }
+function renderResults(){
+  const body=$('resBody'); body.innerHTML='';
+  const combined=S.resultView===99;
+  let ranked=combined?rankedCombined():rankedRun(S.resultView);
+  if(S.resultClass) ranked=ranked.filter(e=>(e.r.cat||'').trim()===S.resultClass);
+  const best=ranked.length?ranked[0].t:null;
+  withRanks(ranked).forEach(({e,rank})=>{ const r=e.r; const c=combined?null:r.runs[S.resultView];
+    const tr=document.createElement('tr'); tr.className='res-row'+(rank<=3?' p'+rank:'');
+    const src=combined?'':effSrc(c); const tag=src?`<span class="src-tag ${src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':'sw'}">${src}</span>`:'';
+    const ha=combined?'':`data-hand="${r.id}" data-run="${S.resultView}"`;
+    tr.innerHTML=`<td class="rank">${rank}</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}${r.cat?` <span style="color:var(--dimmer);font-size:11px">${esc(r.cat)}</span>`:''} ${tag}</td>
+      <td class="tm" ${ha}>${fmt(e.t)}</td><td class="diff">${e.t===best?'':fmtDelta(e.t-best)}</td>`;
+    body.appendChild(tr);
+  });
+  if(!combined){ S.racers.filter(r=>['DNF','DNS','DSQ'].includes(r.runs[S.resultView].state) && (!S.resultClass || (r.cat||'').trim()===S.resultClass)).forEach(r=>{
+    const tr=document.createElement('tr'); tr.className='res-row out';
+    tr.innerHTML=`<td class="rank">–</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}</td>
+      <td class="tm" data-hand="${r.id}" data-run="${S.resultView}">${r.runs[S.resultView].state}</td><td class="diff"></td>`;
+    body.appendChild(tr); }); }
+  $('resCount').textContent=ranked.length;
+}
+
+/* Live clock */
+function tick(){
+  const t=now();
+  document.querySelectorAll('[data-clock]').forEach(el=>{ const id=+el.getAttribute('data-clock'); const r=S.racers.find(x=>x.id===id);
+    if(r&&cur(r).startSW!=null) el.textContent=fmt(t-cur(r).startSW); });
+  const big=$('bigClock'); const bd=$('bdClock');
+  if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget); if(r&&cur(r).startSW!=null){
+      const p=fmtParts(t-cur(r).startSW); const html=`${p.main}<span class="cs">${p.cs}</span>`;
+      big.innerHTML=html; big.classList.add('live'); bd.innerHTML=html; bd.classList.remove('idle'); } }
+  else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`; big.innerHTML=z; big.classList.remove('live'); bd.innerHTML=z; bd.classList.add('idle'); }
+  // split lines
+  const sl=$('splitLine'), bs=$('bdSplit');
+  if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget),c=cur(r);
+    if(c&&c.interMs!=null){ const b=bestInter(S.activeRun,r.id); const d=b!=null?c.interMs-b:null;
+      const dh=d!=null?` <span class="delta ${d>=0?'pos':'neg'}">${fmtDelta(d)}</span>`:'';
+      sl.innerHTML=`Zwischenzeit ${fmt(c.interMs)}${dh}`; bs.innerHTML=`ZW ${fmt(c.interMs)}${dh}`; }
+    else { sl.textContent=''; bs.textContent=''; } }
+  else { sl.textContent=''; bs.textContent=''; }
+  if($('board').classList.contains('show')) updateBoardName();
+  requestAnimationFrame(tick);
+}
+setInterval(()=>{ $('tod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
+
+/* Scoreboard */
+function updateBoardName(){ const t=bigTarget!=null?S.racers.find(x=>x.id===bigTarget):null;
+  $('bdName').innerHTML=t?`<span class="b">${esc(t.bib)}</span>${esc(t.name)}`:'—'; }
+function renderBoardList(){ const combined=S.numRuns>1 && everyoneRun1Done();
+  $('bdRace').textContent=$('raceName').value; $('bdRun').textContent=combined?'GESAMT':'LAUF '+(S.activeRun+1);
+  $('bdBoardLbl').textContent=combined?'Gesamtwertung':'Rangliste Lauf '+(S.activeRun+1);
+  const ranked=(combined?rankedCombined():rankedRun(S.activeRun)).slice(0,8); const best=ranked.length?ranked[0].t:null;
+  $('bdList').innerHTML=ranked.map((e,i)=>`<div class="bd-li ${i<3?'p'+(i+1):''}"><span class="r">${i+1}</span>
+    <span class="bb">${esc(e.r.bib)}</span><span class="nn">${esc(e.r.name)}</span>
+    <span class="tt">${fmt(e.t)}${i>0?` <span style="color:var(--dim);font-size:.7em">${fmtDelta(e.t-best)}</span>`:''}</span></div>`).join('')
+    || '<div style="color:var(--dimmer);font-size:1.4vw">noch keine Ergebnisse</div>';
+}
+function everyoneRun1Done(){ const started=S.racers.filter(r=>r.runs.some(c=>c.state!=='idle'&&c.state!=='DNS'&&c.state!=='ready'));
+  return false; } // Gesamt nur, wenn Nutzer auf Lauf 2 ist und Lauf1 Ergebnisse existieren
+function boardCombinedReady(){ return S.numRuns>1 && S.activeRun>=1 && rankedRun(0).length>0; }
+function flashBoard(txt){ const f=$('bdFlash'); if(!$('board').classList.contains('show')) return;
+  f.textContent=txt; f.classList.add('show'); clearTimeout(flashBoard._t); flashBoard._t=setTimeout(()=>f.classList.remove('show'),4000); }
+function toggleBoard(){ const b=$('board'); const open=!b.classList.contains('show');
+  b.classList.toggle('show',open); if(open){ renderBoardList(); updateBoardName();
+    if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }
+  else if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }
+
+/* override board run label logic */
+function refreshBoard(){ if($('board').classList.contains('show')) renderBoardList(); }
+
+/* Web Serial */
+async function connectSerial(){
+  if(S.port){ await disconnectSerial(); return; }
+  if(!('serial' in navigator)){ toast("Web Serial nur in Chrome/Edge"); logEvent("Web Serial nicht verfügbar","ev-warn"); return; }
+  try{ const port=await navigator.serial.requestPort(); await port.open({baudRate:S.settings.baud});
+    S.port=port; S.keepReading=true; setConn(true,false,"Verbunden · "+S.settings.baud); logEvent("Hardware verbunden","ev-info"); readLoop();
+  }catch(e){ logEvent("Verbindung abgebrochen: "+e.message,"ev-warn"); }
+}
+async function readLoop(){
+  const dec=new TextDecoder(); let buf='';
+  while(S.keepReading && S.port && S.port.readable){
+    const reader=S.port.readable.getReader(); S.reader=reader;
+    try{ while(true){ const {value,done}=await reader.read(); if(done) break;
+        buf+=dec.decode(value,{stream:true}); let nl;
+        while((nl=buf.search(/[\r\n]/))>=0){ const line=buf.slice(0,nl).trim(); buf=buf.slice(nl+1); if(line) parseSerialLine(line); } } }
+    catch(e){ if(S.keepReading) logEvent("Lesefehler: "+e.message,"ev-warn"); }
+    finally{ try{reader.releaseLock();}catch(e){} }
+  }
+}
+function parseSerialLine(line){
+  const up=line.toUpperCase(), tokens=up.split(/[\s,;:]+/).filter(Boolean), first=tokens[0]||'';
+  let hwTs=null; for(let i=tokens.length-1;i>=1;i--){ if(/^\d+$/.test(tokens[i])){ hwTs=parseInt(tokens[i],10); break; } }
+  const match=keys=>keys.some(k=>k&&(first===k||first.startsWith(k)));
+  if(match(S.settings.startKeys)) handleImpulse('start',hwTs);
+  else if(S.settings.hasInter && match(S.settings.interKeys)) handleImpulse('inter',hwTs);
+  else if(match(S.settings.finishKeys)) handleImpulse('finish',hwTs);
+  else logEvent("Unbekannt: "+line,"ev-info");
+}
+async function disconnectSerial(){ S.keepReading=false; try{ if(S.reader) await S.reader.cancel(); }catch(e){}
+  try{ if(S.port) await S.port.close(); }catch(e){} S.port=null; S.reader=null; setConn(false,false,"Nicht verbunden"); logEvent("Hardware getrennt","ev-info"); }
+function setConn(on,sim,label){ $('connDot').className='dot'+(on?' on':'')+(sim?' sim':''); $('connLabel').textContent=label; $('btnConnect').textContent=on?"Trennen":"Hardware verbinden"; }
+
+/* Simulation */
+function toggleSim(){
+  if(S.sim){ S.sim=false; S.simTimers.forEach(clearTimeout); S.simTimers=[]; $('btnSim').classList.remove('primary'); $('btnSim').textContent="Simulation";
+    if(!S.port) setConn(false,false,"Nicht verbunden"); logEvent("Simulation gestoppt","ev-info"); return; }
+  S.sim=true; $('btnSim').classList.add('primary'); $('btnSim').textContent="Sim stoppen"; setConn(true,true,"Simulation aktiv");
+  logEvent("Simulation gestartet","ev-info"); simStep();
+}
+function simStep(){
+  if(!S.sim) return;
+  if(S.readyId!=null){ const base=Math.floor(Date.now()%1e7); handleImpulse('start', S.settings.useHwTs?base:null);
+    const startR=S.racers.find(x=>x.id===S.onCourse[S.onCourse.length-1]); const c=startR?cur(startR):null;
+    const interT=1000+Math.random()*1500, run=interT+1500+Math.random()*2500;
+    if(S.settings.hasInter) S.simTimers.push(setTimeout(()=>{ if(S.sim&&c&&c.state==='running') handleImpulse('inter', c.startHW!=null?c.startHW+Math.round(interT):null); }, interT));
+    S.simTimers.push(setTimeout(()=>{ if(!S.sim) return; if(S.onCourse.length){ const lead=cur(S.racers.find(x=>x.id===S.onCourse[0]));
+      handleImpulse('finish', lead.startHW!=null?lead.startHW+Math.round(run):null); } }, run));
+  }
+  S.simTimers.push(setTimeout(simStep, 1800+Math.random()*1200));
+}
+
+/* Import / Export */
+function exportCSV(){
+  let csv="Rang;Klassenrang;Startnr;Name;Kat";
+  for(let i=0;i<S.numRuns;i++) csv+=`;Lauf ${i+1};Zw ${i+1}`;
+  if(S.numRuns>1) csv+=";Gesamt"; csv+="\n";
+  const ranked = S.numRuns>1?rankedCombined():rankedRun(0);
+  // Klassenrang berechnen (Rang innerhalb der eigenen Klasse)
+  const byClass={}; ranked.forEach(e=>{ const c=(e.r.cat||'').trim(); (byClass[c]=byClass[c]||[]).push(e); });
+  const clRank={}; Object.values(byClass).forEach(arr=>{ withRanks(arr).forEach(({e,rank})=>{ clRank[e.r.id]=rank; }); });
+  withRanks(ranked).forEach(({e,rank})=>{ const r=e.r; let row=`${rank};${clRank[r.id]||''};${r.bib};${r.name};${r.cat}`;
+    for(let k=0;k<S.numRuns;k++){ const c=r.runs[k]; row+=`;${effRun(c)!=null?fmt(effRun(c)):(c.state==='idle'?'':c.state)};${c.interMs!=null?fmt(c.interMs):''}`; }
+    if(S.numRuns>1) row+=`;${fmt(e.t)}`; csv+=row+"\n"; });
+  const rankedIds=new Set(ranked.map(e=>e.r.id));
+  S.racers.filter(r=>!rankedIds.has(r.id)).forEach(r=>{ let row=`;;${r.bib};${r.name};${r.cat}`;
+    for(let k=0;k<S.numRuns;k++){ const c=r.runs[k]; row+=`;${effRun(c)!=null?fmt(effRun(c)):(c.state==='idle'?'':c.state)};${c.interMs!=null?fmt(c.interMs):''}`; }
+    if(S.numRuns>1) row+=`;`; csv+=row+"\n"; });
+  download(($('raceName').value||'rennen')+'_ergebnisse.csv',csv,'text/csv');
+}
+function importList(){ const txt=prompt("Startliste einfügen — eine Zeile pro Läufer:\nNr,Name,Kategorie\n\nBeispiel:\n1,Anna Berger,U16\n2,Max Huber,U16");
+  if(!txt) return; let n=0; txt.split(/\n/).forEach(line=>{ line=line.trim(); if(!line) return; const p=line.split(/[,;\t]/).map(x=>x.trim());
+    addRacer(p[0],p[1],p[2],true); n++; }); renderAll(); persist(); toast(n+" Läufer importiert"); }
+function download(name,content,type){ const b=new Blob([content],{type}),u=URL.createObjectURL(b);
+  const a=document.createElement('a'); a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
+function saveJson(){ download(($('raceName').value||'rennen')+'.json',exportState(),'application/json'); toast("Gesichert"); }
+
+/* Print / official sheets */
+function metaSubtitle(){ const m=S.meta,p=[]; if(m.discipline)p.push(m.discipline); if(m.location)p.push(m.location);
+  if(m.date){ try{p.push(new Date(m.date).toLocaleDateString('de-DE'));}catch(e){} } return p.join(' · '); }
+function metaBlock(){ const m=S.meta,items=[]; const add=(l,v)=>{ if(v) items.push(`<span><b>${esc(l)}:</b> ${esc(v)}</span>`); };
+  add('Schiedsrichter',m.referee); add('Kurssetzer',m.setter); add('Tore',m.gates); add('Wetter',m.weather); add('Schnee',m.snow);
+  if(m.tempS||m.tempF) items.push(`<span><b>Temp Start/Ziel:</b> ${esc(m.tempS||'–')}/${esc(m.tempF||'–')} °C</span>`);
+  return items.length?`<div class="ps-meta">${items.join('')}</div>`:'<div style="height:8px"></div>'; }
+function sheetHeader(label){ const m=S.meta; return `<div class="ps-head">
+    <div><div class="ps-title">${esc($('raceName').value||'Rennen')}</div><div class="ps-sub">${esc(metaSubtitle())}${label?' — '+esc(label):''}</div></div>
+    <div class="ps-org">${m.organizer?esc(m.organizer)+'<br>':''}${S.licensee?'Lizenz: '+esc(S.licensee):''}</div></div>${metaBlock()}`; }
+function sheetFoot(){ return `<div class="ps-sign"><div>Schiedsrichter</div><div>Zeitnahme</div></div>
+    <div class="ps-foot"><span>Erstellt mit ALPIN TIMING PRO v${VERSION}</span><span>${new Date().toLocaleString('de-DE')}</span></div>`; }
+function classMatch(r,cl){ if(cl===null) return true; return (r.cat||'').trim()===cl; }
+function psTable(view, combined, ranked, cl){
+  const best=ranked.length?ranked[0].t:null;
+  let head, rows;
+  if(combined){
+    head=`<tr><th class="rk">Rg</th><th>Nr</th><th>Name</th><th>Kat</th>`+Array.from({length:S.numRuns},(_,i)=>`<th class="r">Lauf ${i+1}</th>`).join('')+`<th class="r">Gesamt</th><th class="r">Diff</th></tr>`;
+    rows=withRanks(ranked).map(({e,rank})=>{ const r=e.r; const rc=r.runs.slice(0,S.numRuns).map(c=>`<td class="r">${effRun(c)!=null?fmt(effRun(c)):'–'}</td>`).join('');
+      return `<tr><td class="rk">${rank}</td><td>${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td>${rc}<td class="r"><b>${fmt(e.t)}</b></td><td class="r">${e.t===best?'':fmtDelta(e.t-best)}</td></tr>`; }).join('');
+    const ids=new Set(ranked.map(e=>e.r.id));
+    rows+=S.racers.filter(r=>!ids.has(r.id) && classMatch(r,cl)).map(r=>{ const rc=r.runs.slice(0,S.numRuns).map(c=>`<td class="r">${effRun(c)!=null?fmt(effRun(c)):(['DNF','DNS','DSQ'].includes(c.state)?c.state:'–')}</td>`).join('');
+      return `<tr class="out"><td></td><td>${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td>${rc}<td class="r">—</td><td></td></tr>`; }).join('');
+  } else {
+    head=`<tr><th class="rk">Rg</th><th>Nr</th><th>Name</th><th>Kat</th><th class="r">Zwischen</th><th class="r">Zeit</th><th class="r">Diff</th></tr>`;
+    rows=withRanks(ranked).map(({e,rank})=>{ const r=e.r,c=r.runs[view];
+      return `<tr><td class="rk">${rank}</td><td>${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td><td class="r">${c.interMs!=null?fmt(c.interMs):''}</td><td class="r"><b>${fmt(e.t)}</b></td><td class="r">${e.t===best?'':fmtDelta(e.t-best)}</td></tr>`; }).join('');
+    rows+=S.racers.filter(r=>['DNF','DNS','DSQ'].includes(r.runs[view].state) && classMatch(r,cl)).map(r=>`<tr class="out"><td></td><td>${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td><td></td><td class="r">${r.runs[view].state}</td><td></td></tr>`).join('');
+  }
+  const heading = cl===null ? '' : `<h3 class="ps-cls">${cl===''?'Ohne Klasse':'Klasse '+esc(cl)}</h3>`;
+  if(cl!==null && !rows) return '';
+  return heading+`<table><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+}
+function printResultSheet(view){
+  const combined=view===99;
+  const base=combined?rankedCombined():rankedRun(view);
+  const cls=distinctClasses();
+  let sections='';
+  if(S.resultClass){ sections=psTable(view,combined, base.filter(e=>(e.r.cat||'').trim()===S.resultClass), S.resultClass); }
+  else if(cls.length){
+    cls.forEach(cl=> sections+=psTable(view,combined, base.filter(e=>(e.r.cat||'').trim()===cl), cl));
+    sections+=psTable(view,combined, base.filter(e=>!((e.r.cat||'').trim())), '');
+  } else sections=psTable(view,combined, base, null);
+  $('printsheet').innerHTML=sheetHeader(combined?'Gesamtwertung':'Lauf '+(view+1)+' — Ergebnis')+sections+sheetFoot();
+  window.print();
+}
+function printStartSheet(){
+  const rows=[...S.racers].sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).map(r=>`<tr><td class="rk">${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td></tr>`).join('');
+  $('printsheet').innerHTML=sheetHeader('Startliste')+`<table><thead><tr><th class="rk">Nr</th><th>Name</th><th>Kat</th></tr></thead><tbody>${rows}</tbody></table>`+sheetFoot();
+  window.print();
+}
+const HELP=[
+ {t:"Schnellstart", h:`<ol><li>Läufer in die <b>Startliste</b> eintragen (oder „Import" für viele auf einmal).</li>
+   <li>Oben <b>Hardware verbinden</b> (Chrome/Edge) – oder <b>Simulation</b> zum Üben.</li>
+   <li>Der erste Läufer ist automatisch „bereit". Beim Start-Impuls läuft die Zeit.</li>
+   <li>Mehrere Läufer dürfen gleichzeitig auf der Strecke sein (FIFO): der Ziel-Impuls trifft den, der am längsten unterwegs ist.</li>
+   <li><b>Lauf 1 / Lauf 2</b> oben umschalten; Ergebnis-Ansicht L1 / L2 / Gesamt.</li></ol>`},
+ {t:"Tasten / Tastatur", h:`<p><span class="kbd">Leertaste</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎ Enter</span> Ziel · <span class="kbd">Z</span> letzten Impuls rückgängig · <span class="kbd">B</span> Anzeigetafel.</p>`},
+ {t:"Hardware / Lichtschranke verbinden", h:`<p>Funktioniert nur in <b>Chrome oder Edge am Computer</b> (nicht am Tablet). Knopf <b>Hardware verbinden</b>, Port wählen, Baudrate muss zur Hardware passen (Einstellungen ⚙).</p>
+   <p>Erwartetes Format je Zeile: <code>S</code> = Start, <code>Z</code> = Zwischenzeit, <code>F</code> = Ziel. Mit Hardware-Zeitstempel z. B. <code>S 1043920</code>. Schlüsselwörter sind in den Einstellungen anpassbar; ein Arduino-Beispiel steht dort ebenfalls.</p>`},
+ {t:"Simulation (ohne Hardware testen)", h:`<p>Knopf <b>Simulation</b> feuert automatisch Start-, Zwischen- und Ziel-Impulse – ideal zum Üben und um Anzeigetafel/Live-Ansicht zu sehen.</p>`},
+ {t:"Startliste & Läufer", h:`<p>Nr, Name und Kat. (Klasse) eingeben, <b>+</b> zum Hinzufügen. <b>Import</b> fügt viele auf einmal ein (eine Zeile <code>Nr,Name,Klasse</code>). Der bereite Läufer am Start ist grün markiert.</p>`},
+ {t:"Status: DNF / DNS / DSQ", h:`<p><b>DNS</b> (nicht gestartet) in der Startliste; <b>DNF</b> (Aufgabe) beim Läufer auf der Strecke; per Klick auf ein Ergebnis lässt sich dieses zurücksetzen.</p>`},
+ {t:"Altersklassen / Kategorien", h:`<p>Das Feld <b>Kat.</b> ist die Altersklasse (z. B. U12, Herren). In den Ergebnissen oben die <b>Klassen-Auswahl</b> nutzen – dann wird <b>innerhalb der Klasse</b> gewertet (1, 2, 3 …). Der Druck listet bei „Alle Klassen" jede Klasse als eigenen Abschnitt; die CSV hat eine Spalte <b>Klassenrang</b>. In der Live-Ansicht gibt es Klassen-Tabs.</p>`},
+ {t:"Zwei Läufe & Gesamtwertung", h:`<p>In den Einstellungen ⚙ Anzahl Läufe wählen. Oben zwischen <b>Lauf 1/2</b> umschalten. Ergebnis-Ansicht <b>Gesamt</b> = Summe beider Läufe (nur Läufer mit beiden Läufen).</p>`},
+ {t:"Zwischenzeit", h:`<p>Optionaler Messpunkt (Einstellungen). Zeigt auf Strecke und Anzeigetafel den Vergleich zur Bestzeit (+/−). Taste <span class="kbd">M</span> oder Knopf ⏲ ZW.</p>`},
+ {t:"Handzeit (Backup)", h:`<p>Im Ergebnis auf die <b>Zeit klicken</b> und eine manuelle Zeit (z. B. <code>53,21</code>) eintragen. Fehlt die elektronische Zeit, zählt die Handzeit – die Absicherung gegen Elektronik-Ausfall.</p>`},
+ {t:"Korrigieren & rückgängig", h:`<p><span class="kbd">Z</span> nimmt den letzten Start/Ziel-Impuls zurück. Ein Ergebnis anklicken setzt es zurück. DNF/DNS/DSQ jederzeit setz- und aufhebbar.</p>`},
+ {t:"Ergebnisse drucken / PDF / Urkunde", h:`<p><b>🖨</b> bei den Ergebnissen erzeugt die offizielle Liste mit Veranstaltungsdaten und Unterschriftenzeilen. Im Druckdialog „Als PDF speichern" wählen. Veranstaltungsdaten (Ort, Datum, Schiedsrichter …) in Einstellungen ⚙.</p>`},
+ {t:"CSV / Excel-Export", h:`<p><b>CSV</b> bei den Ergebnissen exportiert alle Zeiten inkl. Gesamt- und Klassenrang – in Excel/Numbers öffenbar.</p>`},
+ {t:"Anzeigetafel / Beamer", h:`<p>Knopf <b>Anzeigetafel</b> oder Taste <span class="kbd">B</span>: Vollbild mit aktuellem Läufer, großer Uhr, Live-Zwischenzeit und Top-Liste – für TV/Beamer am Zielgelände.</p>`},
+ {t:"Start-Ansicht (Tablet am Start)", h:`<p>Adresse <code>…/?room=DEINBENUTZER#start</code> – reine Anzeige: wer ist bereit, wer ist auf der Strecke. „Vollbild" für die Tablet-Ansicht. Nur zum Schauen; nichts bedienen.</p>`},
+ {t:"LiveTiming – öffentlicher Link teilen", h:`<p>Knopf <b>🔗 LiveTiming</b> zeigt den öffentlichen Link (<code>…/?room=DEINBENUTZER#results</code>) mit <b>Link kopieren</b>. Diesen Link teilen – Zuschauer sehen die Zeiten live, ohne Anmeldung, nur ansehen.</p>`},
+ {t:"Konto & Anmeldung (keine PIN)", h:`<p>Statt PIN gibt es <b>Benutzerkonten</b>. Einstellungen ⚙ → <b>Vernetzung &amp; Konto</b> → Benutzer + Passwort → <b>Registrieren</b> (erstmalig) bzw. <b>Anmelden</b>. Ein Konto = ein Rennen. Wer mit dem Konto angemeldet ist, darf senden; Zuschauer brauchen kein Konto.</p>`},
+ {t:"Master senden (Ziel-PC)", h:`<p>Am Ziel-PC nach dem Anmelden <b>„Diesen PC als Master senden"</b> aktivieren. Dieser PC hat die Ziel-Lichtschranke und überträgt das Rennen live an alle Anzeigen.</p>`},
+ {t:"Startstation (Tablet sendet Start)", h:`<p>Falls der Start vom Tablet ausgelöst werden soll: <code>…/#start</code> öffnen → <b>„Als Startstation"</b> → mit demselben Konto anmelden → großer <b>START</b>-Knopf (oder Leertaste).</p>`},
+ {t:"Lokal im WLAN (Wochenende)", h:`<p>PC und Tablet im selben WLAN: am PC <code>npm install</code>, dann <code>npm start</code>; im Chrome <code>http://localhost:3000</code> öffnen. Tablet über die PC-IP: <code>http://192.168.x.x:3000/?room=BENUTZER#results</code>. PC-IP via <code>ipconfig</code>. <b>Firewall-Abfrage von Node auf „Zulassen"</b>, sonst erreicht das Tablet den PC nicht.</p>`},
+ {t:"Cloud / Internet (getrennt, Mobilfunk)", h:`<p>Wenn PC und Tablet nicht im selben Netz sind: Server zu einem Hoster (z. B. Render). Build <code>npm install</code>, Start <code>node server.js</code>, Umgebungsvariable <b>AUTH_SECRET</b> setzen (sonst werden Logins beim Neustart ungültig). Danach öffnen alle Geräte die Cloud-Adresse über ihr eigenes Internet.</p>`},
+ {t:"Genauigkeit & Uhren-Sync", h:`<p>Hardware-Zeitstempel werden bevorzugt (mikrocontroller-genau). Bei getrennten Geräten synchronisiert die App die Uhren über den Server – realistisch einige Hundertstel bis Zehntel. Offizielle 1/100 brauchen GPS-synchronisierte Zeitmess-Boxen.</p>`},
+ {t:"Daten sichern / laden / Reset", h:`<p>Im Protokoll-Bereich: <b>Sichern</b> (JSON-Datei), <b>Laden</b>, <b>Reset</b>. Es wird zusätzlich automatisch im Browser zwischengespeichert (Absturz-/Reload-sicher).</p>`},
+ {t:"Sicherheit & Datenschutz", h:`<p>Passwörter werden mit scrypt gehasht, Sitzungen über signierte Tokens. Für Produktivbetrieb HTTPS erzwingen und starkes AUTH_SECRET setzen. Daten bleiben lokal/auf deinem Server.</p>`},
+ {t:"Wichtiger Hinweis (Haftung)", h:`<div class="disc"><b>Wichtig:</b> Zeitnahme-Hilfe für Vereins-, Trainings- und Hobbyrennen. Nicht FIS-homologiert, ohne Gewähr auf Richtigkeit. Für gewertete Rennen gelten die Verbandsvorschriften (zertifizierte Hardware, redundante Anlage, Handzeit-Backup).</div>`}
+];
+function helpText(s){ return (s.t+' '+s.h).replace(/<[^>]+>/g,' ').toLowerCase(); }
+function renderHelp(q){ q=(q||'').trim().toLowerCase();
+  const items=HELP.filter(s=>!q||helpText(s).includes(q));
+  $('helpContent').innerHTML = items.length? items.map(s=>`<div class="help-sec"><h4>${esc(s.t)}</h4>${s.h}</div>`).join('')
+    : '<div class="help-none">Nichts gefunden für „'+esc(q)+'". Tipp: andere Begriffe wie „Tablet", „Klassen", „Cloud".</div>';
+}
+function openAbout(){ $('aboutVer').textContent=VERSION; $('helpSearch').value=''; renderHelp(''); $('aboutModal').classList.add('open'); $('aboutOverlay').classList.add('show'); setTimeout(()=>{ try{ $('helpSearch').focus(); }catch(e){} },60); }
+function closeAbout(){ $('aboutModal').classList.remove('open'); $('aboutOverlay').classList.remove('show'); }
+function checkUpdate(){ if(location.protocol==='file:') return;
+  fetch('/api/version',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d && d.version && d.version!==VERSION){ $('upVer').textContent=d.version; $('updateBar').style.display='flex'; }
+  }).catch(()=>{}); }
+
+/* Settings */
+function applySettingsToUI(){ $('setRuns').value=S.numRuns; $('setBaud').value=S.settings.baud;
+  const m=S.meta; $('mOrg').value=m.organizer; $('mLoc').value=m.location; $('mDate').value=m.date; $('mDisc').value=m.discipline;
+  $('mRef').value=m.referee; $('mSetter').value=m.setter; $('mGates').value=m.gates; $('mWeather').value=m.weather; $('mSnow').value=m.snow;
+  $('mTempS').value=m.tempS; $('mTempF').value=m.tempF; $('mLic').value=S.licensee;
+  $('setStartKeys').value=S.settings.startKeys.join(','); $('setInterKeys').value=S.settings.interKeys.join(',');
+  $('setFinishKeys').value=S.settings.finishKeys.join(','); $('setLockStart').value=S.settings.lockStart;
+  $('setLockInter').value=S.settings.lockInter; $('setLockFinish').value=S.settings.lockFinish; $('setDecimals').value=S.settings.decimals;
+  $('swInter').classList.toggle('on',S.settings.hasInter); $('swHwTs').classList.toggle('on',S.settings.useHwTs);
+  $('swAutoNext').classList.toggle('on',S.settings.autoNext); $('swBeep').classList.toggle('on',S.settings.beep); }
+function readSettingsFromUI(){
+  const newRuns=parseInt($('setRuns').value);
+  if(newRuns!==S.numRuns){ S.numRuns=newRuns; S.racers.forEach(migrate); if(S.activeRun>=S.numRuns) S.activeRun=0;
+    if(S.resultView===99 && S.numRuns<2) S.resultView=0;
+    if(S.resultView!==99 && S.resultView>=S.numRuns) S.resultView=0; buildRunSel(); buildViewSel(); }
+  S.settings.baud=parseInt($('setBaud').value);
+  S.settings.startKeys=$('setStartKeys').value.toUpperCase().split(',').map(x=>x.trim()).filter(Boolean);
+  S.settings.interKeys=$('setInterKeys').value.toUpperCase().split(',').map(x=>x.trim()).filter(Boolean);
+  S.settings.finishKeys=$('setFinishKeys').value.toUpperCase().split(',').map(x=>x.trim()).filter(Boolean);
+  S.settings.lockStart=Math.max(0,parseInt($('setLockStart').value)||0);
+  S.settings.lockInter=Math.max(0,parseInt($('setLockInter').value)||0);
+  S.settings.lockFinish=Math.max(0,parseInt($('setLockFinish').value)||0);
+  S.settings.decimals=Math.min(3,Math.max(0,parseInt($('setDecimals').value)||2));
+  const m=S.meta; m.organizer=$('mOrg').value; m.location=$('mLoc').value; m.date=$('mDate').value; m.discipline=$('mDisc').value;
+  m.referee=$('mRef').value; m.setter=$('mSetter').value; m.gates=$('mGates').value; m.weather=$('mWeather').value; m.snow=$('mSnow').value;
+  m.tempS=$('mTempS').value; m.tempF=$('mTempF').value; S.licensee=$('mLic').value;
+  persist(); renderAll();
+}
+
+/* ====================== Netzwerk (WLAN / Internet) ====================== */
+const NET={ ws:null, role:'viewer', master:false, station:false, token:'', user:'', enabled:false, connected:false, _t:0,
+  offset:0, rtt:Infinity, synced:false, _sync:0 };
+const NETKEY="alpin_net_v1";
+let REMOTE=null, VIEWKIND=null, rvClass='';
+function serverNow(){ return Date.now()+NET.offset; }
+function netSyncOnce(){ if(NET.connected && NET.ws && NET.ws.readyState===1){ try{ NET.ws.send(JSON.stringify({type:'time',t1:Date.now()})); }catch(e){} } }
+function netSyncHandle(d){ const t2=Date.now(), rtt=t2-d.t1; if(rtt<NET.rtt){ NET.rtt=rtt; NET.offset=d.ts-(d.t1+t2)/2; NET.synced=true; } }
+function netStartSync(){ clearInterval(NET._sync); NET.rtt=Infinity; let n=0;
+  const burst=setInterval(()=>{ netSyncOnce(); if(++n>=5) clearInterval(burst); },300);
+  NET._sync=setInterval(netSyncOnce,5000); }
+function loadNet(){ try{ if(window.localStorage){ const j=localStorage.getItem(NETKEY); if(j){ const d=JSON.parse(j); NET.master=!!d.master; NET.station=!!d.station; NET.token=d.token||''; NET.user=d.user||''; } } }catch(e){} }
+function saveNet(){ try{ if(window.localStorage) localStorage.setItem(NETKEY,JSON.stringify({master:NET.master,station:NET.station,token:NET.token,user:NET.user})); }catch(e){} }
+function lsState(){ try{ if(window.localStorage){ const j=localStorage.getItem(LS_KEY); if(j) return JSON.parse(j); } }catch(e){} return null; }
+function viewState(){ return REMOTE || lsState(); }
+function viewerRoom(){ try{ const p=new URLSearchParams(location.search); return (p.get('room')||NET.user||'').toLowerCase(); }catch(e){ return (NET.user||'').toLowerCase(); } }
+function netConnect(){
+  if(location.protocol==='file:') return;
+  if(NET.ws){ try{NET.ws.close();}catch(e){} NET.ws=null; }
+  const base=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/?';
+  let u;
+  if(NET.role==='master' || NET.role==='station'){ if(!NET.token) return; u=base+'role='+NET.role+'&token='+encodeURIComponent(NET.token); }
+  else { const room=viewerRoom(); if(!room) return; u=base+'room='+encodeURIComponent(room); }
+  let ws; try{ ws=new WebSocket(u); }catch(e){ return; } NET.ws=ws;
+  ws.onopen=()=>{ NET.connected=true; updateNetUI(); if(NET.role==='master'){ netStartSync(); netPush(); } if(NET.role==='station') netStartSync(); };
+  ws.onmessage=ev=>{ let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
+    if(d.type==='time'){ netSyncHandle(d); return; }
+    if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
+    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); return; }
+    if(d.type==='state' && NET.role==='viewer'){ REMOTE=d.data; onRemoteState(); } };
+  ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
+  ws.onerror=()=>{};
+}
+function netPush(){ if(NET.master && NET.role==='master' && NET.connected && NET.ws && NET.ws.readyState===1){
+  try{ NET.ws.send(JSON.stringify({type:'state',data:JSON.parse(exportState())})); }catch(e){} } }
+/* --- Konten (Login/Registrierung, ersetzt die PIN) --- */
+async function authRequest(p,user,pw){ const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pw})});
+  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.msg||'Fehler'); return d; }
+async function doLogin(user,pw,register){
+  if(location.protocol==='file:'){ toast("Konten brauchen den Server – nicht die lokale Datei."); return; }
+  if(!user||!pw){ toast("Benutzer und Passwort eingeben"); return; }
+  try{ const d=await authRequest(register?'/api/register':'/api/login', user, pw);
+    NET.token=d.token; NET.user=d.user; saveNet(); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
+    updateNetUI(); if(NET.master) netStartMaster(); }
+  catch(e){ toast(e.message||'Anmeldung fehlgeschlagen'); }
+}
+function doLogout(){ NET.token=''; NET.user=''; NET.master=false; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
+/* Master: Start-Ereignis von der Startstation anwenden (Zeitstempel in Serverzeit) */
+function applyRemoteStart(serverT){
+  const r=S.racers.find(x=>x.id===S.readyId);
+  if(!r){ logEvent("Start (Station) ohne bereiten Läufer – verworfen","ev-warn"); return; }
+  if(typeof serverT!=='number') serverT=serverNow();
+  const elapsed=Math.max(0, serverNow()-serverT);
+  const c=cur(r); c.state='running'; c.startServerT=serverT;
+  c.startSW=performance.now()-elapsed; c.startWall=Date.now()-elapsed; c.startHW=null;
+  S.onCourse.push(r.id); S.history.push({type:'start',id:r.id,run:S.activeRun});
+  logEvent(`START (Startstation) · Nr ${r.bib} ${r.name}`,'ev-start'); beep(990);
+  flashBoard(`Start Nr ${r.bib}`);
+  S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
+  renderAll(); persist();
+}
+/* Startstation: Start senden */
+function sendStartEvent(){
+  if(!NET.connected || !NET.ws || NET.ws.readyState!==1){ toast("Keine Verbindung"); return; }
+  if(!NET.synced){ toast("Uhren-Sync läuft noch – kurz warten"); return; }
+  try{ NET.ws.send(JSON.stringify({type:'event',kind:'start',serverT:serverNow()})); }catch(e){ return; }
+  beep(990); const b=$('svStartBtn'); if(b){ b.style.filter='brightness(1.6)'; setTimeout(()=>b.style.filter='',150); }
+}
+function netStartMaster(){ if(location.protocol==='file:'){ toast("Master-Senden braucht den Server (http://…)."); NET.master=false; updateNetUI(); return; }
+  if(!NET.token){ toast("Bitte zuerst anmelden."); NET.master=false; updateNetUI(); return; }
+  NET.role='master'; NET.enabled=true; netConnect(); }
+function netStop(){ NET.enabled=false; if(NET.ws){ try{NET.ws.close();}catch(e){} NET.ws=null; } NET.connected=false; updateNetUI(); }
+function wireAuthButtons(){ const lg=$('btnLogin'), rg=$('btnRegister'), lo=$('btnLogout');
+  if(lg) lg.onclick=()=>doLogin((($('inUser')||{}).value)||'', (($('inPass')||{}).value)||'', false);
+  if(rg) rg.onclick=()=>doLogin((($('inUser')||{}).value)||'', (($('inPass')||{}).value)||'', true);
+  if(lo) lo.onclick=doLogout; }
+function updateNetUI(){
+  const auth=$('netAuth'), st=$('netStatus'), lk=$('netLinks'), sw=$('swMaster'); if(!st) return;
+  const li=!!NET.user;
+  if(auth && updateNetUI._li!==li){ updateNetUI._li=li;
+    auth.innerHTML = li
+      ? 'Angemeldet als <b style="color:var(--green)">'+esc(NET.user)+'</b> &nbsp;<button class="btn sm ghost" id="btnLogout">Abmelden</button>'
+      : '<div style="display:flex;gap:6px;flex-wrap:wrap"><input id="inUser" placeholder="Benutzer" autocomplete="username" style="flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px"><input id="inPass" type="password" placeholder="Passwort" autocomplete="current-password" style="flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px"></div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm primary" id="btnLogin">Anmelden</button><button class="btn sm" id="btnRegister">Registrieren</button></div>';
+    wireAuthButtons();
+  }
+  if(location.protocol==='file:'){ st.innerHTML='Lokale Datei – Konten/Vernetzung brauchen den Server (http://…).'; }
+  else if(!li){ st.innerHTML='Nicht angemeldet – Bedienung läuft lokal.'; }
+  else if(NET.master){ st.innerHTML = NET.connected?'<span style="color:var(--green)">● Master verbunden – sendet live.</span>':'<span style="color:var(--amber)">○ verbinde…</span>'; }
+  else st.innerHTML='Angemeldet. „Master senden" aktivieren zum Live-Übertragen.';
+  if(lk){ if(location.protocol==='file:'||!li) lk.textContent='Nach Anmeldung erscheint hier der öffentliche Link.';
+    else lk.innerHTML='Öffentlich teilbar: <code>'+esc(location.origin+location.pathname+'?room='+NET.user+'#results')+'</code>'; }
+  if(sw) sw.classList.toggle('on',NET.master);
+}
+function onRemoteState(){ if(VIEWKIND==='start') svRefresh(); else if(VIEWKIND==='results') rvRefresh(); }
+/* viewer-seitige Wertungsfunktionen (arbeiten auf empfangenem Zustand d) */
+function dEff(c){ if(c && c.state==='finished') return c.runMs!=null?c.runMs:c.hand; return null; }
+function dRankRun(d,ri){ return d.racers.filter(r=>dEff(r.runs[ri])!=null).map(r=>({r,t:dEff(r.runs[ri])})).sort((a,b)=>a.t-b.t); }
+function dRankComb(d){ return d.racers.filter(r=>{ for(let i=0;i<d.numRuns;i++) if(dEff(r.runs[i])==null) return false; return true; })
+  .map(r=>{ let t=0; for(let i=0;i<d.numRuns;i++) t+=dEff(r.runs[i]); return {r,t}; }).sort((a,b)=>a.t-b.t); }
+
+/* ---- Read-only START view (eigenes Fenster, sync über localStorage) ---- */
+function openStartView(){
+  const url=location.href.split('#')[0]+'#start';
+  const w=window.open(url,'alpinstart');
+  if(!w) toast("Bitte Pop-ups erlauben – oder die Datei separat mit #start am Ende der Adresse öffnen.");
+}
+function openResultsView(){
+  const url=location.href.split('#')[0]+'#results';
+  const w=window.open(url,'alpinresults');
+  if(!w) toast("Bitte Pop-ups erlauben – oder die Datei separat mit #results öffnen.");
+}
+function copyText(t){
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(()=>toast("Link kopiert")).catch(()=>fallbackCopy(t)); }
+  else fallbackCopy(t);
+}
+function fallbackCopy(t){ const i=document.createElement('input'); i.value=t; document.body.appendChild(i); i.select();
+  try{ document.execCommand('copy'); toast("Link kopiert"); }catch(e){ toast("Bitte Link manuell kopieren"); } i.remove(); }
+function liveShareUrl(){ return location.origin + location.pathname + '?room=' + encodeURIComponent(NET.user||'') + '#results'; }
+function openLiveShare(){
+  const isFile=location.protocol==='file:';
+  const url=liveShareUrl();
+  const ok = !isFile && !!NET.user;
+  $('liveUrl').value = ok ? url : (isFile ? '— erst über den Server/Cloud öffnen —' : '— erst anmelden (Einstellungen ⚙ → Vernetzung) —');
+  const hint=$('liveHint');
+  if(isFile){ hint.innerHTML='Dieser Link entsteht erst, wenn die App <b>über den Server</b> läuft (siehe README).'; }
+  else if(!NET.user){ hint.innerHTML='Bitte zuerst <b>anmelden</b> (Einstellungen ⚙ → Vernetzung). Der Link gehört zu deinem Konto.'; }
+  else { hint.innerHTML='Öffentlich teilbar – Zuschauer sehen nur zu. Senden kann nur, wer mit deinem Konto angemeldet ist.'; }
+  $('liveModal').classList.add('open'); $('liveOverlay').classList.add('show');
+}
+function closeLiveShare(){ $('liveModal').classList.remove('open'); $('liveOverlay').classList.remove('show'); }
+const _sv={data:null};
+function svCur(r){ return r.runs[(_sv.data&&_sv.data.activeRun)||0]; }
+function initStartView(){
+  VIEWKIND='start'; loadNet();
+  const wrap=document.querySelector('.wrap'); if(wrap) wrap.style.display='none';
+  $('startview').classList.add('show');
+  $('svClose').onclick=()=>window.close();
+  $('svFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
+  $('svStation').onclick=async ()=>{
+    if(!NET.token){ const u=prompt("Benutzername (dasselbe Konto wie am Ziel):"); if(!u) return; const p=prompt("Passwort:"); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
+    NET.station=true; NET.role='station'; saveNet(); $('svStartBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – START sendet jetzt."); };
+  $('svStartBtn').onclick=sendStartEvent;
+  if(NET.station && NET.token){ $('svStartBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
+  NET.role=(NET.station && NET.token)?'station':'viewer'; NET.enabled=(location.protocol!=='file:'); if(NET.enabled) netConnect();
+  window.addEventListener('storage',e=>{ if(e.key===LS_KEY) svRefresh(); });
+  document.addEventListener('keydown',e=>{ if(NET.station && e.code==='Space' && (e.target.tagName||'').toLowerCase()!=='input'){ e.preventDefault(); sendStartEvent(); } });
+  setInterval(svRefresh,1000); svRefresh();
+  setInterval(()=>{ $('svTod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
+  (function loop(){ updateStartClocks(); requestAnimationFrame(loop); })();
+}
+function svRefresh(){
+  const d=viewState();
+  if(!d){ $('svDot').className='dot'; $('svSync').textContent='Keine Verbindung'; $('svReadyName').textContent='—'; $('svReadyBib').textContent=''; return; }
+  _sv.data=d; if(d.settings&&d.settings.decimals!=null) S.settings.decimals=d.settings.decimals;
+  $('svDot').className='dot on'; $('svSync').textContent=REMOTE?'live über Netzwerk':'synchron (lokal)';
+  renderStartView();
+}
+function renderStartView(){
+  const d=_sv.data; if(!d) return;
+  $('svRace').textContent=d.raceName||'Rennen'; $('svRun').textContent='Lauf '+((d.activeRun||0)+1);
+  const ready=d.racers.find(r=>r.id===d.readyId);
+  $('svReadyBib').textContent=ready?ready.bib:''; 
+  const nm=$('svReadyName'); nm.textContent=ready?ready.name:'— niemand bereit —'; nm.className='nm'+(ready?'':' empty');
+  const up=d.racers.filter(r=>svCur(r).state==='idle').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).slice(0,6);
+  $('svNext').innerHTML=up.length?up.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span></div>`).join(''):'<div class="sv-empty">—</div>';
+  const oc=d.racers.filter(r=>svCur(r).state==='running').sort((a,b)=>(svCur(a).startWall||0)-(svCur(b).startWall||0));
+  $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
+  $('svCourseCount').textContent=oc.length;
+}
+function updateStartClocks(){
+  const d=_sv.data; if(!d) return; const wNow=Date.now();
+  document.querySelectorAll('#svCourse [data-wall]').forEach(el=>{ const w=+el.getAttribute('data-wall'); el.textContent=w?fmt(wNow-w):'—'; });
+  let last=0; d.racers.forEach(r=>{ if(svCur(r).state==='running'){ const w=svCur(r).startWall||0; if(w>last) last=w; } });
+  $('svInterval').textContent=last?fmt(wNow-last):'—';
+}
+
+/* ---- Read-only RESULTS view (öffentliche Live-Ergebnisse) ---- */
+function initResultsView(){
+  VIEWKIND='results';
+  const wrap=document.querySelector('.wrap'); if(wrap) wrap.style.display='none';
+  $('resultsview').classList.add('show');
+  $('rvClose').onclick=()=>window.close();
+  $('rvFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
+  $('rvTabs').addEventListener('click',e=>{ const b=e.target.closest('[data-cls]'); if(!b) return; rvClass=b.dataset.cls; renderResultsView(); });
+  NET.role='viewer'; NET.enabled=(location.protocol!=='file:'); if(NET.enabled) netConnect();
+  window.addEventListener('storage',e=>{ if(e.key===LS_KEY) rvRefresh(); });
+  setInterval(rvRefresh,1000); rvRefresh();
+  setInterval(()=>{ $('rvTod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
+  (function loop(){ updateResultsClocks(); requestAnimationFrame(loop); })();
+}
+function rvRefresh(){
+  const d=viewState();
+  if(!d){ $('rvDot').className='dot'; $('rvSync').textContent='Keine Verbindung'; $('rvList').innerHTML='<div class="rv-empty">warte auf Daten…</div>'; return; }
+  _sv.data=d; if(d.settings&&d.settings.decimals!=null) S.settings.decimals=d.settings.decimals;
+  $('rvDot').className='dot on'; $('rvSync').textContent=REMOTE?'live über Netzwerk':'synchron (lokal)';
+  renderResultsView();
+}
+function dClasses(d){ const s=new Set(); d.racers.forEach(r=>{ const c=(r.cat||'').trim(); if(c) s.add(c); });
+  return [...s].sort((a,b)=>a.localeCompare(b,'de',{numeric:true})); }
+function renderResultsView(){
+  const d=_sv.data; if(!d) return; const ar=d.activeRun||0;
+  const cls=dClasses(d);
+  if(rvClass && cls.indexOf(rvClass)<0) rvClass='';
+  $('rvTabs').innerHTML = cls.length ? (`<button class="rv-tab ${rvClass===''?'act':''}" data-cls="">Alle</button>`+
+    cls.map(c=>`<button class="rv-tab ${rvClass===c?'act':''}" data-cls="${esc(c)}">${esc(c)}</button>`).join('')) : '';
+  const combined = d.numRuns>1 && dRankComb(d).length>0;
+  let ranked = combined?dRankComb(d):dRankRun(d,ar);
+  if(rvClass) ranked=ranked.filter(e=>(e.r.cat||'').trim()===rvClass);
+  const best=ranked.length?ranked[0].t:null;
+  $('rvRace').textContent=(d.raceName||'Rennen')+(d.meta&&d.meta.discipline?' · '+d.meta.discipline:'');
+  $('rvLabel').textContent=(combined?'Gesamtwertung':'Lauf '+(ar+1))+(rvClass?' · '+rvClass:'');
+  $('rvList').innerHTML = ranked.length? withRanks(ranked).map(({e,rank})=>
+    `<div class="rv-li ${rank<=3?'p'+rank:''}"><span class="r">${rank}</span><span class="bb">${esc(e.r.bib)}</span><span class="nn">${esc(e.r.name)}${e.r.cat?` · ${esc(e.r.cat)}`:''}</span><span class="tt">${fmt(e.t)}</span><span class="df">${e.t===best?'':fmtDelta(e.t-best)}</span></div>`).join('')
+    : '<div class="rv-empty">noch keine Ergebnisse</div>';
+  const oc=d.racers.filter(r=>r.runs[ar].state==='running').sort((a,b)=>(a.runs[ar].startWall||0)-(b.runs[ar].startWall||0));
+  $('rvCourse').innerHTML=oc.length? oc.map(r=>`<span class="chip"><b>${esc(r.bib)}</b> ${esc(r.name)} <i data-wall="${r.runs[ar].startWall||0}">—</i></span>`).join('') : '<span class="rv-empty">niemand auf der Strecke</span>';
+}
+function updateResultsClocks(){ const d=_sv.data; if(!d) return; const wNow=Date.now();
+  document.querySelectorAll('#rvCourse [data-wall]').forEach(el=>{ const w=+el.getAttribute('data-wall'); el.textContent=w?fmt(wNow-w):'—'; }); }
+
+function init(){
+  const hk=(location.hash||'').replace('#','');
+  if(hk==='start'){ initStartView(); return; }
+  if(hk==='results'){ initResultsView(); return; }
+  loadNet();
+  applySettingsToUI(); buildRunSel(); buildViewSel(); tryRestore(); renderAll(); requestAnimationFrame(tick);
+
+  $('btnAdd').onclick=()=>{ addRacer($('inBib').value,$('inName').value,$('inCat').value); $('inBib').value='';$('inName').value='';$('inCat').value='';$('inBib').focus(); };
+  $('inName').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btnAdd').click(); });
+  $('inCat').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btnAdd').click(); });
+  $('inBib').addEventListener('keydown',e=>{ if(e.key==='Enter') $('inName').focus(); });
+  $('startBody').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const id=+b.dataset.id;
+    if(b.dataset.act==='del'){ if(confirm("Läufer löschen?")) delRacer(id); }
+    else if(b.dataset.act==='ready') setReady(id);
+    else if(b.dataset.act==='dns'){ if(confirm("Als DNS (nicht gestartet) werten?")) setStatus(id,'DNS'); } });
+  $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf]'); if(!b) return; const id=+b.dataset.dnf;
+    const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF werten?`)) setStatus(id,'DNF'); });
+  $('resBody').addEventListener('click',e=>{ const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
+
+  $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
+  $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
+  $('btnStartView').onclick=openStartView;
+  $('btnLive').onclick=openLiveShare;
+  $('liveClose').onclick=closeLiveShare; $('liveOverlay').onclick=closeLiveShare;
+  $('btnCopyLive').onclick=()=>{ if(location.protocol!=='file:' && NET.user) copyText(liveShareUrl()); else toast("Noch kein öffentlicher Link – siehe Hinweis."); };
+  $('btnOpenLivePreview').onclick=openResultsView;
+  $('btnOpenStart2').onclick=openStartView; $('btnOpenResults2').onclick=openResultsView;
+  $('swMaster').onclick=()=>{ NET.master=!NET.master; saveNet(); if(NET.master) netStartMaster(); else netStop(); updateNetUI(); };
+  $('btnExport').onclick=exportCSV;
+  $('classSel').onchange=()=>{ S.resultClass=$('classSel').value; renderResults(); persist(); };
+  $('btnPrintRes').onclick=()=>printResultSheet(S.resultView);
+  $('btnPrintStart').onclick=printStartSheet;
+  $('btnAbout').onclick=openAbout; $('btnCloseAbout').onclick=closeAbout; $('aboutOverlay').onclick=closeAbout;
+  $('helpSearch').addEventListener('input',e=>renderHelp(e.target.value));
+  $('helpSearch').addEventListener('keydown',e=>{ if(e.key==='Escape') closeAbout(); });
+  $('upReload').onclick=()=>location.reload();
+  $('upLater').onclick=()=>{ $('updateBar').style.display='none'; };
+  setTimeout(checkUpdate,3000); setInterval(checkUpdate,300000);
+  $('btnImport').onclick=importList; $('btnClearList').onclick=()=>{ if(confirm("Startliste löschen?")){ S.racers=[];S.onCourse=[];S.readyId=null;renderAll();persist(); } };
+  $('btnSaveJson').onclick=saveJson; $('btnLoadJson').onclick=()=>$('fileInput').click();
+  $('fileInput').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader(); rd.onload=()=>{ if(importState(rd.result)) toast("Geladen"); }; rd.readAsText(f); e.target.value=''; };
+  $('btnReset').onclick=()=>{ if(confirm("Alles zurücksetzen?")){ S.racers=[];S.onCourse=[];S.readyId=null;S.nextId=1;S.history=[];S.activeRun=0;$('log').innerHTML='';buildRunSel();renderAll();persist(); } };
+  $('raceName').onchange=()=>{ persist(); refreshBoard(); };
+
+  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); };
+  const closeD=()=>{ $('drawer').classList.remove('open'); $('overlay').classList.remove('show'); readSettingsFromUI(); refreshBoard(); };
+  $('btnSettings').onclick=openD; $('btnCloseSettings').onclick=closeD; $('overlay').onclick=closeD;
+  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  $('swInter').onclick=()=>{ S.settings.hasInter=!S.settings.hasInter; $('swInter').classList.toggle('on'); renderAll(); persist(); };
+  $('swHwTs').onclick=()=>{ S.settings.useHwTs=!S.settings.useHwTs; $('swHwTs').classList.toggle('on'); persist(); };
+  $('swAutoNext').onclick=()=>{ S.settings.autoNext=!S.settings.autoNext; $('swAutoNext').classList.toggle('on'); persist(); };
+  $('swBeep').onclick=()=>{ S.settings.beep=!S.settings.beep; $('swBeep').classList.toggle('on'); persist(); };
+
+  document.addEventListener('keydown',e=>{ const tag=(e.target.tagName||'').toLowerCase(); if(tag==='input'||tag==='textarea'||tag==='select') return;
+    if(e.code==='Space'){ e.preventDefault(); handleImpulse('start',null); flash('trigStart'); }
+    else if(e.code==='Enter'){ e.preventDefault(); handleImpulse('finish',null); flash('trigFinish'); }
+    else if(e.key==='m'||e.key==='M'){ if(S.settings.hasInter){ handleImpulse('inter',null); flash('trigInter'); } }
+    else if(e.key==='z'||e.key==='Z'){ undoLast(); }
+    else if(e.key==='b'||e.key==='B'){ toggleBoard(); } });
+  function flash(id){ const el=$(id); if(!el) return; el.style.filter='brightness(1.6)'; setTimeout(()=>el.style.filter='',120); }
+
+  window.addEventListener('beforeunload',e=>{ if(S.racers.length){ e.preventDefault(); e.returnValue=''; } });
+  updateNetUI();
+  if(NET.master && NET.token && location.protocol!=='file:'){ netStartMaster(); }
+  logEvent("Bereit. Läufer hinzufügen, verbinden oder Simulation testen. Taste B = Anzeigetafel.","ev-info");
+}
+/* board label uses combined when on run 2 with run1 results */
+const _origRenderBoardList=renderBoardList;
+renderBoardList=function(){ const combined=boardCombinedReady();
+  $('bdRace').textContent=$('raceName').value; $('bdRun').textContent=combined?'GESAMT':'LAUF '+(S.activeRun+1);
+  $('bdBoardLbl').textContent=combined?'Gesamtwertung':'Rangliste Lauf '+(S.activeRun+1);
+  const ranked=(combined?rankedCombined():rankedRun(S.activeRun)).slice(0,8); const best=ranked.length?ranked[0].t:null;
+  $('bdList').innerHTML=ranked.map((e,i)=>`<div class="bd-li ${i<3?'p'+(i+1):''}"><span class="r">${i+1}</span>
+    <span class="bb">${esc(e.r.bib)}</span><span class="nn">${esc(e.r.name)}</span>
+    <span class="tt">${fmt(e.t)}${i>0?` <span style="color:var(--dim);font-size:.7em">${fmtDelta(e.t-best)}</span>`:''}</span></div>`).join('')
+    || '<div style="color:var(--dimmer);font-size:1.4vw">noch keine Ergebnisse</div>'; };
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>

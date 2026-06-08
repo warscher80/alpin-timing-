@@ -1,0 +1,150 @@
+/* ALPIN TIMING — Server (Benutzerkonten, keine PIN)
+ *
+ * Ein Konto = ein Rennen ("Raum"). Wer mit dem Konto angemeldet ist (Token),
+ * darf den Zustand senden (Master = Ziel) und Start-Ereignisse senden (Startstation).
+ * Zuschauer öffnen den öffentlichen Raum ohne Anmeldung.
+ *
+ * Start:  npm install  →  npm start
+ * Optional: AUTH_SECRET=… (sonst wird ein Geheimnis erzeugt & in data/secret gespeichert)
+ */
+const http = require('http');
+const fs   = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { WebSocketServer } = require('ws');
+
+const PORT = process.env.PORT || 3000;
+const ROOT = __dirname;
+const DATA = path.join(ROOT, 'data');
+try { fs.mkdirSync(DATA, { recursive: true }); } catch (e) {}
+
+/* --- Geheimnis (für Token-Signatur), überlebt Neustart --- */
+const SECRET_FILE = path.join(DATA, 'secret');
+let SECRET = process.env.AUTH_SECRET || '';
+if (!SECRET) { try { SECRET = fs.readFileSync(SECRET_FILE, 'utf8'); } catch (e) {} }
+if (!SECRET) { SECRET = crypto.randomBytes(32).toString('hex'); try { fs.writeFileSync(SECRET_FILE, SECRET); } catch (e) {} }
+
+/* --- Benutzer-Speicher --- */
+const USERS_FILE = path.join(DATA, 'users.json');
+let users = {};
+try { users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch (e) {}
+function saveUsers() { try { fs.writeFileSync(USERS_FILE, JSON.stringify(users)); } catch (e) {} }
+
+/* --- App-Version aus der ausgelieferten HTML lesen (für Update-Hinweis) --- */
+let _ver = '', _verMtime = -1;
+function appVersion() {
+  try { const f = path.join(ROOT, 'alpin-timing.html'); const st = fs.statSync(f);
+    if (st.mtimeMs !== _verMtime) { _verMtime = st.mtimeMs; const m = fs.readFileSync(f, 'utf8').match(/const VERSION="([^"]+)"/); _ver = m ? m[1] : ''; }
+  } catch (e) {}
+  return _ver;
+}
+
+/* --- Passwort-Hashing (scrypt) & Token (HMAC) --- */
+function hashPw(pw) { const salt = crypto.randomBytes(16); const h = crypto.scryptSync(pw, salt, 64); return salt.toString('hex') + ':' + h.toString('hex'); }
+function verifyPw(pw, stored) {
+  try { const [s, h] = stored.split(':'); const calc = crypto.scryptSync(pw, Buffer.from(s, 'hex'), 64);
+    return crypto.timingSafeEqual(calc, Buffer.from(h, 'hex')); } catch (e) { return false; }
+}
+function b64u(s) { return Buffer.from(s).toString('base64url'); }
+function signToken(user, days = 30) {
+  const p = b64u(JSON.stringify({ u: user, exp: Date.now() + days * 86400000 }));
+  const sig = crypto.createHmac('sha256', SECRET).update(p).digest('base64url');
+  return p + '.' + sig;
+}
+function verifyToken(token) {
+  if (!token || token.indexOf('.') < 0) return null;
+  const [p, sig] = token.split('.');
+  const exp = crypto.createHmac('sha256', SECRET).update(p).digest('base64url');
+  try { if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null; } catch (e) { return null; }
+  let d; try { d = JSON.parse(Buffer.from(p, 'base64url').toString()); } catch (e) { return null; }
+  if (!d.exp || d.exp < Date.now()) return null;
+  return d.u;
+}
+function normUser(u) { return String(u || '').trim().toLowerCase(); }
+function validUser(u) { return /^[a-z0-9_-]{3,24}$/.test(u); }
+
+/* --- HTTP: statische Dateien + Auth-API --- */
+const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
+  '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
+function readBody(req) { return new Promise(res => { let b = ''; req.on('data', c => { b += c; if (b.length > 1e5) req.destroy(); }); req.on('end', () => res(b)); }); }
+function json(res, code, obj) { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); }
+
+const server = http.createServer(async (req, res) => {
+  const url = decodeURIComponent((req.url || '/').split('?')[0]);
+
+  if (url === '/api/version') return json(res, 200, { version: appVersion() });
+
+  if (url === '/api/register' || url === '/api/login') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'method' });
+    let d; try { d = JSON.parse(await readBody(req)); } catch (e) { return json(res, 400, { error: 'json' }); }
+    const u = normUser(d.username), pw = String(d.password || '');
+    if (!validUser(u)) return json(res, 400, { error: 'username', msg: 'Benutzername: 3–24 Zeichen, a–z 0–9 _ -' });
+    if (pw.length < 6) return json(res, 400, { error: 'password', msg: 'Passwort: mindestens 6 Zeichen' });
+    if (url === '/api/register') {
+      if (users[u]) return json(res, 409, { error: 'exists', msg: 'Benutzername bereits vergeben' });
+      users[u] = { pw: hashPw(pw), created: Date.now() }; saveUsers();
+      return json(res, 200, { token: signToken(u), user: u });
+    } else {
+      if (!users[u] || !verifyPw(pw, users[u].pw)) return json(res, 401, { error: 'auth', msg: 'Falscher Benutzer oder Passwort' });
+      return json(res, 200, { token: signToken(u), user: u });
+    }
+  }
+
+  let safe = path.normalize(url === '/' ? '/alpin-timing.html' : url).replace(/^(\.\.[/\\])+/, '');
+  const file = path.join(ROOT, safe);
+  if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
+  fs.readFile(file, (err, data) => {
+    if (err) { res.writeHead(404); return res.end('not found'); }
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
+    res.end(data);
+  });
+});
+
+/* --- WebSocket: Räume pro Benutzer --- */
+const wss = new WebSocketServer({ server });
+const rooms = {};   // username -> { state }
+
+function broadcastRoom(room) {
+  if (!room) return;
+  const st = rooms[room] && rooms[room].state;
+  if (st === undefined) return;
+  const msg = JSON.stringify({ type:'state', data: st });
+  wss.clients.forEach(c => { if (c.readyState === 1 && (c.role === 'viewer' || c.role === 'station') && c.room === room) { try { c.send(msg); } catch (e){} } });
+}
+function relayToRoomMasters(room, obj) {
+  const msg = JSON.stringify(obj);
+  wss.clients.forEach(c => { if (c.readyState === 1 && c.role === 'master' && c.room === room) { try { c.send(msg); } catch (e){} } });
+}
+
+wss.on('connection', (ws, req) => {
+  let q; try { q = new URL(req.url, 'http://x').searchParams; } catch (e) { q = new URLSearchParams(); }
+  const token = q.get('token'), role = q.get('role'), roomParam = normUser(q.get('room'));
+  if (token) {
+    const u = verifyToken(token);
+    if (!u) { try { ws.send(JSON.stringify({ type:'authfail' })); } catch(e){} ws.close(); return; }
+    ws.user = u; ws.room = u; ws.role = (role === 'station') ? 'station' : 'master';
+  } else {
+    ws.role = 'viewer'; ws.room = roomParam || null;
+  }
+  if ((ws.role === 'viewer' || ws.role === 'station') && ws.room && rooms[ws.room] && rooms[ws.room].state !== undefined) {
+    try { ws.send(JSON.stringify({ type:'state', data: rooms[ws.room].state })); } catch (e){}
+  }
+  ws.isAlive = true; ws.on('pong', () => { ws.isAlive = true; });
+
+  ws.on('message', (raw) => {
+    let d; try { d = JSON.parse(raw.toString()); } catch (e) { return; }
+    if (d.type === 'time') { try { ws.send(JSON.stringify({ type:'time', t1: d.t1, ts: Date.now() })); } catch (e){} return; }
+    if (!ws.user || !ws.room) return;                 // ab hier nur authentifiziert
+    if (d.type === 'state' && ws.role === 'master') { rooms[ws.room] = { state: d.data }; broadcastRoom(ws.room); }
+    else if (d.type === 'event') { relayToRoomMasters(ws.room, { type:'event', kind: d.kind, serverT: d.serverT }); }
+  });
+});
+
+setInterval(() => { wss.clients.forEach(c => { if (c.isAlive === false) return c.terminate(); c.isAlive = false; try { c.ping(); } catch (e){} }); }, 30000);
+
+server.listen(PORT, () => {
+  console.log('ALPIN TIMING Server  http://0.0.0.0:' + PORT);
+  console.log('Konten aktiv. Registrieren/Anmelden in der App unter Vernetzung. Öffentliche Ansicht: …/?room=BENUTZER#results');
+});
+
+module.exports = { hashPw, verifyPw, signToken, verifyToken, normUser, validUser, broadcastRoom, relayToRoomMasters, rooms, wss, appVersion };

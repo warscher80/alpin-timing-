@@ -1,0 +1,15 @@
+{
+  "name": "alpin-timing-server",
+  "version": "1.0.0",
+  "description": "Server für ALPIN TIMING PRO – liefert die App aus und verteilt den Zeitnahme-Zustand live (WLAN + Internet).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
