@@ -414,7 +414,6 @@
     <button class="btn warn" id="btnSim">Simulation</button>
     <button class="btn" id="btnBoard">Anzeigetafel</button>
     <button class="btn" id="btnSponsors" title="Sponsoren auf der Anzeigetafel zeigen">★ Sponsoren</button>
-    <button class="btn" id="btnStartView" title="Reine Anzeige für den Start (eigenes Fenster)">Start-Ansicht</button>
     <button class="btn primary" id="btnLive" title="Öffentlichen Link zum Live-Timing erzeugen und teilen">🔗 LiveTiming</button>
     <button class="btn ghost" id="btnAbout" title="Hilfe & Info">?</button>
     <button class="btn ghost" id="btnSettings" title="Einstellungen">⚙</button>
@@ -663,7 +662,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.6";
+const VERSION="1.7";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1577,7 +1576,6 @@ function init(){
   $('spEnabled').onclick=()=>{ S.sponsorCfg.enabled=!S.sponsorCfg.enabled; $('spEnabled').classList.toggle('on'); saveSponsors(); };
   $('spSec').addEventListener('change',()=>{ S.sponsorCfg.sec=Math.max(2,Math.min(60,parseInt($('spSec').value)||6)); $('spSec').value=S.sponsorCfg.sec; saveSponsors(); });
   $('spPreview').onclick=spPreview;
-  $('btnStartView').onclick=openStartView;
   $('btnLive').onclick=openLiveShare;
   $('liveClose').onclick=closeLiveShare; $('liveOverlay').onclick=closeLiveShare;
   $('btnCopyLive').onclick=()=>{ if(location.protocol!=='file:' && NET.user) copyText(liveShareUrl()); else toast("Noch kein öffentlicher Link – siehe Hinweis."); };
