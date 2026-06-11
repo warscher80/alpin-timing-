@@ -77,6 +77,8 @@
     background:#0c1117;font-size:13px;color:var(--dim);cursor:pointer;white-space:nowrap}
   .wx:hover{border-color:#2c3a47}
   .wx #wxIcon{font-size:15px;line-height:1}
+  .wx .wx-place{color:var(--ink);font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    border-right:1px solid var(--line);padding-right:9px;margin-right:2px}
   .wx b{font-family:var(--mono);color:var(--ink);font-weight:700}
   .wx .wx-desc{color:var(--dim)}
   .wx .wx-live{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
@@ -466,7 +468,8 @@
     <div class="runsel" id="runsel"></div>
     <div class="spacer"></div>
     <div class="tod">Uhrzeit <b id="tod">--:--:--</b></div>
-    <div class="wx" id="wxChip" title="Wetter am Rennort – klick für Einstellungen" style="display:none">
+    <div class="wx" id="wxChip" title="Wetter am Rennort - klick für Einstellungen" style="display:none">
+      <span class="wx-place" id="wxPlaceName"></span>
       <span id="wxIcon">⛅</span><b id="wxTemp">—</b><span id="wxDesc" class="wx-desc"></span>
       <span class="wx-live" id="wxLiveDot" title="Live-Wetter"></span>
     </div>
@@ -743,7 +746,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.8";
+const VERSION="1.9";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1437,6 +1440,9 @@ function wxChipUI(){
   const show = w.auto && w.lat!=null && w.lon!=null;
   chip.style.display = show ? 'flex' : 'none';
   chip.classList.toggle('off', !WX.live);
+  const nm = w.name ? w.name.split(',')[0].trim() : '';
+  const pn = $('wxPlaceName');
+  if(pn){ pn.textContent = nm ? '📍 '+nm : ''; pn.style.display = nm ? '' : 'none'; }
   if(WX.last){ $('wxIcon').textContent=WX.last.icon; $('wxTemp').textContent=WX.last.temp+' °C'; $('wxDesc').textContent=WX.last.desc; }
   else { $('wxIcon').textContent='⛅'; $('wxTemp').textContent='…'; $('wxDesc').textContent=''; }
   $('wxLiveDot').title = WX.live ? ('Live · aktualisiert '+(WX.last?WX.last.updated:'')) : 'offline – letzter Stand';
