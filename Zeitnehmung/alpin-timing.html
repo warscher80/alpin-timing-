@@ -630,6 +630,7 @@
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Zeitnahme</label></div>
     <div class="fld"><label>Anzahl Läufe</label><select id="setRuns"><option value="1">1 Lauf</option><option value="2" selected>2 Läufe (Gesamtwertung)</option></select></div>
     <div class="toggle"><span>Zwischenzeit-Messpunkt</span><div class="sw on" id="swInter"></div></div>
+    <div class="toggle"><span>🔒 Start erst nach „Bereit"-Meldung der Startstation<br><small style="color:var(--dimmer)">Sicherung: Start nur möglich, wenn die Startstation für den aktuellen Lauf „bereit" gemeldet hat. Nur einschalten, wenn ein Start-Tablet im Einsatz ist.</small></span><div class="sw" id="swRequireReady"></div></div>
     <div class="fld" style="margin-top:16px"><label>Baudrate</label><select id="setBaud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select>
       <div class="hint">Muss mit deiner Hardware übereinstimmen.</div></div>
     <div class="fld"><label>Schlüsselwörter Start</label><input id="setStartKeys" value="S,START,C0,IMP1,A"></div>
@@ -641,7 +642,6 @@
     <div class="fld"><label>Genauigkeit der Anzeige</label><select id="setDecimals"><option value="2" selected>1/100 s</option><option value="3">1/1000 s</option><option value="1">1/10 s</option></select></div>
     <div class="toggle"><span>Hardware-Zeitstempel nutzen</span><div class="sw on" id="swHwTs"></div></div>
     <div class="toggle"><span>Auto-Aufrücken am Start</span><div class="sw on" id="swAutoNext"></div></div>
-    <div class="toggle"><span>Start erst nach „Bereit"-Meldung der Startstation<br><small style="color:var(--dimmer)">Sicherung: Start nur möglich, wenn die Startstation für den aktuellen Lauf „bereit" gemeldet hat. Nur einschalten, wenn ein Start-Tablet im Einsatz ist.</small></span><div class="sw" id="swRequireReady"></div></div>
     <div class="toggle"><span>Ton bei Impuls</span><div class="sw on" id="swBeep"></div></div>
     <div class="toggle"><span>Hardware automatisch verbinden<br><small style="color:var(--dimmer)">bereits freigegebene Zeitmessung wird beim Start automatisch erkannt</small></span><div class="sw on" id="swAutoSerial"></div></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Vernetzung (Internet) & Konto</label></div>
@@ -764,7 +764,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.4";
+const VERSION="2.5";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
