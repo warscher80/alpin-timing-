@@ -5,9 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ALPIN TIMING PRO — Zeitnehmung</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230e1620'/><circle cx='32' cy='33' r='20' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='9' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='30.5' y='52' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='51' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><rect x='8' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><path d='M20,41L27,29L32,34L37,27L44,41Z' fill='url(%23a)'/></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=Saira+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Schriften lokal gehostet – keine Uebertragung an Dritte (kein Google-CDN), DSGVO-konform und offline-faehig */
+  @font-face{font-family:'Saira';font-weight:100 900;font-style:normal;font-display:swap;src:url('/fonts/saira-400.woff2') format('woff2');}
+  @font-face{font-family:'JetBrains Mono';font-weight:100 900;font-style:normal;font-display:swap;src:url('/fonts/jetbrains-mono-400.woff2') format('woff2');}
+  @font-face{font-family:'Saira Condensed';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/saira-condensed-600.woff2') format('woff2');}
+  @font-face{font-family:'Saira Condensed';font-weight:700;font-style:normal;font-display:swap;src:url('/fonts/saira-condensed-700.woff2') format('woff2');}
+  @font-face{font-family:'Saira Condensed';font-weight:800;font-style:normal;font-display:swap;src:url('/fonts/saira-condensed-800.woff2') format('woff2');}
+</style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#080b0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -717,10 +722,13 @@ F 1051110   → Ziel
     <p><b>Verarbeitete Daten.</b> (a) <b>Konten</b>: Benutzername und Passwort (Passwort nur <b>gehasht</b> mit scrypt gespeichert). (b) <b>Renndaten</b>, die du eingibst: Namen, Startnummern, Kategorien, Zeiten. (c) <b>Technisch</b>: Verbindungs-/Server-Logs.</p>
     <p><b>Speicherort.</b> Lokal im Browser (localStorage – inkl. optional gemerkter Zugangsdaten auf <b>deinem Gerät</b>) sowie auf dem Server (Konten dauerhaft; Live-Renndaten im Arbeitsspeicher für die Live-Übertragung).</p>
     <p><b>Zwecke &amp; Rechtsgrundlage.</b> Durchführung der Zeitnahme und Live-Anzeige (Art. 6 Abs. 1 lit. b/f DSGVO). Teilnehmerdaten verarbeitest du als Veranstalter eigenverantwortlich; hole nötige Einwilligungen ein.</p>
-    <p><b>Empfänger / Drittdienste.</b> Hosting: [z. B. Render, USA – Standardvertragsklauseln]. Wetter: <b>Open-Meteo</b> (es werden <b>Ortskoordinaten</b> des Rennorts übermittelt). Schriftarten werden von <b>Google Fonts</b> (Google) geladen – dabei wird die IP-Adresse übertragen (alternativ lokal hostbar, dann entfällt das).</p>
+    <p><b>Empfänger / Drittdienste.</b> Hosting: [z. B. Render, USA – Standardvertragsklauseln]. Wetter: <b>Open-Meteo</b> (nur die <b>Ortskoordinaten</b> des Rennorts werden übermittelt, keine personenbezogenen Daten). <b>Schriftarten werden lokal gehostet</b> – es findet <b>keine Übertragung an Google</b> oder andere Dritte statt.</p>
     <p><b>Speicherdauer.</b> Konten bis zur Löschung; Renndaten bis du sie löschst/zurücksetzt. Anmelde-Token gültig 365 Tage.</p>
     <p><b>Deine Rechte.</b> Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch. Beschwerde bei der <b>österr. Datenschutzbehörde</b> (dsb.gv.at). Anfragen an: [deine E-Mail].</p>
     <p><b>Sicherheit.</b> Passwörter via scrypt gehasht, Sitzungen über signierte Tokens (HMAC), Übertragung per HTTPS empfohlen.</p>
+
+    <h4 style="color:var(--green);margin:18px 0 6px">Barrierefreiheit (EAA / BaFG)</h4>
+    <p>Diese Anwendung wird an den Anforderungen des EU-Barrierefreiheitsgesetzes (European Accessibility Act; in Österreich Barrierefreiheitsgesetz – BaFG, anwendbar seit 28.06.2025) ausgerichtet: hoher Kontrast, große Bedienelemente, Tastatur­bedienung der Kernfunktionen und skalierbare Anzeige. Eine vollständige WCAG-2.1-AA-Prüfung ist [in Arbeit / geplant]. Barrieren oder Verbesserungs­vorschläge bitte an [deine E-Mail] – wir bemühen uns um zeitnahe Behebung.</p>
   </div>
 </div>
 
@@ -803,7 +811,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.2";
+const VERSION="3.3";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 

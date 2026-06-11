@@ -75,7 +75,7 @@ function validUser(u) { return /^[a-z0-9_-]{3,24}$/.test(u); }
 
 /* --- HTTP: statische Dateien + Auth-API --- */
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
-  '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon' };
+  '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.woff2':'font/woff2' };
 function readBody(req) { return new Promise(res => { let b = ''; req.on('data', c => { b += c; if (b.length > 1e5) req.destroy(); }); req.on('end', () => res(b)); }); }
 function json(res, code, obj) { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); }
 
