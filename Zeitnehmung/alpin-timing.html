@@ -767,7 +767,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.7";
+const VERSION="2.8";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -897,7 +897,7 @@ function handleImpulse(ch,hwTs){
 function doStart(sw,hw){
   const r=S.racers.find(x=>x.id===S.readyId);
   if(!r){ logEvent("Start ohne bereiten Läufer – verworfen","ev-warn"); toast("Niemand am Start!"); return; }
-  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); S.onCourse.push(r.id);
+  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); c.startServerT=serverNow(); S.onCourse.push(r.id);
   S.history.push({type:'start',id:r.id,run:S.activeRun});
   logEvent(`START · Nr ${r.bib} ${r.name}`+(hw!=null?` (HW ${hw})`:''),'ev-start');
   S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
@@ -1785,7 +1785,7 @@ function renderStartView(){
   const up=d.racers.filter(r=>svCur(r).state==='idle').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).slice(0,6);
   $('svNext').innerHTML=up.length?up.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span></div>`).join(''):'<div class="sv-empty">—</div>';
   const oc=d.racers.filter(r=>svCur(r).state==='running').sort((a,b)=>(svCur(a).startWall||0)-(svCur(b).startWall||0));
-  $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
+  $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}" data-st="${svCur(r).startServerT||''}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
   $('svCourseCount').textContent=oc.length;
   const dsq=d.racers.filter(r=>svCur(r).state==='DSQ').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9));
   $('svDsqBox').style.display = dsq.length ? '' : 'none';
@@ -1793,10 +1793,14 @@ function renderStartView(){
   updateReadyBtn();
 }
 function updateStartClocks(){
-  const d=_sv.data; if(!d) return; const wNow=Date.now();
-  document.querySelectorAll('#svCourse [data-wall]').forEach(el=>{ const w=+el.getAttribute('data-wall'); el.textContent=w?fmt(wNow-w):'—'; });
-  let last=0; d.racers.forEach(r=>{ if(svCur(r).state==='running'){ const w=svCur(r).startWall||0; if(w>last) last=w; } });
-  $('svInterval').textContent=last?fmt(wNow-last):'—';
+  const d=_sv.data; if(!d) return; const wNow=Date.now(), sNow=serverNow();
+  /* synchronisierte verstrichene Zeit, nie negativ: bevorzugt Server-Zeitstempel,
+     sonst Geraete-Wanduhr; Uhren-Versatz zwischen Tablet und Ziel-PC wird so abgefangen */
+  const elapsed=(wall,st)=>{ let ms = (st!==''&&st!=null) ? (sNow-(+st)) : (wall?wNow-wall:null);
+    if(ms!=null && ms<0) ms=0; return ms; };
+  document.querySelectorAll('#svCourse [data-wall]').forEach(el=>{ const ms=elapsed(+el.getAttribute('data-wall'), el.getAttribute('data-st')); el.textContent=ms!=null?fmt(ms):'—'; });
+  let minEl=null; d.racers.forEach(r=>{ const c=svCur(r); if(c.state==='running'){ const ms=elapsed(c.startWall||0, c.startServerT!=null?c.startServerT:''); if(ms!=null && (minEl==null||ms<minEl)) minEl=ms; } });
+  $('svInterval').textContent = minEl!=null ? fmt(minEl) : '—';
 }
 
 /* ---- Read-only RESULTS view (öffentliche Live-Ergebnisse) ---- */
