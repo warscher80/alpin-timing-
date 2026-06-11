@@ -73,6 +73,22 @@
   .spacer{flex:1}
   .tod{font-family:var(--mono);font-size:14px;color:var(--dim);font-weight:500}
   .tod b{color:var(--ink)}
+  .wx{display:flex;align-items:center;gap:6px;padding:5px 11px;border:1px solid var(--line);border-radius:20px;
+    background:#0c1117;font-size:13px;color:var(--dim);cursor:pointer;white-space:nowrap}
+  .wx:hover{border-color:#2c3a47}
+  .wx #wxIcon{font-size:15px;line-height:1}
+  .wx b{font-family:var(--mono);color:var(--ink);font-weight:700}
+  .wx .wx-desc{color:var(--dim)}
+  .wx .wx-live{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+  .wx.off .wx-live{background:var(--dimmer);box-shadow:none;animation:none}
+  .wx-results{position:absolute;z-index:30;left:0;right:0;margin-top:4px;background:#0e1620;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.5);display:none}
+  .wx-results.show{display:block}
+  .wx-results button{display:flex;width:100%;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;
+    background:transparent;border:none;border-bottom:1px solid #141c24;color:var(--ink);text-align:left;font-size:13px}
+  .wx-results button:last-child{border-bottom:none}
+  .wx-results button:hover{background:#15202b}
+  .wx-results .ele{font-family:var(--mono);font-size:11px;color:var(--dim)}
   .conn{display:flex;align-items:center;gap:8px}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--dimmer)}
   .dot.on{background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 2s infinite}
@@ -384,6 +400,47 @@
   .rv-foot-lbl{letter-spacing:.12em;text-transform:uppercase;font-size:1.1vw;color:var(--dimmer)}
   .rv-foot .chip{font-family:var(--cond);background:rgba(255,176,32,.08);border:1px solid #2a2310;border-radius:8px;padding:.4vh 1vw;margin-right:.6vw}
   .rv-foot .chip b{font-family:var(--mono);color:var(--cyan)} .rv-foot .chip i{font-family:var(--mono);color:var(--amber);font-style:normal}
+
+  /* =====================================================================
+     HOCHFORMAT / SCHMALE SCHIRME (Zuschauer-Handy, Hochkant-Monitor)
+     Anzeigetafel + Start- + Ergebnis-Ansicht sind fürs Querformat (TV)
+     gebaut (vw-Einheiten). Im Hochformat einspaltig stapeln und Schrift
+     vergrößern, damit nichts winzig wird oder abgeschnitten erscheint.
+  ====================================================================== */
+  @media (orientation:portrait){
+    /* --- Anzeigetafel --- */
+    #board{padding:5vw 5vw}
+    .bd-main{grid-template-columns:1fr;gap:3vh;align-content:center}
+    .bd-top h2{font-size:6.5vw} .bd-top .run{font-size:3.6vw} .bd-top .x{font-size:3.2vw;padding:1.4vw 3vw}
+    .bd-cur .lbl2{font-size:3.2vw} .bd-cur .nm{font-size:8vw} .bd-cur .nm .b{margin-right:3vw}
+    .bd-clock{font-size:26vw} .bd-split{font-size:5vw;min-height:6vw}
+    .bd-board .lbl2{font-size:3.2vw}
+    .bd-li{font-size:4.6vw;gap:3vw} .bd-li .r{width:7vw} .bd-li .bb{width:9vw}
+    .bd-credit{font-size:2.6vw}
+    /* --- Start-Ansicht --- */
+    .sv-top{flex-wrap:wrap;gap:2vw}
+    .sv-top h2{font-size:6.5vw} .sv-top .tag{font-size:3.8vw} .sv-top .run{font-size:3.4vw}
+    .sv-top .right{font-size:3.2vw;gap:3vw} .sv-top .ctrl{font-size:3.2vw;padding:1.4vw 3vw}
+    .sv-main{grid-template-columns:1fr;gap:3vh}
+    .sv-ready{text-align:center}
+    .sv-ready .lbl{font-size:3.6vw} .sv-ready .bib{font-size:30vw;min-height:30vw}
+    .sv-ready .nm{font-size:9vw} .sv-ready .nm.empty{font-size:6vw}
+    .sv-interval{font-size:3.6vw} .sv-interval b{font-size:5.5vw}
+    .sv-box{padding:4vw} .sv-box .h{font-size:3.2vw}
+    .sv-li{font-size:5vw;gap:3vw} .sv-li .bb{min-width:9vw} .sv-empty{font-size:3.8vw}
+    .sv-startbtn{font-size:7vw;padding:4vh 0}
+    /* --- Ergebnis-Ansicht (Zuschauer) --- */
+    .rv-tabs{gap:2vw} .rv-tab{font-size:3.8vw;padding:1vh 3.5vw}
+    .rv-li{grid-template-columns:9vw 11vw 1fr auto;gap:2.5vw;font-size:4.6vw;padding:1vh 2vw}
+    .rv-li .tt{min-width:20vw} .rv-li .df{display:none}  /* Diff ausblenden – zu eng im Hochformat */
+    .rv-empty{font-size:4.6vw} .rv-foot{font-size:3.4vw} .rv-foot-lbl{font-size:3vw}
+    .rv-foot .chip{padding:.6vh 2.5vw}
+  }
+  /* Sehr breite/Ultrawide-Schirme: Tafel-Riesenziffer nach oben deckeln */
+  @media (min-aspect-ratio:2/1){
+    .bd-clock{font-size:min(13vw,22vh)}
+    .sv-ready .bib{font-size:min(9vw,16vh)}
+  }
 </style>
 </head>
 <body>
@@ -409,6 +466,10 @@
     <div class="runsel" id="runsel"></div>
     <div class="spacer"></div>
     <div class="tod">Uhrzeit <b id="tod">--:--:--</b></div>
+    <div class="wx" id="wxChip" title="Wetter am Rennort – klick für Einstellungen" style="display:none">
+      <span id="wxIcon">⛅</span><b id="wxTemp">—</b><span id="wxDesc" class="wx-desc"></span>
+      <span class="wx-live" id="wxLiveDot" title="Live-Wetter"></span>
+    </div>
     <div class="conn"><span class="dot" id="connDot"></span><span class="label" id="connLabel">Nicht verbunden</span></div>
     <button class="btn primary" id="btnConnect">Hardware verbinden</button>
     <button class="btn warn" id="btnSim">Simulation</button>
@@ -526,6 +587,26 @@
     <div class="fld"><label>Kurssetzer / Tore</label><div style="display:flex;gap:6px"><input id="mSetter" placeholder="Kurssetzer"><input id="mGates" placeholder="Tore" style="max-width:80px"></div></div>
     <div class="fld"><label>Wetter / Schnee</label><div style="display:flex;gap:6px"><input id="mWeather" placeholder="Wetter"><input id="mSnow" placeholder="Schnee"></div></div>
     <div class="fld"><label>Temperatur Start / Ziel (°C)</label><div style="display:flex;gap:6px"><input id="mTempS" placeholder="Start"><input id="mTempF" placeholder="Ziel"></div></div>
+
+    <div class="fld" style="border-top:1px solid #141c24;padding-top:14px">
+      <label style="color:var(--cyan)">☁ Wetter automatisch (online)</label>
+      <div class="toggle" style="padding-top:0"><span>Wetter automatisch holen &amp; Protokoll füllen</span><div class="sw on" id="swWxAuto"></div></div>
+      <div style="position:relative;margin-top:10px">
+        <input id="wxSearch" placeholder="Rennort suchen – z.B. Schladming, Sölden…" autocomplete="off">
+        <div class="wx-results" id="wxResults"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <button class="btn sm" id="btnWxGps" type="button">📍 Standort (GPS)</button>
+        <span id="wxPlace" class="hint" style="margin:0">kein Ort gewählt</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input id="wxLat" placeholder="Breite" inputmode="decimal">
+        <input id="wxLon" placeholder="Länge" inputmode="decimal">
+        <input id="wxEle" placeholder="Höhe m" inputmode="numeric" style="max-width:92px">
+      </div>
+      <div class="hint">Die <b style="color:var(--amber)">Höhe</b> korrigiert die Temperatur auf die echte Pistenhöhe – bei Bergstationen entscheidend. Quelle: Open-Meteo (Wettermodell, kostenlos). Für 1/10 °C am Starthaus später ein Sensor an der Zeitmessung.</div>
+    </div>
+
     <div class="fld"><label>Lizenziert für (White-Label)</label><input id="mLic" placeholder="erscheint auf Ausdrucken"></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Zeitnahme</label></div>
     <div class="fld"><label>Anzahl Läufe</label><select id="setRuns"><option value="1">1 Lauf</option><option value="2" selected>2 Läufe (Gesamtwertung)</option></select></div>
@@ -662,7 +743,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.7";
+const VERSION="1.8";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -675,6 +756,7 @@ const S = {
   settings:{ baud:115200, startKeys:["S","START","C0","IMP1","A"], interKeys:["Z","ZW","INT","C1","IMP2"],
     finishKeys:["F","FIN","ZIEL","C2","IMP3","B"], lockStart:1000,lockInter:1000,lockFinish:1500,
     decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true, autoSerial:true,
+    wx:{ auto:true, name:'', lat:null, lon:null, elevation:null },
     disp:{ baud:9600, format:"{ss}.{cc}\\r", idle:"zeros", holdMs:5000 } }
 };
 /* Laufzeit-Status für die LED-Anzeigetafel (serieller Ausgang) */
@@ -687,18 +769,26 @@ const now=()=>performance.now();
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cur=r=>r.runs[S.activeRun];
 
+/* Zeit-Zerlegung: schneidet auf die Anzeige-Genauigkeit AB (Sport-Timing-Konvention,
+ * nie aufrunden). Ganzzahlig in Millisekunden gerechnet -> kein Float-Drift. */
+function tparts(ms){
+  const dec=S.settings.decimals;
+  const f=Math.pow(10,dec);             // Einheiten pro Sekunde (dec=2 -> 100)
+  const unit=1000/f;                    // ms pro Anzeige-Einheit (dec=2 -> 10ms)
+  const ticks=Math.floor(ms/unit);      // abgeschnitten, nie aufgerundet
+  const totalSec=Math.floor(ticks/f);
+  return { m:Math.floor(totalSec/60), whole:totalSec%60, frac:ticks%f, dec };
+}
 function fmt(ms){
   if(ms==null||isNaN(ms)) return "—";
-  const dec=S.settings.decimals, total=ms/1000, m=Math.floor(total/60), s=total-m*60;
-  let str=s.toFixed(dec).padStart(dec>0?3+dec:2,'0');
-  return m>0 ? `${m}:${str.padStart(3+dec,'0')}` : str;
+  const p=tparts(ms);
+  const sec=String(p.whole).padStart(2,'0')+(p.dec>0?'.'+String(p.frac).padStart(p.dec,'0'):'');
+  return p.m>0 ? `${p.m}:${sec}` : sec;
 }
 function fmtParts(ms){
-  const dec=S.settings.decimals, total=ms/1000, m=Math.floor(total/60), s=total-m*60;
-  let whole=Math.floor(s), frac=Math.round((s-whole)*Math.pow(10,dec));
-  if(frac>=Math.pow(10,dec)){frac=0;whole++;}
-  const main=m>0?`${m}:${String(whole).padStart(2,'0')}`:String(whole);
-  return {main, cs:"."+String(frac).padStart(dec,'0')};
+  const p=tparts(ms);
+  const main=p.m>0?`${p.m}:${String(p.whole).padStart(2,'0')}`:String(p.whole);
+  return { main, cs:"."+String(p.frac).padStart(p.dec,'0') };
 }
 function fmtDelta(ms){ const s=(ms>=0?'+':'−')+fmt(Math.abs(ms)); return s; }
 function parseTime(str){
@@ -929,25 +1019,30 @@ function renderResults(){
 }
 
 /* Live clock */
+let _bigLast=null, _slLast=null;
 function tick(){
   const t=now();
+  // Strecken-Uhren: nur schreiben, wenn sich der angezeigte Wert wirklich ändert
   document.querySelectorAll('[data-clock]').forEach(el=>{ const id=+el.getAttribute('data-clock'); const r=S.racers.find(x=>x.id===id);
-    if(r&&cur(r).startSW!=null) el.textContent=fmt(t-cur(r).startSW); });
-  const big=$('bigClock'); const bd=$('bdClock');
+    if(r&&cur(r).startSW!=null){ const v=fmt(t-cur(r).startSW); if(el.textContent!==v) el.textContent=v; } });
+  const big=$('bigClock'); const boardShown=$('board').classList.contains('show'); const bd=$('bdClock');
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget); if(r&&cur(r).startSW!=null){
       const p=fmtParts(t-cur(r).startSW); const html=`${p.main}<span class="cs">${p.cs}</span>`;
-      big.innerHTML=html; big.classList.add('live'); bd.innerHTML=html; bd.classList.remove('idle'); } }
-  else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`; big.innerHTML=z; big.classList.remove('live'); bd.innerHTML=z; bd.classList.add('idle'); }
-  // split lines
+      if(html!==_bigLast){ big.innerHTML=html; big.classList.add('live'); _bigLast=html; }
+      if(boardShown){ bd.innerHTML=html; bd.classList.remove('idle'); } } }
+  else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`;
+    if(_bigLast!==' idle'){ big.innerHTML=z; big.classList.remove('live'); _bigLast=' idle'; }
+    if(boardShown){ bd.innerHTML=z; bd.classList.add('idle'); } }
+  // Zwischenzeit-Zeilen
   const sl=$('splitLine'), bs=$('bdSplit');
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget),c=cur(r);
     if(c&&c.interMs!=null){ const b=bestInter(S.activeRun,r.id); const d=b!=null?c.interMs-b:null;
       const dh=d!=null?` <span class="delta ${d>=0?'pos':'neg'}">${fmtDelta(d)}</span>`:'';
-      sl.innerHTML=`Zwischenzeit ${fmt(c.interMs)}${dh}`; bs.innerHTML=`ZW ${fmt(c.interMs)}${dh}`; }
-    else { sl.textContent=''; bs.textContent=''; } }
-  else { sl.textContent=''; bs.textContent=''; }
-  if($('board').classList.contains('show')) updateBoardName();
-  sponsorTick();
+      const slh=`Zwischenzeit ${fmt(c.interMs)}${dh}`; if(slh!==_slLast){ sl.innerHTML=slh; _slLast=slh; }
+      if(boardShown) bs.innerHTML=`ZW ${fmt(c.interMs)}${dh}`; }
+    else { if(_slLast!==''){ sl.textContent=''; _slLast=''; } if(boardShown) bs.textContent=''; } }
+  else { if(_slLast!==''){ sl.textContent=''; _slLast=''; } if(boardShown) bs.textContent=''; }
+  if(boardShown){ updateBoardName(); sponsorTick(); }
   requestAnimationFrame(tick);
 }
 setInterval(()=>{ $('tod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
@@ -1283,6 +1378,11 @@ function applySettingsToUI(){ $('setRuns').value=S.numRuns; $('setBaud').value=S
   const m=S.meta; $('mOrg').value=m.organizer; $('mLoc').value=m.location; $('mDate').value=m.date; $('mDisc').value=m.discipline;
   $('mRef').value=m.referee; $('mSetter').value=m.setter; $('mGates').value=m.gates; $('mWeather').value=m.weather; $('mSnow').value=m.snow;
   $('mTempS').value=m.tempS; $('mTempF').value=m.tempF; $('mLic').value=S.licensee;
+  if(!S.settings.wx) S.settings.wx={auto:true,name:'',lat:null,lon:null,elevation:null};
+  const wx=S.settings.wx;
+  if($('swWxAuto')) $('swWxAuto').classList.toggle('on',wx.auto!==false);
+  if($('wxLat')){ $('wxLat').value=wx.lat??''; $('wxLon').value=wx.lon??''; $('wxEle').value=wx.elevation??''; }
+  if(typeof wxSetPlaceLabel==='function') wxSetPlaceLabel();
   $('setStartKeys').value=S.settings.startKeys.join(','); $('setInterKeys').value=S.settings.interKeys.join(',');
   $('setFinishKeys').value=S.settings.finishKeys.join(','); $('setLockStart').value=S.settings.lockStart;
   $('setLockInter').value=S.settings.lockInter; $('setLockFinish').value=S.settings.lockFinish; $('setDecimals').value=S.settings.decimals;
@@ -1309,9 +1409,106 @@ function readSettingsFromUI(){
   const m=S.meta; m.organizer=$('mOrg').value; m.location=$('mLoc').value; m.date=$('mDate').value; m.discipline=$('mDisc').value;
   m.referee=$('mRef').value; m.setter=$('mSetter').value; m.gates=$('mGates').value; m.weather=$('mWeather').value; m.snow=$('mSnow').value;
   m.tempS=$('mTempS').value; m.tempF=$('mTempF').value; S.licensee=$('mLic').value;
+  if(!S.settings.wx) S.settings.wx={auto:true,name:'',lat:null,lon:null,elevation:null};
+  { const wx=S.settings.wx, la=parseFloat($('wxLat').value), lo=parseFloat($('wxLon').value), el=$('wxEle').value;
+    const moved=(wx.lat!==(isNaN(la)?null:la))||(wx.lon!==(isNaN(lo)?null:lo))||(String(wx.elevation??'')!==String(el||''));
+    wx.lat=isNaN(la)?null:la; wx.lon=isNaN(lo)?null:lo; wx.elevation=(el==='')?null:(parseInt(el)||0);
+    if(wx.lat!=null && /^[-\d.]/.test($('wxLat').value)) wx.name=wx.name||'';
+    if(moved && typeof wxFetch==='function'){ wxSetPlaceLabel(); wxFetch(); } }
   if(!S.settings.disp) S.settings.disp={};
   const dp=S.settings.disp; if($('dispBaud')){ dp.baud=parseInt($('dispBaud').value)||9600; dp.format=$('dispFormat').value; dp.idle=$('dispIdle').value; if(dp.holdMs==null) dp.holdMs=5000; }
   persist(); renderAll();
+}
+
+/* ====================== Wetter (automatisch, online) ====================== */
+const WX={ live:false, _t:0, _searchT:0, last:null };
+function wmoMap(c){
+  const m={0:['klar','☀️'],1:['heiter','🌤️'],2:['wolkig','⛅'],3:['bedeckt','☁️'],
+    45:['Nebel','🌫️'],48:['Reifnebel','🌫️'],51:['Niesel','🌦️'],53:['Niesel','🌦️'],55:['Niesel','🌦️'],
+    56:['Eisniesel','🌧️'],57:['Eisniesel','🌧️'],61:['Regen','🌧️'],63:['Regen','🌧️'],65:['Starkregen','🌧️'],
+    66:['Eisregen','🌧️'],67:['Eisregen','🌧️'],71:['Schneefall','🌨️'],73:['Schneefall','❄️'],75:['Schneesturm','❄️'],
+    77:['Schneegriesel','🌨️'],80:['Schauer','🌦️'],81:['Schauer','🌧️'],82:['Starkschauer','🌧️'],
+    85:['Schneeschauer','🌨️'],86:['Schneeschauer','❄️'],95:['Gewitter','⛈️'],96:['Gewitter','⛈️'],99:['Gewitter','⛈️']};
+  return m[c]||['—','⛅'];
+}
+function wxChipUI(){
+  const chip=$('wxChip'); if(!chip) return;
+  const w=S.settings.wx||{};
+  const show = w.auto && w.lat!=null && w.lon!=null;
+  chip.style.display = show ? 'flex' : 'none';
+  chip.classList.toggle('off', !WX.live);
+  if(WX.last){ $('wxIcon').textContent=WX.last.icon; $('wxTemp').textContent=WX.last.temp+' °C'; $('wxDesc').textContent=WX.last.desc; }
+  else { $('wxIcon').textContent='⛅'; $('wxTemp').textContent='…'; $('wxDesc').textContent=''; }
+  $('wxLiveDot').title = WX.live ? ('Live · aktualisiert '+(WX.last?WX.last.updated:'')) : 'offline – letzter Stand';
+}
+async function wxFetch(){
+  const w=S.settings.wx||{};
+  if(!w.auto || w.lat==null || w.lon==null){ WX.live=false; wxChipUI(); return; }
+  try{
+    let u=`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}`
+      +`&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,snowfall&timezone=auto`;
+    if(w.elevation!=null && w.elevation!=='') u+=`&elevation=${w.elevation}`;
+    const r=await fetch(u); if(!r.ok) throw new Error(r.status);
+    const d=await r.json(), c=d.current, [desc,icon]=wmoMap(c.weather_code);
+    WX.last={ temp:Math.round(c.temperature_2m), feels:Math.round(c.apparent_temperature),
+      wind:Math.round(c.wind_speed_10m), desc, icon, code:c.weather_code,
+      updated:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) };
+    WX.live=true;
+    wxAutoFillMeta();
+  }catch(e){ WX.live=false; }   /* offline am Berg → letzter Stand bleibt */
+  wxChipUI();
+}
+/* Befüllt das offizielle Protokoll (Ergebnisliste/Urkunde) automatisch */
+function wxAutoFillMeta(){
+  if(!S.settings.wx.auto || !WX.last) return;
+  S.meta.weather = WX.last.desc.charAt(0).toUpperCase()+WX.last.desc.slice(1);
+  S.meta.tempS = String(WX.last.temp);
+  if($('mWeather')) $('mWeather').value=S.meta.weather;
+  if($('mTempS')) $('mTempS').value=S.meta.tempS;
+  persist();
+}
+function wxSetPlaceLabel(){
+  const w=S.settings.wx||{};
+  const el=$('wxPlace'); if(!el) return;
+  if(w.lat==null){ el.textContent='kein Ort gewählt'; return; }
+  el.textContent=(w.name?w.name+' · ':'')+(+w.lat).toFixed(3)+'°, '+(+w.lon).toFixed(3)+'°'+(w.elevation!=null?' · '+w.elevation+' m':'');
+}
+async function wxSearch(q){
+  const box=$('wxResults'); if(!box) return;
+  if(!q || q.trim().length<2){ box.classList.remove('show'); box.innerHTML=''; return; }
+  try{
+    const u=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=6&language=de&format=json`;
+    const d=await (await fetch(u)).json();
+    const res=(d.results||[]);
+    if(!res.length){ box.classList.remove('show'); box.innerHTML=''; return; }
+    box.innerHTML=res.map(r=>{
+      const label=[r.name,r.admin1,r.country_code].filter(Boolean).join(', ');
+      return `<button type="button" data-lat="${r.latitude}" data-lon="${r.longitude}" data-ele="${Math.round(r.elevation)}" data-name="${esc(label)}">
+        <span>${esc(label)}</span><span class="ele">${Math.round(r.elevation)} m</span></button>`;
+    }).join('');
+    box.classList.add('show');
+  }catch(e){ box.classList.remove('show'); }
+}
+function wxApply(lat,lon,ele,name){
+  S.settings.wx.lat=parseFloat(lat); S.settings.wx.lon=parseFloat(lon);
+  S.settings.wx.elevation=(ele==null||ele==='')?null:parseInt(ele); S.settings.wx.name=name||'';
+  $('wxLat').value=S.settings.wx.lat; $('wxLon').value=S.settings.wx.lon;
+  $('wxEle').value=S.settings.wx.elevation??'';
+  wxSetPlaceLabel(); persist(); wxFetch();
+}
+function wxUseGPS(){
+  if(!navigator.geolocation){ toast('Gerät unterstützt kein GPS'); return; }
+  $('wxPlace').textContent='Ortung läuft…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    const{latitude,longitude,altitude,accuracy}=p.coords;
+    wxApply(latitude.toFixed(4),longitude.toFixed(4), altitude!=null?Math.round(altitude):S.settings.wx.elevation, 'Eigener Standort (GPS)');
+    toast('Standort übernommen · ±'+Math.round(accuracy)+' m'+(altitude==null?' – Höhe bitte prüfen':''));
+  }, err=>{ $('wxPlace').textContent='Ortung fehlgeschlagen'; toast('Ortung fehlgeschlagen: '+err.message); },
+  {enableHighAccuracy:true,timeout:10000});
+}
+function startWeather(){
+  wxChipUI(); wxFetch();
+  clearInterval(WX._t); WX._t=setInterval(wxFetch, 10*60*1000);  /* alle 10 Min */
 }
 
 /* ====================== Netzwerk (WLAN / Internet) ====================== */
@@ -1553,6 +1750,7 @@ function init(){
   loadNet();
   loadSponsors();
   applySettingsToUI(); buildRunSel(); buildViewSel(); tryRestore(); renderAll(); requestAnimationFrame(tick);
+  startWeather();
 
   $('btnAdd').onclick=()=>{ addRacer($('inBib').value,$('inName').value,$('inCat').value); $('inBib').value='';$('inName').value='';$('inCat').value='';$('inBib').focus(); };
   $('inName').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btnAdd').click(); });
@@ -1609,7 +1807,13 @@ function init(){
   const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); };
   const closeD=()=>{ $('drawer').classList.remove('open'); $('overlay').classList.remove('show'); readSettingsFromUI(); refreshBoard(); };
   $('btnSettings').onclick=openD; $('btnCloseSettings').onclick=closeD; $('overlay').onclick=closeD;
-  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','wxLat','wxLon','wxEle','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  $('swWxAuto').onclick=()=>{ S.settings.wx.auto=!S.settings.wx.auto; $('swWxAuto').classList.toggle('on'); persist(); if(S.settings.wx.auto) wxFetch(); else wxChipUI(); };
+  $('btnWxGps').onclick=wxUseGPS;
+  $('wxSearch').addEventListener('input',e=>{ clearTimeout(WX._searchT); const v=e.target.value; WX._searchT=setTimeout(()=>wxSearch(v),350); });
+  $('wxResults').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    wxApply(b.dataset.lat,b.dataset.lon,b.dataset.ele,b.dataset.name); $('wxResults').classList.remove('show'); $('wxSearch').value=''; });
+  $('wxChip').onclick=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); setTimeout(()=>{ try{$('wxSearch').focus();}catch(e){} },80); };
   $('btnDispConnect').onclick=dispConnect; $('btnDispTest').onclick=dispTest;
   $('dispPreset').onchange=()=>{ const v=$('dispPreset').value; if(v!=='__custom__'){ $('dispFormat').value=v; } readSettingsFromUI(); };
   $('dispFormat').addEventListener('input',()=>{ const el=$('dispLast'); if(el && DISP.active) el.textContent=dispVisible(dispRender()); });

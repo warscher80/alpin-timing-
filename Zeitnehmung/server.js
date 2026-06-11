@@ -72,6 +72,21 @@ function json(res, code, obj) { res.writeHead(code, { 'Content-Type': 'applicati
 const server = http.createServer(async (req, res) => {
   const url = decodeURIComponent((req.url || '/').split('?')[0]);
 
+  /* --- Optionale Zugangssperre für die ganze Seite ---
+   * Nur aktiv, wenn die Umgebungsvariable ACCESS_CODE gesetzt ist (z.B. auf Render).
+   * Solange du allein testest: Code setzen -> niemand sonst kann App/Links öffnen.
+   * Zum Freischalten der Seite einfach die Variable wieder entfernen.
+   * (Gilt nur fürs Web-Frontend; das Live-Timing-WebSocket hat eigene Konto-Auth.) */
+  const ACCESS = process.env.ACCESS_CODE || '1610';   // Sperrcode (Render-Env ACCESS_CODE hat Vorrang). Leeren = '' => offen.
+  if (ACCESS) {
+    const hdr = req.headers['authorization'] || '';
+    let ok = false;
+    if (hdr.startsWith('Basic ')) {
+      try { const dec = Buffer.from(hdr.slice(6), 'base64').toString(); ok = dec.slice(dec.indexOf(':') + 1) === ACCESS; } catch (e) {}
+    }
+    if (!ok) { res.writeHead(401, { 'WWW-Authenticate': 'Basic realm="ALPIN TIMING PRO"' }); return res.end('Zugang gesperrt'); }
+  }
+
   if (url === '/api/version') return json(res, 200, { version: appVersion() });
 
   if (url === '/api/register' || url === '/api/login') {
