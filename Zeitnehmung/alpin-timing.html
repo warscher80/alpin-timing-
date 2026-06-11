@@ -576,6 +576,7 @@
     <div class="sv-side">
       <div class="sv-box"><div class="h">Als Nächstes</div><div id="svNext"></div></div>
       <div class="sv-box"><div class="h">Auf der Strecke (<span id="svCourseCount">0</span>)</div><div id="svCourse"></div></div>
+      <div class="sv-box" id="svDsqBox" style="display:none;border-color:#3a1717"><div class="h" style="color:var(--red)">⚠ Disqualifiziert</div><div id="svDsq"></div></div>
     </div>
   </div>
   <div class="view-credit">Made by Nico Warscher</div>
@@ -766,7 +767,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.6";
+const VERSION="2.7";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1786,6 +1787,9 @@ function renderStartView(){
   const oc=d.racers.filter(r=>svCur(r).state==='running').sort((a,b)=>(svCur(a).startWall||0)-(svCur(b).startWall||0));
   $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
   $('svCourseCount').textContent=oc.length;
+  const dsq=d.racers.filter(r=>svCur(r).state==='DSQ').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9));
+  $('svDsqBox').style.display = dsq.length ? '' : 'none';
+  $('svDsq').innerHTML = dsq.map(r=>`<div class="sv-li"><span class="bb" style="color:var(--red)">${esc(r.bib)}</span><span class="nn" style="color:var(--red)">${esc(r.name)}</span><span class="tt" style="color:var(--red)">DSQ</span></div>`).join('');
   updateReadyBtn();
 }
 function updateStartClocks(){
