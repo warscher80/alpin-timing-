@@ -761,7 +761,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.1";
+const VERSION="2.2";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1561,7 +1561,7 @@ function netConnect(){
     if(d.type==='time'){ netSyncHandle(d); return; }
     if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
     if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(); return; }
-    if(d.type==='state' && NET.role==='viewer'){ REMOTE=d.data; onRemoteState(); } };
+    if(d.type==='state' && (NET.role==='viewer' || NET.role==='station')){ REMOTE=d.data; onRemoteState(); } };
   ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
   ws.onerror=()=>{};
 }
