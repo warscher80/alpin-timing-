@@ -542,7 +542,7 @@
   </section>
 
   <div class="foot">Tasten: <span class="kbd">␣</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎</span> Ziel · <span class="kbd">Z</span> rückgängig · <span class="kbd">B</span> Anzeigetafel · Zeit in Ergebnis anklicken = Handzeit eingeben</div>
-  <div class="credit">Made by Nico Warscher</div>
+  <div class="credit">Made by Nico Warscher · <span id="btnLegal" style="cursor:pointer;text-decoration:underline">Rechtliches (AGB · Datenschutz · Impressum)</span></div>
 </div>
 
 <!-- SCOREBOARD -->
@@ -688,6 +688,42 @@ F 1051110   → Ziel
   <div class="mb" id="helpContent"></div>
 </div>
 
+<div class="overlay" id="legalOverlay"></div>
+<div class="modal" id="legalModal">
+  <div class="dh"><h3>Rechtliches</h3><div class="spacer"></div><button class="btn ghost" id="legalClose">✕</button></div>
+  <div class="mb" style="line-height:1.6">
+    <div class="disc" style="margin-bottom:16px"><b>⚠ Vorlage:</b> Bitte alle <span style="color:var(--amber)">[Platzhalter]</span> mit deinen Daten ersetzen und vor dem Verkauf <b>juristisch prüfen lassen</b>. Dies ist kein Rechtsrat.</div>
+
+    <h4 style="color:var(--green);margin:14px 0 6px">Impressum / Offenlegung (§ 5 ECG, § 25 MedienG)</h4>
+    <p>Anbieter: <b>[Vor- und Nachname / Firma]</b><br>
+    Anschrift: [Straße Nr., PLZ Ort, Österreich]<br>
+    E-Mail: [deine-email@example.com]<br>
+    Telefon: [optional]<br>
+    Unternehmensgegenstand: Software zur Sport-Zeitnahme<br>
+    UID-Nr. / Firmenbuch: [falls unternehmerisch tätig, sonst entfernen]</p>
+
+    <h4 style="color:var(--green);margin:18px 0 6px">AGB &amp; Haftungsausschluss</h4>
+    <p><b>1. Leistung.</b> „ALPIN TIMING PRO" ist eine Software (Hilfsmittel) zur Zeitnahme bei Trainings-, Vereins- und Hobbyrennen. Sie ist <b>nicht FIS-homologiert</b> und kein zertifiziertes Zeitmesssystem für offizielle/gewertete Rennen.</p>
+    <p><b>2. Keine Gewähr für Ergebnisse.</b> Die ermittelten Zeiten und Ergebnisse erfolgen <b>ohne Gewähr</b> auf Richtigkeit. Die Nutzung erfolgt auf eigenes Risiko. Für offizielle Wertungen gelten die Verbandsvorschriften (zertifizierte, redundante Hardware, Handzeit-Backup).</p>
+    <p><b>3. Pflichten des Nutzers.</b> Eigenständige Funktionsprüfung vor dem Einsatz, regelmäßige Datensicherung, sowie eine unabhängige Handzeit-Absicherung. Geeignete, kompatible Hardware (z. B. Lichtschranke) ist vom Nutzer bereitzustellen.</p>
+    <p><b>4. Verfügbarkeit.</b> Es besteht kein Anspruch auf ununterbrochene Verfügbarkeit; bei Cloud-Betrieb bestehen Abhängigkeiten von Internet und Hoster.</p>
+    <p><b>5. Haftung.</b> Die Haftung für Schäden – insbesondere aus fehlerhaften Zeiten/Ergebnissen, Daten- oder Verbindungsverlust – ist auf Vorsatz und grobe Fahrlässigkeit beschränkt, soweit gesetzlich zulässig. Eine Haftung für entgangenen Gewinn oder Folgeschäden ist ausgeschlossen.</p>
+    <p><b>6. Preise / Lizenz.</b> [Preis, Lizenzumfang, Laufzeit, Kündigung – ausfüllen.]</p>
+    <p><b>7. Widerrufsrecht (Verbraucher).</b> [Bei Verkauf an Verbraucher: Widerrufsbelehrung ergänzen.]</p>
+    <p><b>8. Recht &amp; Gerichtsstand.</b> Es gilt österreichisches Recht. Gerichtsstand ist [zuständiges Gericht], soweit gesetzlich zulässig.</p>
+
+    <h4 style="color:var(--green);margin:18px 0 6px">Datenschutzerklärung (DSGVO)</h4>
+    <p><b>Verantwortlicher:</b> [Name / Firma, Anschrift, E-Mail] (siehe Impressum).</p>
+    <p><b>Verarbeitete Daten.</b> (a) <b>Konten</b>: Benutzername und Passwort (Passwort nur <b>gehasht</b> mit scrypt gespeichert). (b) <b>Renndaten</b>, die du eingibst: Namen, Startnummern, Kategorien, Zeiten. (c) <b>Technisch</b>: Verbindungs-/Server-Logs.</p>
+    <p><b>Speicherort.</b> Lokal im Browser (localStorage – inkl. optional gemerkter Zugangsdaten auf <b>deinem Gerät</b>) sowie auf dem Server (Konten dauerhaft; Live-Renndaten im Arbeitsspeicher für die Live-Übertragung).</p>
+    <p><b>Zwecke &amp; Rechtsgrundlage.</b> Durchführung der Zeitnahme und Live-Anzeige (Art. 6 Abs. 1 lit. b/f DSGVO). Teilnehmerdaten verarbeitest du als Veranstalter eigenverantwortlich; hole nötige Einwilligungen ein.</p>
+    <p><b>Empfänger / Drittdienste.</b> Hosting: [z. B. Render, USA – Standardvertragsklauseln]. Wetter: <b>Open-Meteo</b> (es werden <b>Ortskoordinaten</b> des Rennorts übermittelt). Schriftarten werden von <b>Google Fonts</b> (Google) geladen – dabei wird die IP-Adresse übertragen (alternativ lokal hostbar, dann entfällt das).</p>
+    <p><b>Speicherdauer.</b> Konten bis zur Löschung; Renndaten bis du sie löschst/zurücksetzt. Anmelde-Token gültig 365 Tage.</p>
+    <p><b>Deine Rechte.</b> Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch. Beschwerde bei der <b>österr. Datenschutzbehörde</b> (dsb.gv.at). Anfragen an: [deine E-Mail].</p>
+    <p><b>Sicherheit.</b> Passwörter via scrypt gehasht, Sitzungen über signierte Tokens (HMAC), Übertragung per HTTPS empfohlen.</p>
+  </div>
+</div>
+
 <div class="overlay" id="liveOverlay"></div>
 <div class="modal" id="liveModal">
   <div class="dh"><h3>🔗 LiveTiming teilen</h3><div class="spacer"></div><button class="btn ghost" id="liveClose">✕</button></div>
@@ -767,7 +803,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.1";
+const VERSION="3.2";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1418,6 +1454,8 @@ function renderHelp(q){ q=(q||'').trim().toLowerCase();
 }
 function openAbout(){ $('aboutVer').textContent=VERSION; $('helpSearch').value=''; renderHelp(''); $('aboutModal').classList.add('open'); $('aboutOverlay').classList.add('show'); setTimeout(()=>{ try{ $('helpSearch').focus(); }catch(e){} },60); }
 function closeAbout(){ $('aboutModal').classList.remove('open'); $('aboutOverlay').classList.remove('show'); }
+function openLegal(){ $('legalModal').classList.add('open'); $('legalOverlay').classList.add('show'); }
+function closeLegal(){ $('legalModal').classList.remove('open'); $('legalOverlay').classList.remove('show'); }
 function checkUpdate(){ if(location.protocol==='file:') return;
   fetch('/api/version',{cache:'no-store'}).then(r=>r.json()).then(d=>{
     if(d && d.version && d.version!==VERSION){ $('upVer').textContent=d.version; $('updateBar').style.display='flex'; }
@@ -1903,6 +1941,7 @@ function init(){
   $('btnPrintRes').onclick=()=>printResultSheet(S.resultView);
   $('btnPrintStart').onclick=printStartSheet;
   $('btnAbout').onclick=openAbout; $('btnCloseAbout').onclick=closeAbout; $('aboutOverlay').onclick=closeAbout;
+  $('btnLegal').onclick=openLegal; $('legalClose').onclick=closeLegal; $('legalOverlay').onclick=closeLegal;
   $('helpSearch').addEventListener('input',e=>renderHelp(e.target.value));
   $('helpSearch').addEventListener('keydown',e=>{ if(e.key==='Escape') closeAbout(); });
   $('upReload').onclick=()=>location.reload();
