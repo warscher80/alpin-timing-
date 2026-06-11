@@ -48,6 +48,13 @@
   #updateBar{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:120;display:none;align-items:center;gap:12px;
     background:#0e1620;border:1px solid rgba(0,229,138,.5);box-shadow:0 8px 30px rgba(0,0,0,.5);border-radius:12px;padding:9px 14px;font-size:13px}
   #updateBar b{color:var(--green)}
+  #readyBar{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:130;display:none;align-items:center;gap:12px;
+    background:#08222a;border:1px solid var(--cyan);box-shadow:0 8px 34px rgba(34,211,238,.35);border-radius:12px;padding:10px 16px;font-size:14px}
+  #readyBar.show{display:flex}
+  #readyBar b{color:var(--cyan);letter-spacing:.04em}
+  #readyBar i{color:var(--dim);font-style:normal;margin-left:8px;font-family:var(--mono);font-size:12px}
+  #readyBar .rb-dot{width:11px;height:11px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:pulse 1.2s infinite}
+  #readyBar button{font:inherit;cursor:pointer;border-radius:8px;padding:6px 12px;border:none;background:var(--cyan);color:#04131a;font-weight:700}
   #updateBar button{font:inherit;cursor:pointer;border-radius:8px;padding:6px 10px;border:1px solid var(--line);background:#101820;color:var(--ink)}
   #updateBar button.primary{background:linear-gradient(135deg,var(--green),var(--cyan));color:#04130d;border:none;font-weight:700}
   .wrap{position:relative;z-index:1;max-width:1760px;margin:0 auto;padding:16px 18px 40px}
@@ -378,6 +385,12 @@
     background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;font-family:var(--cond);font-weight:800;
     font-size:4vw;letter-spacing:.06em;box-shadow:0 0 50px rgba(0,229,138,.35);transition:filter .1s}
   .sv-startbtn:active{filter:brightness(.9) saturate(1.2)}
+  .sv-readybtn{margin-top:2.2vh;width:100%;padding:2vh 0;border-radius:14px;cursor:pointer;
+    background:transparent;border:2px solid var(--cyan);color:var(--cyan);font-family:var(--cond);font-weight:800;
+    font-size:2.2vw;letter-spacing:.05em;transition:filter .1s,background .15s}
+  .sv-readybtn:hover{background:rgba(34,211,238,.1)}
+  .sv-readybtn:active{filter:brightness(.85)}
+  .sv-readybtn.sent{background:var(--cyan);color:#04131a;border-color:var(--cyan)}
   .src-tag.net{color:#4d8cff;background:#0c1626}
 
   /* Public results view */
@@ -431,6 +444,7 @@
     .sv-box{padding:4vw} .sv-box .h{font-size:3.2vw}
     .sv-li{font-size:5vw;gap:3vw} .sv-li .bb{min-width:9vw} .sv-empty{font-size:3.8vw}
     .sv-startbtn{font-size:7vw;padding:4vh 0}
+    .sv-readybtn{font-size:4.5vw;padding:2.4vh 0}
     /* --- Ergebnis-Ansicht (Zuschauer) --- */
     .rv-tabs{gap:2vw} .rv-tab{font-size:3.8vw;padding:1vh 3.5vw}
     .rv-li{grid-template-columns:9vw 11vw 1fr auto;gap:2.5vw;font-size:4.6vw;padding:1vh 2vw}
@@ -553,6 +567,7 @@
       <div class="bib" id="svReadyBib"></div>
       <div class="nm" id="svReadyName">—</div>
       <div class="sv-interval">seit letztem Start: <b id="svInterval">—</b></div>
+      <button id="svReadyBtn" class="sv-readybtn" style="display:none">✓ Startbereit ans Ziel melden</button>
       <button id="svStartBtn" class="sv-startbtn" style="display:none">▶ START senden</button>
     </div>
     <div class="sv-side">
@@ -738,6 +753,7 @@ F 1051110   → Ziel
 <input type="file" id="fileInput" accept=".json" class="hidden">
 <div class="toast" id="toast"></div>
 <div id="updateBar"><span>Neue Version <b id="upVer"></b> verfügbar.</span><button class="primary" id="upReload">Jetzt laden</button><button id="upLater">Später</button></div>
+<div id="readyBar"><span class="rb-dot"></span><span>Startstation meldet: <b>BEREIT für Rennstart</b><i id="rbTime"></i></span><button id="rbOk">Verstanden</button></div>
 
 <script src="/qrcode.js"></script>
 <script>
@@ -746,7 +762,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.9";
+const VERSION="2.0";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1545,7 +1561,7 @@ function netConnect(){
   ws.onmessage=ev=>{ let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
     if(d.type==='time'){ netSyncHandle(d); return; }
     if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
-    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); return; }
+    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(); return; }
     if(d.type==='state' && NET.role==='viewer'){ REMOTE=d.data; onRemoteState(); } };
   ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
   ws.onerror=()=>{};
@@ -1584,6 +1600,22 @@ function sendStartEvent(){
   if(!NET.synced){ toast("Uhren-Sync läuft noch – kurz warten"); return; }
   try{ NET.ws.send(JSON.stringify({type:'event',kind:'start',serverT:serverNow()})); }catch(e){ return; }
   beep(990); const b=$('svStartBtn'); if(b){ b.style.filter='brightness(1.6)'; setTimeout(()=>b.style.filter='',150); }
+}
+/* Startstation: "Startbereit" ans Ziel melden (Koordination, kein Zeitstempel) */
+function sendReadyEvent(){
+  if(!NET.connected || !NET.ws || NET.ws.readyState!==1){ toast("Keine Verbindung zum Ziel"); return; }
+  try{ NET.ws.send(JSON.stringify({type:'event',kind:'ready',serverT:serverNow()})); }catch(e){ return; }
+  beep(660); toast("Startbereit ans Ziel gemeldet");
+  const b=$('svReadyBtn'); if(b){ b.classList.add('sent'); b.textContent='✓ Bereit gemeldet'; clearTimeout(sendReadyEvent._t);
+    sendReadyEvent._t=setTimeout(()=>{ b.classList.remove('sent'); b.textContent='✓ Startbereit ans Ziel melden'; },3000); }
+}
+/* Master (Ziel): Startstation meldet "bereit" -> deutlich anzeigen */
+function onStartReady(){
+  const t=new Date().toLocaleTimeString('de-DE');
+  const bar=$('readyBar'); if(bar){ const ti=$('rbTime'); if(ti) ti.textContent='· '+t; bar.classList.add('show');
+    clearTimeout(onStartReady._t); onStartReady._t=setTimeout(()=>bar.classList.remove('show'),30000); }
+  logEvent("Startstation meldet: BEREIT für Rennstart","ev-start");
+  beep(660); setTimeout(()=>beep(880),140);
 }
 function netStartMaster(){ if(location.protocol==='file:'){ toast("Master-Senden braucht den Server (http://…)."); NET.master=false; updateNetUI(); return; }
   if(!NET.token){ toast("Bitte zuerst anmelden."); NET.master=false; updateNetUI(); return; }
@@ -1669,9 +1701,10 @@ function initStartView(){
   $('svFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
   $('svStation').onclick=async ()=>{
     if(!NET.token){ const u=prompt("Benutzername (dasselbe Konto wie am Ziel):"); if(!u) return; const p=prompt("Passwort:"); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
-    NET.station=true; NET.role='station'; saveNet(); $('svStartBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – START sendet jetzt."); };
+    NET.station=true; NET.role='station'; saveNet(); $('svStartBtn').style.display=''; $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – START sendet jetzt."); };
   $('svStartBtn').onclick=sendStartEvent;
-  if(NET.station && NET.token){ $('svStartBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
+  $('svReadyBtn').onclick=sendReadyEvent;
+  if(NET.station && NET.token){ $('svStartBtn').style.display=''; $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
   NET.role=(NET.station && NET.token)?'station':'viewer'; NET.enabled=(location.protocol!=='file:'); if(NET.enabled) netConnect();
   window.addEventListener('storage',e=>{ if(e.key===LS_KEY) svRefresh(); });
   document.addEventListener('keydown',e=>{ if(NET.station && e.code==='Space' && (e.target.tagName||'').toLowerCase()!=='input'){ e.preventDefault(); sendStartEvent(); } });
@@ -1797,6 +1830,7 @@ function init(){
   $('helpSearch').addEventListener('keydown',e=>{ if(e.key==='Escape') closeAbout(); });
   $('upReload').onclick=()=>location.reload();
   $('upLater').onclick=()=>{ $('updateBar').style.display='none'; };
+  $('rbOk').onclick=()=>$('readyBar').classList.remove('show');
   setTimeout(checkUpdate,3000); setInterval(checkUpdate,300000);
   $('btnImport').onclick=openImport;
   $('importClose').onclick=closeImport; $('importCancel').onclick=closeImport; $('importOverlay').onclick=closeImport;
