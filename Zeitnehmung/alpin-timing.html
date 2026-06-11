@@ -190,6 +190,8 @@
   .trig.start{background:linear-gradient(180deg,#0c2018,#0a0f15)} .trig.start .big{color:var(--green)} .trig.start:hover{border-color:var(--green-dim)}
   .trig.inter{background:linear-gradient(180deg,#0a1a22,#0a0f15)} .trig.inter .big{color:var(--cyan)} .trig.inter:hover{border-color:#134155}
   .trig.finish{background:linear-gradient(180deg,#221a08,#0a0f15)} .trig.finish .big{color:var(--amber)} .trig.finish:hover{border-color:#3a2f12}
+  .trig.locked{opacity:.45;filter:grayscale(.5)}
+  .trig.locked::after{content:"🔒 wartet auf Startstation";display:block;font-size:9px;letter-spacing:.08em;color:var(--amber);margin-top:4px;text-transform:uppercase}
 
   .oncourse{border:1px solid var(--line);border-radius:12px;background:#0a0f15;overflow:hidden}
   .oncourse .h{display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer)}
@@ -639,6 +641,7 @@
     <div class="fld"><label>Genauigkeit der Anzeige</label><select id="setDecimals"><option value="2" selected>1/100 s</option><option value="3">1/1000 s</option><option value="1">1/10 s</option></select></div>
     <div class="toggle"><span>Hardware-Zeitstempel nutzen</span><div class="sw on" id="swHwTs"></div></div>
     <div class="toggle"><span>Auto-Aufrücken am Start</span><div class="sw on" id="swAutoNext"></div></div>
+    <div class="toggle"><span>Start erst nach „Bereit"-Meldung der Startstation<br><small style="color:var(--dimmer)">Sicherung: Start nur möglich, wenn die Startstation für den aktuellen Lauf „bereit" gemeldet hat. Nur einschalten, wenn ein Start-Tablet im Einsatz ist.</small></span><div class="sw" id="swRequireReady"></div></div>
     <div class="toggle"><span>Ton bei Impuls</span><div class="sw on" id="swBeep"></div></div>
     <div class="toggle"><span>Hardware automatisch verbinden<br><small style="color:var(--dimmer)">bereits freigegebene Zeitmessung wird beim Start automatisch erkannt</small></span><div class="sw on" id="swAutoSerial"></div></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Vernetzung (Internet) & Konto</label></div>
@@ -761,7 +764,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.3";
+const VERSION="2.4";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -774,6 +777,7 @@ const S = {
   settings:{ baud:115200, startKeys:["S","START","C0","IMP1","A"], interKeys:["Z","ZW","INT","C1","IMP2"],
     finishKeys:["F","FIN","ZIEL","C2","IMP3","B"], lockStart:1000,lockInter:1000,lockFinish:1500,
     decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true, autoSerial:true,
+    requireReady:false,
     wx:{ auto:true, name:'', lat:null, lon:null, elevation:null },
     disp:{ baud:9600, format:"{ss}.{cc}\\r", idle:"zeros", holdMs:5000 } }
 };
@@ -821,6 +825,7 @@ function logEvent(text,cls){ const time=new Date().toLocaleTimeString('de-DE'); 
   d.innerHTML=`<span class="ts">${time}</span> <span class="${cls||''}">${esc(text)}</span>`; const l=$('log'); l.prepend(d);
   while(l.children.length>200) l.removeChild(l.lastChild); }
 let audioCtx=null;
+let _startReadyRun=null;   /* Master: fuer welchen Lauf hat die Startstation "bereit" gemeldet */
 function beep(freq=880,dur=0.07){ if(!S.settings.beep) return; try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
   const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.value=freq;o.type='square';o.connect(g);g.connect(audioCtx.destination);
   g.gain.setValueAtTime(0.08,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+dur);
@@ -877,6 +882,10 @@ function recomputeRunState(){
 
 /* Timing core */
 function handleImpulse(ch,hwTs){
+  if(ch==='start' && S.settings.requireReady && _startReadyRun!==S.activeRun){
+    logEvent(`Start gesperrt – Startstation hat für Lauf ${S.activeRun+1} noch nicht „bereit" gemeldet`,'ev-warn');
+    toast('Start gesperrt – Startstation noch nicht bereit'); beep(330); return;
+  }
   const t=now(), lock=ch==='start'?S.settings.lockStart:ch==='inter'?S.settings.lockInter:S.settings.lockFinish;
   if(t-S.lastImpulse[ch]<lock){ logEvent(`${ch} ignoriert (Sperrzeit)`,'ev-warn'); return; }
   S.lastImpulse[ch]=t; beep(ch==='start'?990:ch==='inter'?770:660);
@@ -969,7 +978,14 @@ function buildViewSel(){ const el=$('viewsel'); el.innerHTML='';
   if(S.numRuns>1) add('Gesamt',99); }
 
 function renderAll(){ renderStartList(); renderCenter(); buildClassSel(); renderResults(); $('timingTitle').textContent='Zeitnehmung · Lauf '+(S.activeRun+1);
-  document.querySelector('.triggers').className='triggers '+(S.settings.hasInter?'three':'two'); $('trigInter').classList.toggle('hidden',!S.settings.hasInter); }
+  document.querySelector('.triggers').className='triggers '+(S.settings.hasInter?'three':'two'); $('trigInter').classList.toggle('hidden',!S.settings.hasInter);
+  updateStartLock(); }
+function updateStartLock(){
+  const el=$('trigStart'); if(!el) return;
+  const locked = S.settings.requireReady && _startReadyRun!==S.activeRun;
+  el.classList.toggle('locked', locked);
+  el.title = locked ? 'Start gesperrt – Startstation hat für diesen Lauf noch nicht „bereit" gemeldet' : '';
+}
 
 function renderStartList(){
   const body=$('startBody'); body.innerHTML='';
@@ -1406,6 +1422,7 @@ function applySettingsToUI(){ $('setRuns').value=S.numRuns; $('setBaud').value=S
   $('setLockInter').value=S.settings.lockInter; $('setLockFinish').value=S.settings.lockFinish; $('setDecimals').value=S.settings.decimals;
   $('swInter').classList.toggle('on',S.settings.hasInter); $('swHwTs').classList.toggle('on',S.settings.useHwTs);
   $('swAutoNext').classList.toggle('on',S.settings.autoNext); $('swBeep').classList.toggle('on',S.settings.beep);
+  if($('swRequireReady')) $('swRequireReady').classList.toggle('on',!!S.settings.requireReady);
   if($('swAutoSerial')) $('swAutoSerial').classList.toggle('on',S.settings.autoSerial!==false);
   if(!S.settings.disp) S.settings.disp={baud:9600,format:"{ss}.{cc}\\r",idle:"zeros",holdMs:5000};
   const dp=S.settings.disp; if($('dispBaud')){ $('dispBaud').value=dp.baud||9600; $('dispFormat').value=dp.format||''; $('dispIdle').value=dp.idle||'zeros';
@@ -1586,6 +1603,9 @@ async function doLogin(user,pw,register){
 function doLogout(){ NET.token=''; NET.user=''; NET.master=false; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
 /* Master: Start-Ereignis von der Startstation anwenden (Zeitstempel in Serverzeit) */
 function applyRemoteStart(serverT){
+  if(S.settings.requireReady && _startReadyRun!==S.activeRun){
+    logEvent(`Start gesperrt – Startstation hat für Lauf ${S.activeRun+1} noch nicht „bereit" gemeldet`,'ev-warn'); return;
+  }
   const r=S.racers.find(x=>x.id===S.readyId);
   if(!r){ logEvent("Start (Station) ohne bereiten Läufer – verworfen","ev-warn"); return; }
   if(typeof serverT!=='number') serverT=serverNow();
@@ -1615,6 +1635,8 @@ function sendReadyEvent(){
 }
 /* Master (Ziel): Startstation meldet "bereit" -> deutlich anzeigen */
 function onStartReady(run){
+  _startReadyRun=(typeof run==='number')?run:S.activeRun;   /* Start fuer diesen Lauf freigeben */
+  updateStartLock();
   const t=new Date().toLocaleTimeString('de-DE');
   const label=(typeof run==='number')?('BEREIT für Lauf '+(run+1)):'BEREIT für Rennstart';
   const bar=$('readyBar'); if(bar){ const b=bar.querySelector('b'); if(b) b.textContent=label;
@@ -1885,6 +1907,7 @@ function init(){
   $('swInter').onclick=()=>{ S.settings.hasInter=!S.settings.hasInter; $('swInter').classList.toggle('on'); renderAll(); persist(); };
   $('swHwTs').onclick=()=>{ S.settings.useHwTs=!S.settings.useHwTs; $('swHwTs').classList.toggle('on'); persist(); };
   $('swAutoNext').onclick=()=>{ S.settings.autoNext=!S.settings.autoNext; $('swAutoNext').classList.toggle('on'); persist(); };
+  $('swRequireReady').onclick=()=>{ S.settings.requireReady=!S.settings.requireReady; $('swRequireReady').classList.toggle('on'); persist(); updateStartLock(); };
   $('swBeep').onclick=()=>{ S.settings.beep=!S.settings.beep; $('swBeep').classList.toggle('on'); persist(); };
   $('swAutoSerial').onclick=()=>{ S.settings.autoSerial=!S.settings.autoSerial; $('swAutoSerial').classList.toggle('on'); persist(); if(S.settings.autoSerial) autoConnectSerial(); };
 
