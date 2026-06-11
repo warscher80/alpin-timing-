@@ -77,7 +77,7 @@ const server = http.createServer(async (req, res) => {
    * Solange du allein testest: Code setzen -> niemand sonst kann App/Links öffnen.
    * Zum Freischalten der Seite einfach die Variable wieder entfernen.
    * (Gilt nur fürs Web-Frontend; das Live-Timing-WebSocket hat eigene Konto-Auth.) */
-  const ACCESS = process.env.ACCESS_CODE || '1610';   // Sperrcode (Render-Env ACCESS_CODE hat Vorrang). Leeren = '' => offen.
+  const ACCESS = process.env.ACCESS_CODE || '';   // Sperre AUS (offen). Code via Render-Env ACCESS_CODE oder hier '...' wieder aktivierbar.
   if (ACCESS) {
     const hdr = req.headers['authorization'] || '';
     let ok = false;
