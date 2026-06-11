@@ -385,12 +385,12 @@
     background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;font-family:var(--cond);font-weight:800;
     font-size:4vw;letter-spacing:.06em;box-shadow:0 0 50px rgba(0,229,138,.35);transition:filter .1s}
   .sv-startbtn:active{filter:brightness(.9) saturate(1.2)}
-  .sv-readybtn{margin-top:2.2vh;width:100%;padding:2vh 0;border-radius:14px;cursor:pointer;
-    background:transparent;border:2px solid var(--cyan);color:var(--cyan);font-family:var(--cond);font-weight:800;
-    font-size:2.2vw;letter-spacing:.05em;transition:filter .1s,background .15s}
-  .sv-readybtn:hover{background:rgba(34,211,238,.1)}
-  .sv-readybtn:active{filter:brightness(.85)}
-  .sv-readybtn.sent{background:var(--cyan);color:#04131a;border-color:var(--cyan)}
+  .sv-readybtn{margin-top:3vh;width:100%;padding:3.5vh 0;border-radius:16px;border:none;cursor:pointer;
+    background:linear-gradient(180deg,#22d3ee,#0bbbd6);color:#04131a;font-family:var(--cond);font-weight:800;
+    font-size:3.4vw;letter-spacing:.05em;box-shadow:0 0 50px rgba(34,211,238,.3);transition:filter .1s}
+  .sv-readybtn:hover{filter:brightness(1.06)}
+  .sv-readybtn:active{filter:brightness(.9)}
+  .sv-readybtn.sent{filter:brightness(1.15) saturate(1.2)}
   .src-tag.net{color:#4d8cff;background:#0c1626}
 
   /* Public results view */
@@ -444,7 +444,7 @@
     .sv-box{padding:4vw} .sv-box .h{font-size:3.2vw}
     .sv-li{font-size:5vw;gap:3vw} .sv-li .bb{min-width:9vw} .sv-empty{font-size:3.8vw}
     .sv-startbtn{font-size:7vw;padding:4vh 0}
-    .sv-readybtn{font-size:4.5vw;padding:2.4vh 0}
+    .sv-readybtn{font-size:6vw;padding:4vh 0}
     /* --- Ergebnis-Ansicht (Zuschauer) --- */
     .rv-tabs{gap:2vw} .rv-tab{font-size:3.8vw;padding:1vh 3.5vw}
     .rv-li{grid-template-columns:9vw 11vw 1fr auto;gap:2.5vw;font-size:4.6vw;padding:1vh 2vw}
@@ -568,7 +568,6 @@
       <div class="nm" id="svReadyName">—</div>
       <div class="sv-interval">seit letztem Start: <b id="svInterval">—</b></div>
       <button id="svReadyBtn" class="sv-readybtn" style="display:none">✓ Startbereit ans Ziel melden</button>
-      <button id="svStartBtn" class="sv-startbtn" style="display:none">▶ START senden</button>
     </div>
     <div class="sv-side">
       <div class="sv-box"><div class="h">Als Nächstes</div><div id="svNext"></div></div>
@@ -762,7 +761,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.0";
+const VERSION="2.1";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1701,13 +1700,11 @@ function initStartView(){
   $('svFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
   $('svStation').onclick=async ()=>{
     if(!NET.token){ const u=prompt("Benutzername (dasselbe Konto wie am Ziel):"); if(!u) return; const p=prompt("Passwort:"); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
-    NET.station=true; NET.role='station'; saveNet(); $('svStartBtn').style.display=''; $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – START sendet jetzt."); };
-  $('svStartBtn').onclick=sendStartEvent;
+    NET.station=true; NET.role='station'; saveNet(); $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – Startbereit-Knopf verfügbar."); };
   $('svReadyBtn').onclick=sendReadyEvent;
-  if(NET.station && NET.token){ $('svStartBtn').style.display=''; $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
+  if(NET.station && NET.token){ $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
   NET.role=(NET.station && NET.token)?'station':'viewer'; NET.enabled=(location.protocol!=='file:'); if(NET.enabled) netConnect();
   window.addEventListener('storage',e=>{ if(e.key===LS_KEY) svRefresh(); });
-  document.addEventListener('keydown',e=>{ if(NET.station && e.code==='Space' && (e.target.tagName||'').toLowerCase()!=='input'){ e.preventDefault(); sendStartEvent(); } });
   setInterval(svRefresh,1000); svRefresh();
   setInterval(()=>{ $('svTod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
   (function loop(){ updateStartClocks(); requestAnimationFrame(loop); })();
