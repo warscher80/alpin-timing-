@@ -767,7 +767,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.8";
+const VERSION="2.9";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -897,7 +897,7 @@ function handleImpulse(ch,hwTs){
 function doStart(sw,hw){
   const r=S.racers.find(x=>x.id===S.readyId);
   if(!r){ logEvent("Start ohne bereiten Läufer – verworfen","ev-warn"); toast("Niemand am Start!"); return; }
-  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); c.startServerT=serverNow(); S.onCourse.push(r.id);
+  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); c.startServerT=serverNow(); c.startLocal=true; S.onCourse.push(r.id);
   S.history.push({type:'start',id:r.id,run:S.activeRun});
   logEvent(`START · Nr ${r.bib} ${r.name}`+(hw!=null?` (HW ${hw})`:''),'ev-start');
   S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
@@ -919,7 +919,9 @@ function doFinish(sw,hw){
   if(S.onCourse.length===0){ logEvent("Ziel ohne Läufer auf Strecke – verworfen","ev-warn"); toast("Kein Läufer auf der Strecke"); return; }
   const id=S.onCourse[0], r=S.racers.find(x=>x.id===id), c=cur(r);
   c.finSW=sw; c.finHW=(hw??null); c.finServerT=NET.synced?serverNow():null;
-  if(c.startServerT!=null && c.finServerT!=null){ c.runMs=c.finServerT-c.startServerT; c.src='NET'; }
+  /* Verteilte Messung (Start kam vom Tablet) -> synchronisierte Serverzeit.
+     Lokal gestarteter Laeufer (gleiches Geraet) -> praezise Hardware-/Monotonzeit. */
+  if(c.startLocal===false && c.startServerT!=null && c.finServerT!=null){ c.runMs=c.finServerT-c.startServerT; c.src='NET'; }
   else if(S.settings.useHwTs && c.startHW!=null && c.finHW!=null){ c.runMs=c.finHW-c.startHW; c.src='HW'; }
   else { c.runMs=c.finSW-c.startSW; c.src='SW'; }
   if(c.runMs<0) c.runMs=null;
@@ -1621,7 +1623,7 @@ function applyRemoteStart(serverT){
   if(!r){ logEvent("Start (Station) ohne bereiten Läufer – verworfen","ev-warn"); return; }
   if(typeof serverT!=='number') serverT=serverNow();
   const elapsed=Math.max(0, serverNow()-serverT);
-  const c=cur(r); c.state='running'; c.startServerT=serverT;
+  const c=cur(r); c.state='running'; c.startServerT=serverT; c.startLocal=false;
   c.startSW=performance.now()-elapsed; c.startWall=Date.now()-elapsed; c.startHW=null;
   S.onCourse.push(r.id); S.history.push({type:'start',id:r.id,run:S.activeRun});
   logEvent(`START (Startstation) · Nr ${r.bib} ${r.name}`,'ev-start'); beep(990);

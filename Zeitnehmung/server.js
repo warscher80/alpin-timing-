@@ -15,20 +15,30 @@ const { WebSocketServer } = require('ws');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
-const DATA = path.join(ROOT, 'data');
+/* Datenordner: per Umgebungsvariable DATA_DIR auf eine DAUERHAFTE Festplatte legen
+   (z.B. Render Persistent Disk, gemountet auf /data -> DATA_DIR=/data). Sonst lokal,
+   was auf Gratis-Tarifen bei Redeploy verloren gehen kann. */
+const DATA = process.env.DATA_DIR || path.join(ROOT, 'data');
 try { fs.mkdirSync(DATA, { recursive: true }); } catch (e) {}
+
+/* Atomar schreiben: erst in temp, dann umbenennen -> nie halbe/kaputte Datei bei Absturz */
+function writeAtomic(file, content) {
+  const tmp = file + '.tmp';
+  fs.writeFileSync(tmp, content);
+  fs.renameSync(tmp, file);
+}
 
 /* --- Geheimnis (für Token-Signatur), überlebt Neustart --- */
 const SECRET_FILE = path.join(DATA, 'secret');
 let SECRET = process.env.AUTH_SECRET || '';
 if (!SECRET) { try { SECRET = fs.readFileSync(SECRET_FILE, 'utf8'); } catch (e) {} }
-if (!SECRET) { SECRET = crypto.randomBytes(32).toString('hex'); try { fs.writeFileSync(SECRET_FILE, SECRET); } catch (e) {} }
+if (!SECRET) { SECRET = crypto.randomBytes(32).toString('hex'); try { writeAtomic(SECRET_FILE, SECRET); } catch (e) {} }
 
 /* --- Benutzer-Speicher --- */
 const USERS_FILE = path.join(DATA, 'users.json');
 let users = {};
 try { users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8')); } catch (e) {}
-function saveUsers() { try { fs.writeFileSync(USERS_FILE, JSON.stringify(users)); } catch (e) {} }
+function saveUsers() { try { writeAtomic(USERS_FILE, JSON.stringify(users)); } catch (e) {} }
 
 /* --- App-Version aus der ausgelieferten HTML lesen (für Update-Hinweis) --- */
 let _ver = '', _verMtime = -1;
@@ -159,6 +169,8 @@ setInterval(() => { wss.clients.forEach(c => { if (c.isAlive === false) return c
 
 server.listen(PORT, () => {
   console.log('ALPIN TIMING Server  http://0.0.0.0:' + PORT);
+  console.log('Datenordner: ' + DATA + (process.env.DATA_DIR ? '  (dauerhaft via DATA_DIR)' : '  (lokal – auf Gratis-Tarifen evtl. fluechtig! DATA_DIR auf eine Persistent Disk setzen)'));
+  console.log('AUTH_SECRET: ' + (process.env.AUTH_SECRET ? 'aus Umgebung' : 'aus Datei/zufaellig (fuer Dauerbetrieb AUTH_SECRET setzen)'));
   console.log('Konten aktiv. Registrieren/Anmelden in der App unter Vernetzung. Öffentliche Ansicht: …/?room=BENUTZER#results');
 });
 
