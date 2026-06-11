@@ -163,6 +163,8 @@
   .ib{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:3px 7px;font-size:11px}
   .ib:hover{color:var(--ink);border-color:#2c3a47}
   .ib.go:hover{color:var(--green);border-color:var(--green-dim)}
+  .ib.dsq{color:var(--red);border-color:#3a1717;margin-left:6px}
+  .ib.dsq:hover{color:#fff;background:var(--red);border-color:var(--red)}
 
   .timing{gap:14px}
   .start-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#0a0f15}
@@ -764,7 +766,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.5";
+const VERSION="2.6";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -939,15 +941,21 @@ function undoLast(){
   logEvent(`↩ ${h.type==='finish'?'Ziel':'Start'} zurückgenommen · Nr ${r.bib} (Lauf ${h.run+1})`,'ev-info');
   renderAll(); persist();
 }
-function setStatus(id,st){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
-  S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null;
-  c.state=st; c.runMs=null; c.src=null;
-  logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${S.activeRun+1})`,'ev-warn');
-  if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
+function setStatus(id,st){ setStatusRun(id,st,S.activeRun); }
+function setStatusRun(id,st,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+  if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
+  if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null; }
+  c.state=st; c.runMs=null; c.src=null; c.hand=null;
+  logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-warn');
+  if(runIdx===S.activeRun && S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
   renderAll(); persist(); }
-function reopen(id){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
-  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=null; c.src=null;
-  S.onCourse=S.onCourse.filter(x=>x!==id); renderAll(); persist(); }
+function reopen(id){ reopenRun(id,S.activeRun); }
+function reopenRun(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+  if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
+  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=c.hand=null; c.src=null;
+  if(runIdx===S.activeRun) S.onCourse=S.onCourse.filter(x=>x!==id);
+  logEvent(`Zurückgesetzt · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-info');
+  renderAll(); persist(); }
 function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   const inp=prompt(`Handzeit für Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})\nFormat  SS,cc  oder  M:SS,cc  — leer = löschen:`, c.hand!=null?fmt(c.hand):'');
@@ -1013,7 +1021,8 @@ function renderCenter(){
       const row=document.createElement('div'); row.className='oc-row'+(i===0?' lead':'');
       row.innerHTML=`<span class="bib">${esc(rr.bib)}</span><span class="nm">${esc(rr.name)}</span>
         <span class="sp">${sp}</span><span class="tm" data-clock="${rr.id}">0.00</span>
-        <button class="ib" data-dnf="${rr.id}" title="Aufgabe / DNF" style="margin-left:8px">DNF</button>`;
+        <button class="ib" data-dnf="${rr.id}" title="Aufgabe / DNF" style="margin-left:8px">DNF</button>
+        <button class="ib" data-dsq="${rr.id}" title="Disqualifikation / DSQ">DSQ</button>`;
       list.appendChild(row); }); bigTarget=S.onCourse[0]; }
   $('ocCount').textContent=S.onCourse.length+' auf Strecke';
   const t=bigTarget!=null?S.racers.find(x=>x.id===bigTarget):null;
@@ -1040,14 +1049,15 @@ function renderResults(){
     const tr=document.createElement('tr'); tr.className='res-row'+(rank<=3?' p'+rank:'');
     const src=combined?'':effSrc(c); const tag=src?`<span class="src-tag ${src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':'sw'}">${src}</span>`:'';
     const ha=combined?'':`data-hand="${r.id}" data-run="${S.resultView}"`;
+    const dsq=combined?'':` <button class="ib dsq" data-dsq="${r.id}" data-run="${S.resultView}" title="Disqualifizieren (DSQ)">DSQ</button>`;
     tr.innerHTML=`<td class="rank">${rank}</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}${r.cat?` <span style="color:var(--dimmer);font-size:11px">${esc(r.cat)}</span>`:''} ${tag}</td>
-      <td class="tm" ${ha}>${fmt(e.t)}</td><td class="diff">${e.t===best?'':fmtDelta(e.t-best)}</td>`;
+      <td class="tm" ${ha}>${fmt(e.t)}</td><td class="diff">${e.t===best?'':fmtDelta(e.t-best)}${dsq}</td>`;
     body.appendChild(tr);
   });
   if(!combined){ S.racers.filter(r=>['DNF','DNS','DSQ'].includes(r.runs[S.resultView].state) && (!S.resultClass || (r.cat||'').trim()===S.resultClass)).forEach(r=>{
     const tr=document.createElement('tr'); tr.className='res-row out';
     tr.innerHTML=`<td class="rank">–</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}</td>
-      <td class="tm" data-hand="${r.id}" data-run="${S.resultView}">${r.runs[S.resultView].state}</td><td class="diff"></td>`;
+      <td class="tm">${r.runs[S.resultView].state}</td><td class="diff"><button class="ib" data-reopen="${r.id}" data-run="${S.resultView}" title="Status zurücksetzen">↺</button></td>`;
     body.appendChild(tr); }); }
   $('resCount').textContent=ranked.length;
 }
@@ -1370,7 +1380,7 @@ const HELP=[
    <p><b>Start wie bei FIS:</b> Ein <b>Starttor/Startwand</b>, das einen Start-Impuls (Schlüsselwort <code>S</code>) auf die Zeitmessung gibt, löst den Start automatisch aus – genau wie eine Lichtschranke. Start und Ziel werden nicht über den Anschluss, sondern über das <b>Signal-Schlüsselwort</b> zugeordnet (S/Z/F); Haupt- und Backup-Zelle am selben Tor werden über die Sperrzeit automatisch entstört. Ist der Start räumlich getrennt, die <b>Startstation</b> übers Netzwerk nutzen.</p>`},
  {t:"Simulation (ohne Hardware testen)", h:`<p>Knopf <b>Simulation</b> feuert automatisch Start-, Zwischen- und Ziel-Impulse – ideal zum Üben und um Anzeigetafel/Live-Ansicht zu sehen.</p>`},
  {t:"Startliste & Läufer", h:`<p>Nr, Name und Kat. (Klasse) eingeben, <b>+</b> zum Hinzufügen. <b>Import</b> fügt viele auf einmal ein (eine Zeile <code>Nr,Name,Klasse</code>). Der bereite Läufer am Start ist grün markiert.</p>`},
- {t:"Status: DNF / DNS / DSQ", h:`<p><b>DNS</b> (nicht gestartet) in der Startliste; <b>DNF</b> (Aufgabe) beim Läufer auf der Strecke; per Klick auf ein Ergebnis lässt sich dieses zurücksetzen.</p>`},
+ {t:"Status: DNF / DNS / DSQ (Disqualifikation)", h:`<p><b>DNS</b> (nicht gestartet): Knopf in der Startliste. <b>DNF</b> (Aufgabe) und <b>DSQ</b> (Disqualifikation, z.B. Tor verpasst): Knöpfe beim Läufer auf der Strecke. Ein Läufer, der schon im <b>Ziel</b> ist, wird über den <b>DSQ</b>-Knopf in der Ergebnisliste disqualifiziert. Disqualifizierte/ausgefallene Läufer stehen unten in der Rangliste unter „ausgefallen"; mit dem <b>↺</b>-Knopf dort wieder zurücksetzen.</p>`},
  {t:"Altersklassen / Kategorien", h:`<p>Das Feld <b>Kat.</b> ist die Altersklasse (z. B. U12, Herren). In den Ergebnissen oben die <b>Klassen-Auswahl</b> nutzen – dann wird <b>innerhalb der Klasse</b> gewertet (1, 2, 3 …). Der Druck listet bei „Alle Klassen" jede Klasse als eigenen Abschnitt; die CSV hat eine Spalte <b>Klassenrang</b>. In der Live-Ansicht gibt es Klassen-Tabs.</p>`},
  {t:"Zwei Läufe & Gesamtwertung", h:`<p>In den Einstellungen ⚙ Anzahl Läufe wählen. Oben zwischen <b>Lauf 1/2</b> umschalten. Ergebnis-Ansicht <b>Gesamt</b> = Summe beider Läufe (nur Läufer mit beiden Läufen).</p>`},
  {t:"Zwischenzeit", h:`<p>Optionaler Messpunkt (Einstellungen). Zeigt auf Strecke und Anzeigetafel den Vergleich zur Bestzeit (+/−). Taste <span class="kbd">M</span> oder Knopf ⏲ ZW.</p>`},
@@ -1846,9 +1856,16 @@ function init(){
     if(b.dataset.act==='del'){ if(confirm("Läufer löschen?")) delRacer(id); }
     else if(b.dataset.act==='ready') setReady(id);
     else if(b.dataset.act==='dns'){ if(confirm("Als DNS (nicht gestartet) werten?")) setStatus(id,'DNS'); } });
-  $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf]'); if(!b) return; const id=+b.dataset.dnf;
-    const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF werten?`)) setStatus(id,'DNF'); });
-  $('resBody').addEventListener('click',e=>{ const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
+  $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf],button[data-dsq]'); if(!b) return;
+    if(b.dataset.dnf!=null){ const id=+b.dataset.dnf; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF (Aufgabe) werten?`)) setStatus(id,'DNF'); }
+    else { const id=+b.dataset.dsq; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} disqualifizieren (DSQ)?`)) setStatus(id,'DSQ'); } });
+  $('resBody').addEventListener('click',e=>{
+    const dq=e.target.closest('[data-dsq]');
+    if(dq){ const id=+dq.dataset.dsq, run=dq.dataset.run!=null?+dq.dataset.run:undefined; const r=S.racers.find(x=>x.id===id);
+      if(r&&confirm(`Nr ${r.bib} ${r.name} disqualifizieren (DSQ)?`)) setStatusRun(id,'DSQ',run); return; }
+    const ro=e.target.closest('[data-reopen]');
+    if(ro){ const id=+ro.dataset.reopen, run=ro.dataset.run!=null?+ro.dataset.run:undefined; reopenRun(id,run); return; }
+    const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
 
   $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
   $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
