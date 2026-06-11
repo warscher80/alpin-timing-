@@ -761,7 +761,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="2.2";
+const VERSION="2.3";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1545,6 +1545,11 @@ function netStartSync(){ clearInterval(NET._sync); NET.rtt=Infinity; let n=0;
   NET._sync=setInterval(netSyncOnce,5000); }
 function loadNet(){ try{ if(window.localStorage){ const j=localStorage.getItem(NETKEY); if(j){ const d=JSON.parse(j); NET.master=!!d.master; NET.station=!!d.station; NET.token=d.token||''; NET.user=d.user||''; } } }catch(e){} }
 function saveNet(){ try{ if(window.localStorage) localStorage.setItem(NETKEY,JSON.stringify({master:NET.master,station:NET.station,token:NET.token,user:NET.user})); }catch(e){} }
+/* Zugangsdaten auf diesem Geraet merken (angemeldet bleiben + bei vergessenem Passwort nachschauen) */
+const CREDKEY="alpin_cred_v1";
+function saveCred(u,p){ try{ localStorage.setItem(CREDKEY,JSON.stringify({u:u,p:p})); }catch(e){} }
+function loadCred(){ try{ const j=localStorage.getItem(CREDKEY); return j?JSON.parse(j):null; }catch(e){ return null; } }
+function clearCred(){ try{ localStorage.removeItem(CREDKEY); }catch(e){} }
 function lsState(){ try{ if(window.localStorage){ const j=localStorage.getItem(LS_KEY); if(j) return JSON.parse(j); } }catch(e){} return null; }
 function viewState(){ return REMOTE || lsState(); }
 function viewerRoom(){ try{ const p=new URLSearchParams(location.search); return (p.get('room')||NET.user||'').toLowerCase(); }catch(e){ return (NET.user||'').toLowerCase(); } }
@@ -1560,7 +1565,7 @@ function netConnect(){
   ws.onmessage=ev=>{ let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
     if(d.type==='time'){ netSyncHandle(d); return; }
     if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
-    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(); return; }
+    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(d.run); return; }
     if(d.type==='state' && (NET.role==='viewer' || NET.role==='station')){ REMOTE=d.data; onRemoteState(); } };
   ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
   ws.onerror=()=>{};
@@ -1574,7 +1579,7 @@ async function doLogin(user,pw,register){
   if(location.protocol==='file:'){ toast("Konten brauchen den Server – nicht die lokale Datei."); return; }
   if(!user||!pw){ toast("Benutzer und Passwort eingeben"); return; }
   try{ const d=await authRequest(register?'/api/register':'/api/login', user, pw);
-    NET.token=d.token; NET.user=d.user; saveNet(); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
+    NET.token=d.token; NET.user=d.user; saveNet(); saveCred(user,pw); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
     updateNetUI(); if(NET.master) netStartMaster(); }
   catch(e){ toast(e.message||'Anmeldung fehlgeschlagen'); }
 }
@@ -1603,17 +1608,19 @@ function sendStartEvent(){
 /* Startstation: "Startbereit" ans Ziel melden (Koordination, kein Zeitstempel) */
 function sendReadyEvent(){
   if(!NET.connected || !NET.ws || NET.ws.readyState!==1){ toast("Keine Verbindung zum Ziel"); return; }
-  try{ NET.ws.send(JSON.stringify({type:'event',kind:'ready',serverT:serverNow()})); }catch(e){ return; }
-  beep(660); toast("Startbereit ans Ziel gemeldet");
-  const b=$('svReadyBtn'); if(b){ b.classList.add('sent'); b.textContent='✓ Bereit gemeldet'; clearTimeout(sendReadyEvent._t);
-    sendReadyEvent._t=setTimeout(()=>{ b.classList.remove('sent'); b.textContent='✓ Startbereit ans Ziel melden'; },3000); }
+  const ar=(_sv.data&&_sv.data.activeRun)||0;
+  try{ NET.ws.send(JSON.stringify({type:'event',kind:'ready',run:ar,serverT:serverNow()})); }catch(e){ return; }
+  beep(660); toast("Bereit für Lauf "+(ar+1)+" ans Ziel gemeldet");
+  _readySentRun=ar; updateReadyBtn();   /* Knopf für diesen Lauf ausblenden */
 }
 /* Master (Ziel): Startstation meldet "bereit" -> deutlich anzeigen */
-function onStartReady(){
+function onStartReady(run){
   const t=new Date().toLocaleTimeString('de-DE');
-  const bar=$('readyBar'); if(bar){ const ti=$('rbTime'); if(ti) ti.textContent='· '+t; bar.classList.add('show');
+  const label=(typeof run==='number')?('BEREIT für Lauf '+(run+1)):'BEREIT für Rennstart';
+  const bar=$('readyBar'); if(bar){ const b=bar.querySelector('b'); if(b) b.textContent=label;
+    const ti=$('rbTime'); if(ti) ti.textContent='· '+t; bar.classList.add('show');
     clearTimeout(onStartReady._t); onStartReady._t=setTimeout(()=>bar.classList.remove('show'),30000); }
-  logEvent("Startstation meldet: BEREIT für Rennstart","ev-start");
+  logEvent("Startstation meldet: "+label,"ev-start");
   beep(660); setTimeout(()=>beep(880),140);
 }
 function netStartMaster(){ if(location.protocol==='file:'){ toast("Master-Senden braucht den Server (http://…)."); NET.master=false; updateNetUI(); return; }
@@ -1623,14 +1630,24 @@ function netStop(){ NET.enabled=false; if(NET.ws){ try{NET.ws.close();}catch(e){
 function wireAuthButtons(){ const lg=$('btnLogin'), rg=$('btnRegister'), lo=$('btnLogout');
   if(lg) lg.onclick=()=>doLogin((($('inUser')||{}).value)||'', (($('inPass')||{}).value)||'', false);
   if(rg) rg.onclick=()=>doLogin((($('inUser')||{}).value)||'', (($('inPass')||{}).value)||'', true);
-  if(lo) lo.onclick=doLogout; }
+  if(lo) lo.onclick=doLogout;
+  const sp=$('inShowPw'); if(sp) sp.onchange=()=>{ const p=$('inPass'); if(p) p.type=sp.checked?'text':'password'; };
+  const sc=$('btnShowCred'); if(sc) sc.onclick=()=>{ const cr=loadCred()||{}; const el=$('credPw'); if(el) el.textContent=cr.p?cr.p:'(nichts gespeichert)'; };
+  const cc=$('btnClearCred'); if(cc) cc.onclick=()=>{ clearCred(); const el=$('credPw'); if(el) el.textContent='(gelöscht)'; toast('Gespeicherte Zugangsdaten gelöscht'); }; }
 function updateNetUI(){
   const auth=$('netAuth'), st=$('netStatus'), lk=$('netLinks'), sw=$('swMaster'); if(!st) return;
   const li=!!NET.user;
   if(auth && updateNetUI._li!==li){ updateNetUI._li=li;
+    const cr=loadCred()||{};
+    const inSt='flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px';
     auth.innerHTML = li
       ? 'Angemeldet als <b style="color:var(--green)">'+esc(NET.user)+'</b> &nbsp;<button class="btn sm ghost" id="btnLogout">Abmelden</button>'
-      : '<div style="display:flex;gap:6px;flex-wrap:wrap"><input id="inUser" placeholder="Benutzer" autocomplete="username" style="flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px"><input id="inPass" type="password" placeholder="Passwort" autocomplete="current-password" style="flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px"></div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm primary" id="btnLogin">Anmelden</button><button class="btn sm" id="btnRegister">Registrieren</button></div>';
+        +'<div class="hint" style="margin-top:8px">Gespeichert auf diesem Gerät: <b>'+esc(cr.u||NET.user)+'</b> · <span id="credPw">••••••</span> '
+        +'<button class="btn sm ghost" id="btnShowCred">anzeigen</button> <button class="btn sm ghost" id="btnClearCred">löschen</button></div>'
+      : '<div style="display:flex;gap:6px;flex-wrap:wrap"><input id="inUser" placeholder="Benutzer" autocomplete="username" value="'+esc(cr.u||'')+'" style="'+inSt+'"><input id="inPass" type="password" placeholder="Passwort" autocomplete="current-password" value="'+esc(cr.p||'')+'" style="'+inSt+'"></div>'
+        +'<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button class="btn sm primary" id="btnLogin">Anmelden</button><button class="btn sm" id="btnRegister">Registrieren</button>'
+        +'<label style="font-size:11px;color:var(--dim);margin-left:auto;display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" id="inShowPw">Passwort zeigen</label></div>'
+        +'<div class="hint" style="margin-top:5px">Zugangsdaten werden auf diesem Gerät gemerkt – du bleibst angemeldet.</div>';
     wireAuthButtons();
   }
   if(location.protocol==='file:'){ st.innerHTML='Lokale Datei – Konten/Vernetzung brauchen den Server (http://…).'; }
@@ -1691,7 +1708,16 @@ function openLiveShare(){
 }
 function closeLiveShare(){ $('liveModal').classList.remove('open'); $('liveOverlay').classList.remove('show'); }
 const _sv={data:null};
+let _readySentRun=null;   /* fuer welchen Lauf wurde "bereit" schon gemeldet */
 function svCur(r){ return r.runs[(_sv.data&&_sv.data.activeRun)||0]; }
+/* Bereit-Knopf: pro Lauf einmal; nach Melden weg, bei neuem Lauf wieder da */
+function updateReadyBtn(){
+  const b=$('svReadyBtn'); if(!b) return;
+  const ar=(_sv.data&&_sv.data.activeRun)||0;
+  const show = NET.station && _readySentRun!==ar;
+  b.style.display = show ? '' : 'none';
+  if(show){ b.classList.remove('sent'); b.textContent='✓ Bereit für Lauf '+(ar+1)+' melden'; }
+}
 function initStartView(){
   VIEWKIND='start'; loadNet();
   const wrap=document.querySelector('.wrap'); if(wrap) wrap.style.display='none';
@@ -1699,10 +1725,11 @@ function initStartView(){
   $('svClose').onclick=()=>window.close();
   $('svFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
   $('svStation').onclick=async ()=>{
-    if(!NET.token){ const u=prompt("Benutzername (dasselbe Konto wie am Ziel):"); if(!u) return; const p=prompt("Passwort:"); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
-    NET.station=true; NET.role='station'; saveNet(); $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – Startbereit-Knopf verfügbar."); };
+    if(!NET.token){ const c=loadCred()||{}; const u=prompt("Benutzername (dasselbe Konto wie am Ziel):", c.u||''); if(!u) return; const p=prompt("Passwort:", c.p||''); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
+    NET.station=true; NET.role='station'; saveNet(); $('svStation').textContent='Startstation aktiv'; netConnect(); updateReadyBtn(); toast("Startstation aktiv – Bereit-Knopf verfügbar."); };
   $('svReadyBtn').onclick=sendReadyEvent;
-  if(NET.station && NET.token){ $('svReadyBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
+  if(NET.station && NET.token){ $('svStation').textContent='Startstation aktiv'; }
+  updateReadyBtn();
   NET.role=(NET.station && NET.token)?'station':'viewer'; NET.enabled=(location.protocol!=='file:'); if(NET.enabled) netConnect();
   window.addEventListener('storage',e=>{ if(e.key===LS_KEY) svRefresh(); });
   setInterval(svRefresh,1000); svRefresh();
@@ -1727,6 +1754,7 @@ function renderStartView(){
   const oc=d.racers.filter(r=>svCur(r).state==='running').sort((a,b)=>(svCur(a).startWall||0)-(svCur(b).startWall||0));
   $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
   $('svCourseCount').textContent=oc.length;
+  updateReadyBtn();
 }
 function updateStartClocks(){
   const d=_sv.data; if(!d) return; const wNow=Date.now();

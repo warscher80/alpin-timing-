@@ -46,7 +46,7 @@ function verifyPw(pw, stored) {
     return crypto.timingSafeEqual(calc, Buffer.from(h, 'hex')); } catch (e) { return false; }
 }
 function b64u(s) { return Buffer.from(s).toString('base64url'); }
-function signToken(user, days = 30) {
+function signToken(user, days = 365) {
   const p = b64u(JSON.stringify({ u: user, exp: Date.now() + days * 86400000 }));
   const sig = crypto.createHmac('sha256', SECRET).update(p).digest('base64url');
   return p + '.' + sig;
