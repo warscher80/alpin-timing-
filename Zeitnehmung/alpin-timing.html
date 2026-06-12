@@ -702,7 +702,7 @@ F 1051110   → Ziel
     <h4 style="color:var(--green);margin:14px 0 6px">Impressum / Offenlegung (§ 5 ECG, § 25 MedienG)</h4>
     <p>Anbieter: <b>[Vor- und Nachname / Firma]</b><br>
     Anschrift: [Straße Nr., PLZ Ort, Österreich]<br>
-    E-Mail: [deine-email@example.com]<br>
+    E-Mail: nicowarscher@gmx.at<br>
     Telefon: [optional]<br>
     Unternehmensgegenstand: Software zur Sport-Zeitnahme<br>
     UID-Nr. / Firmenbuch: [falls unternehmerisch tätig, sonst entfernen]</p>
@@ -724,11 +724,11 @@ F 1051110   → Ziel
     <p><b>Zwecke &amp; Rechtsgrundlage.</b> Durchführung der Zeitnahme und Live-Anzeige (Art. 6 Abs. 1 lit. b/f DSGVO). Teilnehmerdaten verarbeitest du als Veranstalter eigenverantwortlich; hole nötige Einwilligungen ein.</p>
     <p><b>Empfänger / Drittdienste.</b> Hosting: [z. B. Render, USA – Standardvertragsklauseln]. Wetter: <b>Open-Meteo</b> (nur die <b>Ortskoordinaten</b> des Rennorts werden übermittelt, keine personenbezogenen Daten). <b>Schriftarten werden lokal gehostet</b> – es findet <b>keine Übertragung an Google</b> oder andere Dritte statt.</p>
     <p><b>Speicherdauer.</b> Konten bis zur Löschung; Renndaten bis du sie löschst/zurücksetzt. Anmelde-Token gültig 365 Tage.</p>
-    <p><b>Deine Rechte.</b> Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch. Beschwerde bei der <b>österr. Datenschutzbehörde</b> (dsb.gv.at). Anfragen an: [deine E-Mail].</p>
+    <p><b>Deine Rechte.</b> Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch. Beschwerde bei der <b>österr. Datenschutzbehörde</b> (dsb.gv.at). Anfragen an: nicowarscher@gmx.at.</p>
     <p><b>Sicherheit.</b> Passwörter via scrypt gehasht, Sitzungen über signierte Tokens (HMAC), Übertragung per HTTPS empfohlen.</p>
 
     <h4 style="color:var(--green);margin:18px 0 6px">Barrierefreiheit (EAA / BaFG)</h4>
-    <p>Diese Anwendung wird an den Anforderungen des EU-Barrierefreiheitsgesetzes (European Accessibility Act; in Österreich Barrierefreiheitsgesetz – BaFG, anwendbar seit 28.06.2025) ausgerichtet: hoher Kontrast, große Bedienelemente, Tastatur­bedienung der Kernfunktionen und skalierbare Anzeige. Eine vollständige WCAG-2.1-AA-Prüfung ist [in Arbeit / geplant]. Barrieren oder Verbesserungs­vorschläge bitte an [deine E-Mail] – wir bemühen uns um zeitnahe Behebung.</p>
+    <p>Diese Anwendung wird an den Anforderungen des EU-Barrierefreiheitsgesetzes (European Accessibility Act; in Österreich Barrierefreiheitsgesetz – BaFG, anwendbar seit 28.06.2025) ausgerichtet: hoher Kontrast, große Bedienelemente, Tastatur­bedienung der Kernfunktionen und skalierbare Anzeige. Eine vollständige WCAG-2.1-AA-Prüfung ist [in Arbeit / geplant]. Barrieren oder Verbesserungs­vorschläge bitte an nicowarscher@gmx.at – wir bemühen uns um zeitnahe Behebung.</p>
   </div>
 </div>
 
@@ -823,7 +823,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.6";
+const VERSION="3.7";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1779,7 +1779,7 @@ function updateNetUI(){
     let lic;
     if(L.owner){ lic='<div style="margin-top:5px;color:var(--green)">🔑 Vollversion (Inhaber) – dauerhaft</div>'; }
     else if(L.licensed){ const dt=L.exp?new Date(L.exp).toLocaleDateString('de-AT'):''; lic='<div style="margin-top:5px;color:var(--green)">🔑 Lizenz gültig'+(dt?' bis '+dt:'')+'</div>'; }
-    else lic='<div style="margin-top:5px;color:var(--amber)">🔒 Keine gültige Lizenz – Live-Senden gesperrt. Freischaltung: <b>[deine Kontakt-E-Mail]</b></div>';
+    else lic='<div style="margin-top:5px;color:var(--amber)">🔒 Keine gültige Lizenz – Live-Senden gesperrt. Freischaltung: <b>nicowarscher@gmx.at</b></div>';
     st.innerHTML = base + lic;
   }
   if(lk){ if(location.protocol==='file:'||!li) lk.textContent='Nach Anmeldung erscheint hier der öffentliche Link.';
