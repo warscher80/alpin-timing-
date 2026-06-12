@@ -74,9 +74,27 @@ function normUser(u) { return String(u || '').trim().toLowerCase(); }
 function validUser(u) { return /^[a-z0-9_-]{3,24}$/.test(u); }
 
 /* --- Lizenz: Konto hat optional ein Ablaufdatum (licenseExp). Ohne gueltige Lizenz
-   kann das Konto kein Live-Rennen SENDEN (Master); Zuschauen bleibt frei. --- */
-function licenseInfo(u) { const x = users[u]; const exp = (x && x.licenseExp) || null;
-  return { licensed: !!(exp && exp > Date.now()), exp: exp }; }
+   kann das Konto kein Live-Rennen SENDEN (Master); Zuschauen bleibt frei.
+   Inhaber-Konten (Env OWNER_USERS, kommagetrennt) sind IMMER voll lizenziert. --- */
+const OWNERS = (process.env.OWNER_USERS || '').split(',').map(s => normUser(s)).filter(Boolean);
+function licenseInfo(u) {
+  if (OWNERS.includes(u) || (users[u] && users[u].owner)) return { licensed: true, exp: null, owner: true };
+  const x = users[u]; const exp = (x && x.licenseExp) || null;
+  return { licensed: !!(exp && exp > Date.now()), exp: exp, owner: false };
+}
+/* Inhaber automatisch festlegen: das AELTESTE Konto bekommt dauerhaft die Vollversion,
+   falls noch keiner markiert ist und keine OWNER_USERS-Env gesetzt wurde. So hat der
+   Betreiber (= wer zuerst registriert hat) immer die volle Lizenz, ganz ohne Einrichtung. */
+function ensureOwner() {
+  if (OWNERS.length) return;
+  const names = Object.keys(users);
+  if (!names.length || names.some(u => users[u].owner)) return;
+  let first = names[0];
+  for (const u of names) if ((users[u].created || 0) < (users[first].created || 0)) first = u;
+  users[first].owner = true; saveUsers();
+  console.log('Inhaber automatisch festgelegt (Vollversion, dauerhaft): ' + first);
+}
+ensureOwner();
 
 /* --- HTTP: statische Dateien + Auth-API --- */
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
@@ -112,7 +130,7 @@ const server = http.createServer(async (req, res) => {
     if (pw.length < 6) return json(res, 400, { error: 'password', msg: 'Passwort: mindestens 6 Zeichen' });
     if (url === '/api/register') {
       if (users[u]) return json(res, 409, { error: 'exists', msg: 'Benutzername bereits vergeben' });
-      users[u] = { pw: hashPw(pw), created: Date.now() }; saveUsers();
+      users[u] = { pw: hashPw(pw), created: Date.now() }; saveUsers(); ensureOwner();
       return json(res, 200, { token: signToken(u), user: u, license: licenseInfo(u) });
     } else {
       if (!users[u] || !verifyPw(pw, users[u].pw)) return json(res, 401, { error: 'auth', msg: 'Falscher Benutzer oder Passwort' });

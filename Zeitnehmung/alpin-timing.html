@@ -811,7 +811,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.4";
+const VERSION="3.5";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1750,7 +1750,8 @@ function updateNetUI(){
     let base = NET.master ? (NET.connected?'<span style="color:var(--green)">● Master verbunden – sendet live.</span>':'<span style="color:var(--amber)">○ verbinde…</span>')
                           : 'Angemeldet. „Master senden" aktivieren zum Live-Übertragen.';
     let lic;
-    if(L.licensed){ const dt=L.exp?new Date(L.exp).toLocaleDateString('de-AT'):''; lic='<div style="margin-top:5px;color:var(--green)">🔑 Lizenz gültig'+(dt?' bis '+dt:'')+'</div>'; }
+    if(L.owner){ lic='<div style="margin-top:5px;color:var(--green)">🔑 Vollversion (Inhaber) – dauerhaft</div>'; }
+    else if(L.licensed){ const dt=L.exp?new Date(L.exp).toLocaleDateString('de-AT'):''; lic='<div style="margin-top:5px;color:var(--green)">🔑 Lizenz gültig'+(dt?' bis '+dt:'')+'</div>'; }
     else lic='<div style="margin-top:5px;color:var(--amber)">🔒 Keine gültige Lizenz – Live-Senden gesperrt. Freischaltung: <b>[deine Kontakt-E-Mail]</b></div>';
     st.innerHTML = base + lic;
   }
