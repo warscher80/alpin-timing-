@@ -823,7 +823,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.7";
+const VERSION="3.8";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1266,9 +1266,19 @@ async function readLoop(){
   }
 }
 function parseSerialLine(line){
-  const up=line.toUpperCase(), tokens=up.split(/[\s,;:]+/).filter(Boolean), first=tokens[0]||'';
-  let hwTs=null; for(let i=tokens.length-1;i>=1;i--){ if(/^\d+$/.test(tokens[i])){ hwTs=parseInt(tokens[i],10); break; } }
-  const match=keys=>keys.some(k=>k&&(first===k||first.startsWith(k)));
+  const up=line.toUpperCase().trim();
+  const tokens=up.split(/[\s,;]+/).filter(Boolean);   // NICHT an ':' trennen -> Uhrzeit bleibt erhalten
+  const first=tokens[0]||'';
+  /* Hardware-Zeitstempel: bevorzugt eine Tageszeit HH:MM:SS(.tttt) -> ms seit Mitternacht
+     (z.B. TAG Heuer CP 520/540), sonst die letzte Ganzzahl (Zaehler-Format "S 1043920"). */
+  let hwTs=null;
+  const tm=up.match(/(\d{1,2}):(\d{2}):(\d{2})(?:[.,](\d{1,4}))?/);
+  if(tm){ const h=+tm[1],m=+tm[2],s=+tm[3]; const frac=((tm[4]||'')+'000').slice(0,3);
+    hwTs=((h*3600+m*60+s)*1000)+(+frac); }
+  else { for(let i=tokens.length-1;i>=0;i--){ if(/^\d+$/.test(tokens[i])){ hwTs=parseInt(tokens[i],10); break; } } }
+  /* Kanal/Schluesselwort darf IRGENDWO in der Zeile stehen (CP540: "0001 C0 21:38:11.4567 00").
+     Exakter Token-Treffer ueberall, oder erstes Token beginnt mit dem Schluesselwort. */
+  const match=keys=>keys.some(k=>k&&(tokens.includes(k)||first.startsWith(k)));
   if(match(S.settings.startKeys)) handleImpulse('start',hwTs);
   else if(S.settings.hasInter && match(S.settings.interKeys)) handleImpulse('inter',hwTs);
   else if(match(S.settings.finishKeys)) handleImpulse('finish',hwTs);
