@@ -170,6 +170,11 @@
   .ib.go:hover{color:var(--green);border-color:var(--green-dim)}
   .ib.dsq{color:var(--red);border-color:#3a1717;margin-left:6px}
   .ib.dsq:hover{color:#fff;background:var(--red);border-color:var(--red)}
+  .daybest{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:8px 12px;border-radius:10px;
+    background:linear-gradient(90deg,rgba(255,210,77,.13),rgba(255,210,77,.02));border:1px solid rgba(255,210,77,.4)}
+  .daybest .lbl{font-family:var(--cond);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:11px;color:#ffd24d;white-space:nowrap}
+  .daybest .who{flex:1;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+  .daybest .tt{font-family:var(--mono);font-weight:800;font-size:18px;color:#ffd24d;font-variant-numeric:tabular-nums}
 
   .timing{gap:14px}
   .start-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#0a0f15}
@@ -536,6 +541,7 @@
       <div class="phead"><h2>Ergebnisse</h2><span class="count" id="resCount">0</span>
         <div class="ph-actions"><select id="classSel" class="classsel" title="Altersklasse"></select><div class="viewsel" id="viewsel"></div><button class="btn sm ghost" id="btnPrintRes" title="Offizielle Ergebnisliste drucken/PDF">🖨</button><button class="btn sm ghost" id="btnExport" title="CSV exportieren">CSV</button></div></div>
       <div class="pbody">
+        <div id="dayBest" class="daybest" style="display:none"></div>
         <table><thead><tr><th>#</th><th>Nr</th><th>Name</th><th style="text-align:right">Zeit</th><th style="text-align:right">Diff</th></tr></thead><tbody id="resBody"></tbody></table>
       </div>
     </section>
@@ -823,7 +829,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.8";
+const VERSION="3.9";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1119,6 +1125,17 @@ function renderResults(){
       <td class="tm">${r.runs[S.resultView].state}</td><td class="diff"><button class="ib" data-reopen="${r.id}" data-run="${S.resultView}" title="Status zurücksetzen">↺</button></td>`;
     body.appendChild(tr); }); }
   $('resCount').textContent=ranked.length;
+  renderDayBest();
+}
+/* Tagesbestzeit: schnellste Einzelzeit des Tages ueber ALLE Klassen und Laeufe */
+function dayBest(){ let best=null;
+  S.racers.forEach(r=>{ for(let i=0;i<Math.max(1,S.numRuns);i++){ const t=effRun(r.runs[i]); if(t!=null && (best==null||t<best.t)) best={t:t,r:r,run:i}; } });
+  return best; }
+function renderDayBest(){ const el=$('dayBest'); if(!el) return; const db=dayBest();
+  if(!db){ el.style.display='none'; return; }
+  el.style.display='flex';
+  el.innerHTML=`<span class="lbl">🏆 Tagesbestzeit</span><span class="who">Nr ${esc(db.r.bib)} · ${esc(db.r.name)}`
+    +`${db.r.cat?' · '+esc(db.r.cat):''}${S.numRuns>1?' · Lauf '+(db.run+1):''}</span><span class="tt">${fmt(db.t)}</span>`;
 }
 
 /* Live clock */
