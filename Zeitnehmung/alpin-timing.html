@@ -811,7 +811,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.3";
+const VERSION="3.4";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1613,7 +1613,7 @@ function startWeather(){
 
 /* ====================== Netzwerk (WLAN / Internet) ====================== */
 const NET={ ws:null, role:'viewer', master:false, station:false, token:'', user:'', enabled:false, connected:false, _t:0,
-  offset:0, rtt:Infinity, synced:false, _sync:0 };
+  offset:0, rtt:Infinity, synced:false, _sync:0, license:{licensed:false, exp:null} };
 const NETKEY="alpin_net_v1";
 let REMOTE=null, VIEWKIND=null, rvClass='';
 function serverNow(){ return Date.now()+NET.offset; }
@@ -1622,8 +1622,8 @@ function netSyncHandle(d){ const t2=Date.now(), rtt=t2-d.t1; if(rtt<NET.rtt){ NE
 function netStartSync(){ clearInterval(NET._sync); NET.rtt=Infinity; let n=0;
   const burst=setInterval(()=>{ netSyncOnce(); if(++n>=5) clearInterval(burst); },300);
   NET._sync=setInterval(netSyncOnce,5000); }
-function loadNet(){ try{ if(window.localStorage){ const j=localStorage.getItem(NETKEY); if(j){ const d=JSON.parse(j); NET.master=!!d.master; NET.station=!!d.station; NET.token=d.token||''; NET.user=d.user||''; } } }catch(e){} }
-function saveNet(){ try{ if(window.localStorage) localStorage.setItem(NETKEY,JSON.stringify({master:NET.master,station:NET.station,token:NET.token,user:NET.user})); }catch(e){} }
+function loadNet(){ try{ if(window.localStorage){ const j=localStorage.getItem(NETKEY); if(j){ const d=JSON.parse(j); NET.master=!!d.master; NET.station=!!d.station; NET.token=d.token||''; NET.user=d.user||''; if(d.license) NET.license=d.license; } } }catch(e){} }
+function saveNet(){ try{ if(window.localStorage) localStorage.setItem(NETKEY,JSON.stringify({master:NET.master,station:NET.station,token:NET.token,user:NET.user,license:NET.license})); }catch(e){} }
 /* Zugangsdaten auf diesem Geraet merken (angemeldet bleiben + bei vergessenem Passwort nachschauen) */
 const CREDKEY="alpin_cred_v1";
 function saveCred(u,p){ try{ localStorage.setItem(CREDKEY,JSON.stringify({u:u,p:p})); }catch(e){} }
@@ -1644,6 +1644,9 @@ function netConnect(){
   ws.onmessage=ev=>{ let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
     if(d.type==='time'){ netSyncHandle(d); return; }
     if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
+    if(d.type==='license'){ NET.license={licensed:!!d.licensed, exp:d.exp||null}; saveNet();
+      if(NET.role==='master' && !NET.license.licensed){ toast("Keine gültige Lizenz – Live-Senden gesperrt."); }
+      updateNetUI(); return; }
     if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(d.run); return; }
     if(d.type==='state' && (NET.role==='viewer' || NET.role==='station')){ REMOTE=d.data; onRemoteState(); } };
   ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
@@ -1658,11 +1661,17 @@ async function doLogin(user,pw,register){
   if(location.protocol==='file:'){ toast("Konten brauchen den Server – nicht die lokale Datei."); return; }
   if(!user||!pw){ toast("Benutzer und Passwort eingeben"); return; }
   try{ const d=await authRequest(register?'/api/register':'/api/login', user, pw);
-    NET.token=d.token; NET.user=d.user; saveNet(); saveCred(user,pw); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
+    NET.token=d.token; NET.user=d.user; if(d.license) NET.license=d.license; saveNet(); saveCred(user,pw); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
     updateNetUI(); if(NET.master) netStartMaster(); }
   catch(e){ toast(e.message||'Anmeldung fehlgeschlagen'); }
 }
-function doLogout(){ NET.token=''; NET.user=''; NET.master=false; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
+function doLogout(){ NET.token=''; NET.user=''; NET.master=false; NET.license={licensed:false,exp:null}; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
+/* Lizenzstatus frisch vom Server holen (greift ohne Neu-Login, z.B. nach Freischaltung) */
+async function refreshLicense(){
+  if(location.protocol==='file:' || !NET.token) return;
+  try{ const r=await fetch('/api/license/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:NET.token})});
+    if(!r.ok) return; const d=await r.json(); if(d.license){ NET.license=d.license; saveNet(); updateNetUI(); } }catch(e){}
+}
 /* Master: Start-Ereignis von der Startstation anwenden (Zeitstempel in Serverzeit) */
 function applyRemoteStart(serverT){
   if(S.settings.requireReady && _startReadyRun!==S.activeRun){
@@ -1736,8 +1745,15 @@ function updateNetUI(){
   }
   if(location.protocol==='file:'){ st.innerHTML='Lokale Datei – Konten/Vernetzung brauchen den Server (http://…).'; }
   else if(!li){ st.innerHTML='Nicht angemeldet – Bedienung läuft lokal.'; }
-  else if(NET.master){ st.innerHTML = NET.connected?'<span style="color:var(--green)">● Master verbunden – sendet live.</span>':'<span style="color:var(--amber)">○ verbinde…</span>'; }
-  else st.innerHTML='Angemeldet. „Master senden" aktivieren zum Live-Übertragen.';
+  else {
+    const L=NET.license||{};
+    let base = NET.master ? (NET.connected?'<span style="color:var(--green)">● Master verbunden – sendet live.</span>':'<span style="color:var(--amber)">○ verbinde…</span>')
+                          : 'Angemeldet. „Master senden" aktivieren zum Live-Übertragen.';
+    let lic;
+    if(L.licensed){ const dt=L.exp?new Date(L.exp).toLocaleDateString('de-AT'):''; lic='<div style="margin-top:5px;color:var(--green)">🔑 Lizenz gültig'+(dt?' bis '+dt:'')+'</div>'; }
+    else lic='<div style="margin-top:5px;color:var(--amber)">🔒 Keine gültige Lizenz – Live-Senden gesperrt. Freischaltung: <b>[deine Kontakt-E-Mail]</b></div>';
+    st.innerHTML = base + lic;
+  }
   if(lk){ if(location.protocol==='file:'||!li) lk.textContent='Nach Anmeldung erscheint hier der öffentliche Link.';
     else lk.innerHTML='Öffentlich teilbar: <code>'+esc(location.origin+location.pathname+'?room='+NET.user+'#results')+'</code>'; }
   if(sw) sw.classList.toggle('on',NET.master);
@@ -1943,7 +1959,9 @@ function init(){
   $('btnCopyStart').onclick=()=>{ if(location.protocol!=='file:' && NET.user) copyText(startShareUrl()); else toast("Noch kein Start-Link – erst anmelden."); };
   $('btnOpenStartPreview').onclick=openStartView;
   $('btnOpenStart2').onclick=openStartView; $('btnOpenResults2').onclick=openResultsView;
-  $('swMaster').onclick=()=>{ NET.master=!NET.master; saveNet(); if(NET.master) netStartMaster(); else netStop(); updateNetUI(); };
+  $('swMaster').onclick=()=>{
+    if(!NET.master && !(NET.license&&NET.license.licensed)){ toast("Lizenz erforderlich für Live-Senden."); refreshLicense(); updateNetUI(); return; }
+    NET.master=!NET.master; saveNet(); if(NET.master) netStartMaster(); else netStop(); updateNetUI(); };
   $('btnExport').onclick=exportCSV;
   $('classSel').onchange=()=>{ S.resultClass=$('classSel').value; renderResults(); persist(); };
   $('btnPrintRes').onclick=()=>printResultSheet(S.resultView);
@@ -1968,7 +1986,7 @@ function init(){
   $('btnReset').onclick=()=>{ if(confirm("Alles zurücksetzen?")){ S.racers=[];S.onCourse=[];S.readyId=null;S.nextId=1;S.history=[];S.activeRun=0;$('log').innerHTML='';buildRunSel();renderAll();persist(); } };
   $('raceName').onchange=()=>{ persist(); refreshBoard(); };
 
-  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); };
+  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); refreshLicense(); };
   const closeD=()=>{ $('drawer').classList.remove('open'); $('overlay').classList.remove('show'); readSettingsFromUI(); refreshBoard(); };
   $('btnSettings').onclick=openD; $('btnCloseSettings').onclick=closeD; $('overlay').onclick=closeD;
   ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','wxLat','wxLon','wxEle','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
@@ -1998,6 +2016,7 @@ function init(){
 
   window.addEventListener('beforeunload',e=>{ if(S.racers.length){ e.preventDefault(); e.returnValue=''; } });
   updateNetUI();
+  if(NET.token) refreshLicense();
   if(NET.master && NET.token && location.protocol!=='file:'){ netStartMaster(); }
   initSerialAuto();
   logEvent("Bereit. Läufer hinzufügen, verbinden oder Simulation testen. Taste B = Anzeigetafel.","ev-info");

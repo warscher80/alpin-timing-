@@ -73,6 +73,11 @@ function verifyToken(token) {
 function normUser(u) { return String(u || '').trim().toLowerCase(); }
 function validUser(u) { return /^[a-z0-9_-]{3,24}$/.test(u); }
 
+/* --- Lizenz: Konto hat optional ein Ablaufdatum (licenseExp). Ohne gueltige Lizenz
+   kann das Konto kein Live-Rennen SENDEN (Master); Zuschauen bleibt frei. --- */
+function licenseInfo(u) { const x = users[u]; const exp = (x && x.licenseExp) || null;
+  return { licensed: !!(exp && exp > Date.now()), exp: exp }; }
+
 /* --- HTTP: statische Dateien + Auth-API --- */
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
   '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.woff2':'font/woff2' };
@@ -108,11 +113,36 @@ const server = http.createServer(async (req, res) => {
     if (url === '/api/register') {
       if (users[u]) return json(res, 409, { error: 'exists', msg: 'Benutzername bereits vergeben' });
       users[u] = { pw: hashPw(pw), created: Date.now() }; saveUsers();
-      return json(res, 200, { token: signToken(u), user: u });
+      return json(res, 200, { token: signToken(u), user: u, license: licenseInfo(u) });
     } else {
       if (!users[u] || !verifyPw(pw, users[u].pw)) return json(res, 401, { error: 'auth', msg: 'Falscher Benutzer oder Passwort' });
-      return json(res, 200, { token: signToken(u), user: u });
+      return json(res, 200, { token: signToken(u), user: u, license: licenseInfo(u) });
     }
+  }
+
+  /* --- Admin: Lizenz vergeben/entziehen (per ADMIN_KEY-Header geschuetzt) ---
+     Nach Zahlung freischalten:
+       curl -X POST .../api/admin/grant -H "x-admin-key: DEIN_KEY" -d '{"username":"verein","days":365}'
+  */
+  if (url === '/api/admin/grant' || url === '/api/admin/revoke') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'method' });
+    const ADMIN = process.env.ADMIN_KEY || '';
+    if (!ADMIN || req.headers['x-admin-key'] !== ADMIN) return json(res, 403, { error: 'forbidden' });
+    let d; try { d = JSON.parse(await readBody(req)); } catch (e) { return json(res, 400, { error: 'json' }); }
+    const u = normUser(d.username);
+    if (!users[u]) return json(res, 404, { error: 'nouser', msg: 'Konto existiert nicht' });
+    if (url === '/api/admin/grant') { const days = Math.max(1, parseInt(d.days) || 365); users[u].licenseExp = Date.now() + days * 86400000; }
+    else { users[u].licenseExp = null; }
+    saveUsers();
+    return json(res, 200, { user: u, license: licenseInfo(u) });
+  }
+
+  if (url === '/api/license/status') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'method' });
+    let d; try { d = JSON.parse(await readBody(req)); } catch (e) { return json(res, 400, { error: 'json' }); }
+    const u = verifyToken(d.token || '');
+    if (!u) return json(res, 401, { error: 'auth' });
+    return json(res, 200, { user: u, license: licenseInfo(u) });
   }
 
   let safe = path.normalize(url === '/' ? '/alpin-timing.html' : url).replace(/^(\.\.[/\\])+/, '');
@@ -148,6 +178,7 @@ wss.on('connection', (ws, req) => {
     const u = verifyToken(token);
     if (!u) { try { ws.send(JSON.stringify({ type:'authfail' })); } catch(e){} ws.close(); return; }
     ws.user = u; ws.room = u; ws.role = (role === 'station') ? 'station' : 'master';
+    if (ws.role === 'master') { const li = licenseInfo(u); try { ws.send(JSON.stringify({ type:'license', licensed: li.licensed, exp: li.exp })); } catch(e){} }
   } else {
     ws.role = 'viewer'; ws.room = roomParam || null;
   }
@@ -160,7 +191,10 @@ wss.on('connection', (ws, req) => {
     let d; try { d = JSON.parse(raw.toString()); } catch (e) { return; }
     if (d.type === 'time') { try { ws.send(JSON.stringify({ type:'time', t1: d.t1, ts: Date.now() })); } catch (e){} return; }
     if (!ws.user || !ws.room) return;                 // ab hier nur authentifiziert
-    if (d.type === 'state' && ws.role === 'master') { rooms[ws.room] = { state: d.data }; broadcastRoom(ws.room); }
+    if (d.type === 'state' && ws.role === 'master') {
+      if (!licenseInfo(ws.user).licensed) return;   // ohne gueltige Lizenz wird nicht live gesendet
+      rooms[ws.room] = { state: d.data }; broadcastRoom(ws.room);
+    }
     else if (d.type === 'event') { relayToRoomMasters(ws.room, { type:'event', kind: d.kind, serverT: d.serverT }); }
   });
 });
