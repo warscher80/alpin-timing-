@@ -96,6 +96,20 @@ function ensureOwner() {
 }
 ensureOwner();
 
+/* --- Kontakt/Support: Kunden-Nachrichten per E-Mail (SMTP) + Datei-Backup ---
+   Env: SMTP_USER, SMTP_PASS (z.B. GMX), optional SMTP_HOST/SMTP_PORT, CONTACT_TO. */
+const CONTACT_TO = process.env.CONTACT_TO || process.env.SMTP_USER || '';
+const SMTP = { host: process.env.SMTP_HOST || 'mail.gmx.net', port: parseInt(process.env.SMTP_PORT || '587'),
+  user: process.env.SMTP_USER || '', pass: process.env.SMTP_PASS || '' };
+let _mailer = null;
+function mailer() {
+  if (_mailer) return _mailer;
+  if (!SMTP.user || !SMTP.pass) return null;
+  try { const nm = require('nodemailer'); _mailer = nm.createTransport({ host: SMTP.host, port: SMTP.port, secure: SMTP.port === 465, auth: { user: SMTP.user, pass: SMTP.pass } }); } catch (e) { _mailer = null; }
+  return _mailer;
+}
+const _contactHits = {};   // einfache Ratenbegrenzung pro IP
+
 /* --- HTTP: statische Dateien + Auth-API --- */
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
   '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.woff2':'font/woff2' };
@@ -161,6 +175,37 @@ const server = http.createServer(async (req, res) => {
     const u = verifyToken(d.token || '');
     if (!u) return json(res, 401, { error: 'auth' });
     return json(res, 200, { user: u, license: licenseInfo(u) });
+  }
+
+  /* Kontakt/Frage vom Kunden -> E-Mail an Betreiber + Datei-Backup */
+  if (url === '/api/contact') {
+    if (req.method !== 'POST') return json(res, 405, { error: 'method' });
+    const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    const now = Date.now();
+    const hits = (_contactHits[ip] || []).filter(t => now - t < 600000);
+    if (hits.length >= 5) return json(res, 429, { error: 'rate', msg: 'Zu viele Anfragen – bitte später erneut.' });
+    let d; try { d = JSON.parse(await readBody(req)); } catch (e) { return json(res, 400, { error: 'json' }); }
+    const name = String(d.name || '').slice(0, 120).trim();
+    const email = String(d.email || '').slice(0, 160).trim();
+    const account = String(d.account || '').slice(0, 60).trim();
+    const message = String(d.message || '').slice(0, 4000).trim();
+    if (message.length < 2) return json(res, 400, { error: 'empty', msg: 'Bitte eine Nachricht eingeben.' });
+    _contactHits[ip] = hits.concat(now);
+    const entry = { ts: new Date().toISOString(), ip, name, email, account, message };
+    try { fs.appendFileSync(path.join(DATA, 'contact.log'), JSON.stringify(entry) + '\n'); } catch (e) {}
+    let mailed = false;
+    const tx = mailer();
+    if (tx && CONTACT_TO) {
+      try {
+        await tx.sendMail({
+          from: '"ALPIN TIMING Kontakt" <' + SMTP.user + '>', to: CONTACT_TO, replyTo: email || undefined,
+          subject: 'ALPIN TIMING – Anfrage von ' + (name || account || email || 'Kunde'),
+          text: 'Name: ' + name + '\nE-Mail: ' + email + '\nKonto: ' + account + '\nIP: ' + ip + '\nZeit: ' + entry.ts + '\n\n' + message
+        });
+        mailed = true;
+      } catch (e) { console.log('Kontakt-Mail fehlgeschlagen: ' + e.message); }
+    }
+    return json(res, 200, { ok: true, mailed: mailed });
   }
 
   let safe = path.normalize(url === '/' ? '/alpin-timing.html' : url).replace(/^(\.\.[/\\])+/, '');

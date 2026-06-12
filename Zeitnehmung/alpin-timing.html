@@ -547,7 +547,7 @@
   </section>
 
   <div class="foot">Tasten: <span class="kbd">␣</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎</span> Ziel · <span class="kbd">Z</span> rückgängig · <span class="kbd">B</span> Anzeigetafel · Zeit in Ergebnis anklicken = Handzeit eingeben</div>
-  <div class="credit">Made by Nico Warscher · <span id="btnLegal" style="cursor:pointer;text-decoration:underline">Rechtliches (AGB · Datenschutz · Impressum)</span></div>
+  <div class="credit">Made by Nico Warscher · <span id="btnContact" style="cursor:pointer;text-decoration:underline">✉ Frage / Kontakt</span> · <span id="btnLegal" style="cursor:pointer;text-decoration:underline">Rechtliches (AGB · Datenschutz · Impressum)</span></div>
 </div>
 
 <!-- SCOREBOARD -->
@@ -732,6 +732,18 @@ F 1051110   → Ziel
   </div>
 </div>
 
+<div class="overlay" id="contactOverlay"></div>
+<div class="modal" id="contactModal">
+  <div class="dh"><h3>✉ Frage / Kontakt</h3><div class="spacer"></div><button class="btn ghost" id="contactClose">✕</button></div>
+  <div class="mb">
+    <p class="hint" style="margin-bottom:12px">Schreib uns – z. B. zur <b>Freischaltung/Lizenz</b>, bei Fragen oder Problemen. Wir antworten per E-Mail.</p>
+    <div class="fld"><label>Name / Verein</label><input id="ctName" placeholder="Dein Name oder Verein"></div>
+    <div class="fld"><label>Deine E-Mail (für die Antwort)</label><input id="ctEmail" type="email" placeholder="name@example.com"></div>
+    <div class="fld"><label>Nachricht</label><textarea id="ctMsg" rows="5" placeholder="Deine Frage …" style="width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font-family:var(--sans);font-size:14px;resize:vertical"></textarea></div>
+    <div style="display:flex;gap:12px;align-items:center"><button class="btn primary" id="ctSend">Senden</button><span id="ctStatus" class="hint" style="margin:0"></span></div>
+  </div>
+</div>
+
 <div class="overlay" id="liveOverlay"></div>
 <div class="modal" id="liveModal">
   <div class="dh"><h3>🔗 LiveTiming teilen</h3><div class="spacer"></div><button class="btn ghost" id="liveClose">✕</button></div>
@@ -811,7 +823,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="3.5";
+const VERSION="3.6";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1464,6 +1476,21 @@ function openAbout(){ $('aboutVer').textContent=VERSION; $('helpSearch').value='
 function closeAbout(){ $('aboutModal').classList.remove('open'); $('aboutOverlay').classList.remove('show'); }
 function openLegal(){ $('legalModal').classList.add('open'); $('legalOverlay').classList.add('show'); }
 function closeLegal(){ $('legalModal').classList.remove('open'); $('legalOverlay').classList.remove('show'); }
+function openContact(){ $('ctStatus').textContent=''; if(NET.user && !$('ctName').value) $('ctName').value=NET.user;
+  $('contactModal').classList.add('open'); $('contactOverlay').classList.add('show'); setTimeout(()=>{ try{$('ctMsg').focus();}catch(e){} },60); }
+function closeContact(){ $('contactModal').classList.remove('open'); $('contactOverlay').classList.remove('show'); }
+async function sendContact(){
+  const name=$('ctName').value.trim(), email=$('ctEmail').value.trim(), message=$('ctMsg').value.trim();
+  if(message.length<2){ $('ctStatus').style.color='var(--amber)'; $('ctStatus').textContent='Bitte eine Nachricht eingeben.'; return; }
+  $('ctStatus').style.color='var(--dim)'; $('ctStatus').textContent='Senden…'; $('ctSend').disabled=true;
+  try{
+    const r=await fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,message,account:NET.user||''})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok && d.ok){ $('ctStatus').style.color='var(--green)'; $('ctStatus').textContent='Gesendet – danke! Wir melden uns.'; $('ctMsg').value=''; setTimeout(closeContact,1400); }
+    else { $('ctStatus').style.color='var(--amber)'; $('ctStatus').textContent=(d.msg||'Konnte nicht senden – bitte später erneut.'); }
+  }catch(e){ $('ctStatus').style.color='var(--amber)'; $('ctStatus').textContent='Keine Verbindung zum Server.'; }
+  $('ctSend').disabled=false;
+}
 function checkUpdate(){ if(location.protocol==='file:') return;
   fetch('/api/version',{cache:'no-store'}).then(r=>r.json()).then(d=>{
     if(d && d.version && d.version!==VERSION){ $('upVer').textContent=d.version; $('updateBar').style.display='flex'; }
@@ -1969,6 +1996,7 @@ function init(){
   $('btnPrintStart').onclick=printStartSheet;
   $('btnAbout').onclick=openAbout; $('btnCloseAbout').onclick=closeAbout; $('aboutOverlay').onclick=closeAbout;
   $('btnLegal').onclick=openLegal; $('legalClose').onclick=closeLegal; $('legalOverlay').onclick=closeLegal;
+  $('btnContact').onclick=openContact; $('contactClose').onclick=closeContact; $('contactOverlay').onclick=closeContact; $('ctSend').onclick=sendContact;
   $('helpSearch').addEventListener('input',e=>renderHelp(e.target.value));
   $('helpSearch').addEventListener('keydown',e=>{ if(e.key==='Escape') closeAbout(); });
   $('upReload').onclick=()=>location.reload();
