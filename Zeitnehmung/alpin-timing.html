@@ -381,7 +381,7 @@
   .sv-top .right{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:1.05vw;color:var(--dim)}
   .sv-top .ctrl{border:1px solid var(--line);border-radius:8px;padding:.5vw 1vw;cursor:pointer;color:var(--dim);font-size:1vw}
   .sv-top .ctrl:hover{color:var(--ink);border-color:#2c3a47}
-  .sv-main{flex:1;display:grid;grid-template-columns:1.25fr 1fr;gap:3vw;padding-top:2vh}
+  .sv-main{flex:1;display:grid;grid-template-columns:1.25fr 1fr;gap:3vw;padding-top:2vh;min-height:0;overflow:auto}
   .view-credit{position:absolute;right:3vw;bottom:1.6vh;color:#46586a;font-size:13px;letter-spacing:.14em;z-index:1}
   .sv-ready{display:flex;flex-direction:column;justify-content:center}
   .sv-ready .lbl{font-size:1.5vw;letter-spacing:.2em;text-transform:uppercase;color:var(--dimmer)}
@@ -390,8 +390,8 @@
   .sv-ready .nm.empty{color:var(--dimmer);font-style:italic;font-size:3vw}
   .sv-interval{margin-top:2.5vh;font-size:1.4vw;color:var(--dim)}
   .sv-interval b{font-family:var(--mono);color:var(--amber);font-size:2.2vw;font-variant-numeric:tabular-nums}
-  .sv-side{display:flex;flex-direction:column;gap:2.5vh}
-  .sv-box{border:1px solid var(--line);border-radius:14px;background:rgba(10,15,21,.6);padding:1.4vw 1.6vw;flex:1;overflow:hidden}
+  .sv-side{display:flex;flex-direction:column;gap:1.6vh;min-height:0}
+  .sv-box{border:1px solid var(--line);border-radius:14px;background:rgba(10,15,21,.6);padding:1.1vw 1.4vw;flex:0 0 auto;overflow:hidden}
   .sv-box .h{font-size:1.15vw;letter-spacing:.16em;text-transform:uppercase;color:var(--dimmer);margin-bottom:1vh}
   .sv-li{display:flex;align-items:center;gap:1.4vw;font-size:1.9vw;padding:.7vh 0;border-bottom:1px solid #11181f}
   .sv-li .bb{font-family:var(--mono);color:var(--cyan);min-width:3vw}
@@ -833,7 +833,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.3";
+const VERSION="4.4";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
