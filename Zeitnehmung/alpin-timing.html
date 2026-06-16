@@ -22,7 +22,7 @@
 <style>
   :root{
     --bg:#080b0f; --panel:#10161d; --panel2:#0c1117; --line:#1d2730;
-    --ink:#e8eef2; --dim:#7e8c98; --dimmer:#4d5862;
+    --ink:#e8eef2; --dim:#9aa8b4; --dimmer:#74828d;
     --green:#00e58a; --green-dim:#0a7a4d; --cyan:#22d3ee;
     --amber:#ffb020; --red:#ff4d4d; --blue:#4d8cff;
     --mono:'JetBrains Mono',ui-monospace,'SF Mono',Consolas,monospace;
@@ -170,6 +170,14 @@
   .ib.go:hover{color:var(--green);border-color:var(--green-dim)}
   .ib.dsq{color:var(--red);border-color:#3a1717;margin-left:6px}
   .ib.dsq:hover{color:#fff;background:var(--red);border-color:var(--red)}
+  /* Größere Tippziele für DNF/DSQ beim Läufer auf der Strecke (Handschuhe, Tablet, Hektik) */
+  .oc-row .ib{min-height:38px;min-width:52px;padding:8px 12px;font-size:13px;font-weight:700}
+  .oc-row .ib[data-dnf]{color:var(--amber);border-color:#3a2f12}
+  .oc-row .ib[data-dnf]:hover{color:#04110c;background:var(--amber);border-color:var(--amber)}
+  /* Sichtbarer Tastatur-Fokus (Barrierefreiheit) */
+  :focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+  /* Bewegung reduzieren, wenn vom System gewünscht */
+  @media (prefers-reduced-motion:reduce){ *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important} }
   .daybest{margin-bottom:10px;padding:8px 12px;border-radius:10px;
     background:linear-gradient(90deg,rgba(255,210,77,.12),rgba(255,210,77,.02));border:1px solid rgba(255,210,77,.4)}
   .daybest .lbl{font-family:var(--cond);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:11px;color:#ffd24d;margin-bottom:6px}
@@ -839,7 +847,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.6";
+const VERSION="4.7";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -979,7 +987,9 @@ function doInter(sw,hw){
   const id=S.onCourse.find(x=>cur(S.racers.find(r=>r.id===x)).interSW==null);
   if(id==null){ logEvent("Zwischenzeit ohne passenden Läufer – verworfen","ev-warn"); return; }
   const r=S.racers.find(x=>x.id===id), c=cur(r); c.interSW=sw; c.interHW=(hw??null);
-  c.interMs = (S.settings.useHwTs && c.startHW!=null && c.interHW!=null) ? c.interHW-c.startHW : c.interSW-c.startSW;
+  const interHwUsed = S.settings.useHwTs && c.startHW!=null && c.interHW!=null;
+  c.interMs = interHwUsed ? c.interHW-c.startHW : c.interSW-c.startSW;
+  if(interHwUsed && c.interMs<0) c.interMs+=86400000;   // HW-Zeitstempel über Mitternacht / Counter-Rollover
   if(c.interMs<0) c.interMs=null;
   const best=bestInter(S.activeRun,r.id);
   let dtxt=''; if(best!=null && c.interMs!=null){ const dd=c.interMs-best; dtxt=` (${fmtDelta(dd)})`; }
@@ -994,7 +1004,7 @@ function doFinish(sw,hw){
   /* Verteilte Messung (Start kam vom Tablet) -> synchronisierte Serverzeit.
      Lokal gestarteter Laeufer (gleiches Geraet) -> praezise Hardware-/Monotonzeit. */
   if(c.startLocal===false && c.startServerT!=null && c.finServerT!=null){ c.runMs=c.finServerT-c.startServerT; c.src='NET'; }
-  else if(S.settings.useHwTs && c.startHW!=null && c.finHW!=null){ c.runMs=c.finHW-c.startHW; c.src='HW'; }
+  else if(S.settings.useHwTs && c.startHW!=null && c.finHW!=null){ c.runMs=c.finHW-c.startHW; if(c.runMs<0) c.runMs+=86400000; c.src='HW'; }
   else { c.runMs=c.finSW-c.startSW; c.src='SW'; }
   if(c.runMs<0) c.runMs=null;
   c.state='finished'; S.onCourse.shift(); S.history.push({type:'finish',id:r.id,run:S.activeRun});
@@ -1174,27 +1184,28 @@ function renderDayBest(){ const el=$('dayBest'); if(!el) return; const top=dayBe
 }
 
 /* Live clock */
-let _bigLast=null, _slLast=null;
+let _bigLast=null, _slLast=null, _bdLast=null, _bdSplitLast=null, _bdNameLast=null, _boardWasShown=false;
 function tick(){
   const t=now();
   // Strecken-Uhren: nur schreiben, wenn sich der angezeigte Wert wirklich ändert
   document.querySelectorAll('[data-clock]').forEach(el=>{ const id=+el.getAttribute('data-clock'); const r=S.racers.find(x=>x.id===id);
     if(r&&cur(r).startSW!=null){ const v=fmt(t-cur(r).startSW); if(el.textContent!==v) el.textContent=v; } });
   const big=$('bigClock'); const boardShown=$('board').classList.contains('show'); const bd=$('bdClock');
+  if(boardShown && !_boardWasShown){ _bdLast=_bdSplitLast=_bdNameLast=null; } _boardWasShown=boardShown;
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget); if(r&&cur(r).startSW!=null){
       const p=fmtParts(t-cur(r).startSW); const html=`${p.main}<span class="cs">${p.cs}</span>`;
       if(html!==_bigLast){ big.innerHTML=html; big.classList.add('live'); _bigLast=html; }
-      if(boardShown){ bd.innerHTML=html; bd.classList.remove('idle'); } } }
+      if(boardShown && html!==_bdLast){ bd.innerHTML=html; bd.classList.remove('idle'); _bdLast=html; } } }
   else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`;
     if(_bigLast!==' idle'){ big.innerHTML=z; big.classList.remove('live'); _bigLast=' idle'; }
-    if(boardShown){ bd.innerHTML=z; bd.classList.add('idle'); } }
+    if(boardShown && _bdLast!==' idle'){ bd.innerHTML=z; bd.classList.add('idle'); _bdLast=' idle'; } }
   // Zwischenzeit-Zeilen
   const sl=$('splitLine'), bs=$('bdSplit');
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget),c=cur(r);
     if(c&&c.interMs!=null){ const b=bestInter(S.activeRun,r.id); const d=b!=null?c.interMs-b:null;
       const dh=d!=null?` <span class="delta ${d>=0?'pos':'neg'}">${fmtDelta(d)}</span>`:'';
       const slh=`Zwischenzeit ${fmt(c.interMs)}${dh}`; if(slh!==_slLast){ sl.innerHTML=slh; _slLast=slh; }
-      if(boardShown) bs.innerHTML=`ZW ${fmt(c.interMs)}${dh}`; }
+      const bsh=`ZW ${fmt(c.interMs)}${dh}`; if(boardShown && bsh!==_bdSplitLast){ bs.innerHTML=bsh; _bdSplitLast=bsh; } }
     else { if(_slLast!==''){ sl.textContent=''; _slLast=''; } if(boardShown) bs.textContent=''; } }
   else { if(_slLast!==''){ sl.textContent=''; _slLast=''; } if(boardShown) bs.textContent=''; }
   if(boardShown){ updateBoardName(); sponsorTick(); }
@@ -1204,7 +1215,7 @@ setInterval(()=>{ $('tod').textContent=new Date().toLocaleTimeString('de-DE'); }
 
 /* Scoreboard */
 function updateBoardName(){ const t=bigTarget!=null?S.racers.find(x=>x.id===bigTarget):null;
-  $('bdName').innerHTML=t?`<span class="b">${esc(t.bib)}</span>${esc(t.name)}`:'—'; }
+  const h=t?`<span class="b">${esc(t.bib)}</span>${esc(t.name)}`:'—'; if(h!==_bdNameLast){ $('bdName').innerHTML=h; _bdNameLast=h; } }
 function renderBoardList(){ const combined=S.numRuns>1 && everyoneRun1Done();
   $('bdRace').textContent=$('raceName').value; $('bdRun').textContent=combined?'GESAMT':'LAUF '+(S.activeRun+1);
   $('bdBoardLbl').textContent=combined?'Gesamtwertung':'Rangliste Lauf '+(S.activeRun+1);
@@ -1765,7 +1776,7 @@ function netConnect(){
   ws.onerror=()=>{};
 }
 function netPush(){ if(NET.master && NET.role==='master' && NET.connected && NET.ws && NET.ws.readyState===1){
-  try{ NET.ws.send(JSON.stringify({type:'state',data:JSON.parse(exportState())})); }catch(e){} } }
+  try{ NET.ws.send('{"type":"state","data":'+exportState()+'}'); }catch(e){} } }
 /* --- Konten (Login/Registrierung, ersetzt die PIN) --- */
 async function authRequest(p,user,pw){ const r=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:user,password:pw})});
   const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.msg||'Fehler'); return d; }
