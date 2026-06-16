@@ -383,7 +383,9 @@
   .sv-top .ctrl:hover{color:var(--ink);border-color:#2c3a47}
   .sv-main{flex:1;display:grid;grid-template-columns:1.25fr 1fr;gap:3vw;padding-top:2vh;min-height:0;overflow:auto}
   .view-credit{position:absolute;right:3vw;bottom:1.6vh;color:#46586a;font-size:13px;letter-spacing:.14em;z-index:1}
-  .sv-ready{display:flex;flex-direction:column;justify-content:center}
+  .sv-ready{display:flex;flex-direction:column;min-height:0;overflow:auto}
+  .sv-ready-top{margin:auto 0}
+  .sv-left-extra{display:flex;flex-direction:column;gap:1.4vh;padding-bottom:1vh;flex:0 0 auto}
   .sv-ready .lbl{font-size:1.5vw;letter-spacing:.2em;text-transform:uppercase;color:var(--dimmer)}
   .sv-ready .bib{font-family:var(--mono);font-size:9vw;font-weight:800;color:var(--green);line-height:1;text-shadow:0 0 40px rgba(0,229,138,.35);min-height:9vw}
   .sv-ready .nm{font-family:var(--cond);font-size:4.5vw;font-weight:800;line-height:1.05;margin-top:.5vh}
@@ -581,17 +583,21 @@
   </div>
   <div class="sv-main">
     <div class="sv-ready">
-      <div class="lbl">Am Start — bereit</div>
-      <div class="bib" id="svReadyBib"></div>
-      <div class="nm" id="svReadyName">—</div>
-      <div class="sv-interval">seit letztem Start: <b id="svInterval">—</b></div>
-      <button id="svReadyBtn" class="sv-readybtn" style="display:none">✓ Startbereit ans Ziel melden</button>
+      <div class="sv-ready-top">
+        <div class="lbl">Am Start — bereit</div>
+        <div class="bib" id="svReadyBib"></div>
+        <div class="nm" id="svReadyName">—</div>
+        <div class="sv-interval">seit letztem Start: <b id="svInterval">—</b></div>
+        <button id="svReadyBtn" class="sv-readybtn" style="display:none">✓ Startbereit ans Ziel melden</button>
+      </div>
+      <div class="sv-left-extra">
+        <div class="sv-box" id="svDayBox" style="display:none;border-color:#2a2310"><div class="h" style="color:var(--amber)">🏆 Tagesbestzeit</div><div id="svDayBest"></div></div>
+        <div class="sv-box" id="svDsqBox" style="display:none;border-color:#3a1717"><div class="h" style="color:var(--red)">⚠ Disqualifiziert</div><div id="svDsq"></div></div>
+      </div>
     </div>
     <div class="sv-side">
       <div class="sv-box"><div class="h">Als Nächstes</div><div id="svNext"></div></div>
       <div class="sv-box"><div class="h">Auf der Strecke (<span id="svCourseCount">0</span>)</div><div id="svCourse"></div></div>
-      <div class="sv-box" id="svDayBox" style="display:none;border-color:#2a2310"><div class="h" style="color:var(--amber)">🏆 Tagesbestzeit</div><div id="svDayBest"></div></div>
-      <div class="sv-box" id="svDsqBox" style="display:none;border-color:#3a1717"><div class="h" style="color:var(--red)">⚠ Disqualifiziert</div><div id="svDsq"></div></div>
     </div>
   </div>
   <div class="view-credit">Made by Nico Warscher</div>
@@ -833,7 +839,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.5";
+const VERSION="4.6";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
