@@ -832,7 +832,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.1";
+const VERSION="4.2";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1397,11 +1397,9 @@ function toggleSim(){
 function simStartOne(){
   const base=Math.floor(Date.now()%1e7); handleImpulse('start', S.settings.useHwTs?base:null);
   const r=S.racers.find(x=>x.id===S.onCourse[S.onCourse.length-1]); if(!r) return; const c=cur(r);
-  const interT=1000+Math.random()*1500, run=4000+Math.random()*3500;   // längere Fahrten -> mehrere zugleich auf der Piste
+  const interT=1000+Math.random()*1500, run=4000+Math.random()*3500;
   if(S.settings.hasInter) S.simTimers.push(setTimeout(()=>{ if(S.sim&&c.state==='running') handleImpulse('inter', c.startHW!=null?c.startHW+Math.round(interT):null); }, interT));
   const tryFinish=()=>{ if(!S.sim) return;
-    // mindestens 2 auf der Piste halten: nicht abwinken, solange nur 1 fährt und noch jemand wartet
-    if(S.onCourse.length<2 && simMoreWaiting()){ S.simTimers.push(setTimeout(tryFinish, 500)); return; }
     if(!S.onCourse.length) return; const id=S.onCourse[0];
     if(Math.random()<0.08){ setStatus(id,'DNF'); }                    // gelegentliche Aufgabe – fürs „drum und dran"
     else { const lead=cur(S.racers.find(x=>x.id===id)); handleImpulse('finish', lead.startHW!=null?lead.startHW+Math.round(run):null); }
@@ -1411,8 +1409,8 @@ function simStartOne(){
 function simStep(){
   if(!S.sim) return;
   if(!simMoreWaiting() && S.onCourse.length===0){ toast("Simuliertes Rennen fertig 🎉"); logEvent("Simuliertes Rennen abgeschlossen","ev-info"); toggleSim(); return; }
-  // Piste auffüllen: starten, solange jemand bereit ist und < 3 auf der Strecke (Ziel: stets ≥2)
-  if(S.readyId!=null && S.onCourse.length<3) simStartOne();
+  // Piste auffüllen: höchstens 2 zugleich auf der Strecke (1–2 Läufer)
+  if(S.readyId!=null && S.onCourse.length<2) simStartOne();
   S.simTimers.push(setTimeout(simStep, 1300+Math.random()*700));
 }
 
