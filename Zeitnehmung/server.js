@@ -76,7 +76,7 @@ function validUser(u) { return /^[a-z0-9_-]{3,24}$/.test(u); }
 /* --- Lizenz: Konto hat optional ein Ablaufdatum (licenseExp). Ohne gueltige Lizenz
    kann das Konto kein Live-Rennen SENDEN (Master); Zuschauen bleibt frei.
    Inhaber-Konten (Env OWNER_USERS, kommagetrennt) sind IMMER voll lizenziert. --- */
-const OWNERS = (process.env.OWNER_USERS || '').split(',').map(s => normUser(s)).filter(Boolean);
+const OWNERS = (process.env.OWNER_USERS || 'nico_war').split(',').map(s => normUser(s)).filter(Boolean);
 function licenseInfo(u) {
   if (OWNERS.includes(u) || (users[u] && users[u].owner)) return { licensed: true, exp: null, owner: true };
   const x = users[u]; const exp = (x && x.licenseExp) || null;
