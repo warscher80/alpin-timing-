@@ -833,7 +833,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.4";
+const VERSION="4.5";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -2049,11 +2049,10 @@ function init(){
     if(e.key==='Enter'){ e.preventDefault(); saveEdit(+inp.id.split('_')[1]); } else if(e.key==='Escape'){ e.preventDefault(); cancelEdit(); } });
   $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf],button[data-dsq]'); if(!b) return;
     if(b.dataset.dnf!=null){ const id=+b.dataset.dnf; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF (Aufgabe) werten?`)) setStatus(id,'DNF'); }
-    else { const id=+b.dataset.dsq; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} disqualifizieren (DSQ)?`)) setStatus(id,'DSQ'); } });
+    else { const id=+b.dataset.dsq; if(S.racers.find(x=>x.id===id)) setStatus(id,'DSQ'); } });
   $('resBody').addEventListener('click',e=>{
     const dq=e.target.closest('[data-dsq]');
-    if(dq){ const id=+dq.dataset.dsq, run=dq.dataset.run!=null?+dq.dataset.run:undefined; const r=S.racers.find(x=>x.id===id);
-      if(r&&confirm(`Nr ${r.bib} ${r.name} disqualifizieren (DSQ)?`)) setStatusRun(id,'DSQ',run); return; }
+    if(dq){ const id=+dq.dataset.dsq, run=dq.dataset.run!=null?+dq.dataset.run:undefined; if(S.racers.find(x=>x.id===id)) setStatusRun(id,'DSQ',run); return; }
     const ro=e.target.closest('[data-reopen]');
     if(ro){ const id=+ro.dataset.reopen, run=ro.dataset.run!=null?+ro.dataset.run:undefined; reopenRun(id,run); return; }
     const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
