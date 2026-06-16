@@ -5,9 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ALPIN TIMING PRO — Zeitnehmung</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%2300e58a'/><stop offset='1' stop-color='%2322d3ee'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='%230e1620'/><circle cx='32' cy='33' r='20' fill='none' stroke='url(%23a)' stroke-width='2.6'/><rect x='30.5' y='9' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='30.5' y='52' width='3' height='5' rx='1' fill='url(%23a)'/><rect x='51' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><rect x='8' y='31.5' width='5' height='3' rx='1' fill='url(%23a)'/><path d='M20,41L27,29L32,34L37,27L44,41Z' fill='url(%23a)'/></svg>">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700;800&family=Saira+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Schriften lokal gehostet – keine Uebertragung an Dritte (kein Google-CDN), DSGVO-konform und offline-faehig */
+  @font-face{font-family:'Saira';font-weight:100 900;font-style:normal;font-display:swap;src:url('/fonts/saira-400.woff2') format('woff2');}
+  @font-face{font-family:'JetBrains Mono';font-weight:100 900;font-style:normal;font-display:swap;src:url('/fonts/jetbrains-mono-400.woff2') format('woff2');}
+  @font-face{font-family:'Saira Condensed';font-weight:600;font-style:normal;font-display:swap;src:url('/fonts/saira-condensed-600.woff2') format('woff2');}
+  @font-face{font-family:'Saira Condensed';font-weight:700;font-style:normal;font-display:swap;src:url('/fonts/saira-condensed-700.woff2') format('woff2');}
+  @font-face{font-family:'Saira Condensed';font-weight:800;font-style:normal;font-display:swap;src:url('/fonts/saira-condensed-800.woff2') format('woff2');}
+</style>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#080b0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -48,6 +53,13 @@
   #updateBar{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:120;display:none;align-items:center;gap:12px;
     background:#0e1620;border:1px solid rgba(0,229,138,.5);box-shadow:0 8px 30px rgba(0,0,0,.5);border-radius:12px;padding:9px 14px;font-size:13px}
   #updateBar b{color:var(--green)}
+  #readyBar{position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:130;display:none;align-items:center;gap:12px;
+    background:#08222a;border:1px solid var(--cyan);box-shadow:0 8px 34px rgba(34,211,238,.35);border-radius:12px;padding:10px 16px;font-size:14px}
+  #readyBar.show{display:flex}
+  #readyBar b{color:var(--cyan);letter-spacing:.04em}
+  #readyBar i{color:var(--dim);font-style:normal;margin-left:8px;font-family:var(--mono);font-size:12px}
+  #readyBar .rb-dot{width:11px;height:11px;border-radius:50%;background:var(--cyan);box-shadow:0 0 12px var(--cyan);animation:pulse 1.2s infinite}
+  #readyBar button{font:inherit;cursor:pointer;border-radius:8px;padding:6px 12px;border:none;background:var(--cyan);color:#04131a;font-weight:700}
   #updateBar button{font:inherit;cursor:pointer;border-radius:8px;padding:6px 10px;border:1px solid var(--line);background:#101820;color:var(--ink)}
   #updateBar button.primary{background:linear-gradient(135deg,var(--green),var(--cyan));color:#04130d;border:none;font-weight:700}
   .wrap{position:relative;z-index:1;max-width:1760px;margin:0 auto;padding:16px 18px 40px}
@@ -73,6 +85,24 @@
   .spacer{flex:1}
   .tod{font-family:var(--mono);font-size:14px;color:var(--dim);font-weight:500}
   .tod b{color:var(--ink)}
+  .wx{display:flex;align-items:center;gap:6px;padding:5px 11px;border:1px solid var(--line);border-radius:20px;
+    background:#0c1117;font-size:13px;color:var(--dim);cursor:pointer;white-space:nowrap}
+  .wx:hover{border-color:#2c3a47}
+  .wx #wxIcon{font-size:15px;line-height:1}
+  .wx .wx-place{color:var(--ink);font-weight:600;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    border-right:1px solid var(--line);padding-right:9px;margin-right:2px}
+  .wx b{font-family:var(--mono);color:var(--ink);font-weight:700}
+  .wx .wx-desc{color:var(--dim)}
+  .wx .wx-live{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+  .wx.off .wx-live{background:var(--dimmer);box-shadow:none;animation:none}
+  .wx-results{position:absolute;z-index:30;left:0;right:0;margin-top:4px;background:#0e1620;border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;box-shadow:0 12px 30px rgba(0,0,0,.5);display:none}
+  .wx-results.show{display:block}
+  .wx-results button{display:flex;width:100%;justify-content:space-between;gap:10px;align-items:center;padding:9px 11px;
+    background:transparent;border:none;border-bottom:1px solid #141c24;color:var(--ink);text-align:left;font-size:13px}
+  .wx-results button:last-child{border-bottom:none}
+  .wx-results button:hover{background:#15202b}
+  .wx-results .ele{font-family:var(--mono);font-size:11px;color:var(--dim)}
   .conn{display:flex;align-items:center;gap:8px}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--dimmer)}
   .dot.on{background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 2s infinite}
@@ -138,6 +168,16 @@
   .ib{background:transparent;border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:3px 7px;font-size:11px}
   .ib:hover{color:var(--ink);border-color:#2c3a47}
   .ib.go:hover{color:var(--green);border-color:var(--green-dim)}
+  .ib.dsq{color:var(--red);border-color:#3a1717;margin-left:6px}
+  .ib.dsq:hover{color:#fff;background:var(--red);border-color:var(--red)}
+  .daybest{margin-bottom:10px;padding:8px 12px;border-radius:10px;
+    background:linear-gradient(90deg,rgba(255,210,77,.12),rgba(255,210,77,.02));border:1px solid rgba(255,210,77,.4)}
+  .daybest .lbl{font-family:var(--cond);font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:11px;color:#ffd24d;margin-bottom:6px}
+  .daybest .db-row{display:flex;align-items:center;gap:10px;padding:2px 0}
+  .daybest .db-rk{font-family:var(--cond);font-weight:800;font-size:15px;width:16px;text-align:center}
+  .daybest .db-rk.p1{color:#ffd24d}.daybest .db-rk.p2{color:#d7e0e6}.daybest .db-rk.p3{color:#d8954b}
+  .daybest .who{flex:1;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+  .daybest .tt{font-family:var(--mono);font-weight:800;font-size:15px;color:#ffd24d;font-variant-numeric:tabular-nums}
 
   .timing{gap:14px}
   .start-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#0a0f15}
@@ -165,15 +205,17 @@
   .trig.start{background:linear-gradient(180deg,#0c2018,#0a0f15)} .trig.start .big{color:var(--green)} .trig.start:hover{border-color:var(--green-dim)}
   .trig.inter{background:linear-gradient(180deg,#0a1a22,#0a0f15)} .trig.inter .big{color:var(--cyan)} .trig.inter:hover{border-color:#134155}
   .trig.finish{background:linear-gradient(180deg,#221a08,#0a0f15)} .trig.finish .big{color:var(--amber)} .trig.finish:hover{border-color:#3a2f12}
+  .trig.locked{opacity:.45;filter:grayscale(.5)}
+  .trig.locked::after{content:"🔒 wartet auf Startstation";display:block;font-size:9px;letter-spacing:.08em;color:var(--amber);margin-top:4px;text-transform:uppercase}
 
   .oncourse{border:1px solid var(--line);border-radius:12px;background:#0a0f15;overflow:hidden}
-  .oncourse .h{display:flex;align-items:center;padding:9px 13px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer)}
-  .oc-row{display:flex;align-items:center;gap:10px;padding:9px 13px;border-top:1px solid #141c24}
+  .oncourse .h{display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid var(--line);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dimmer)}
+  .oc-row{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid #141c24}
   .oc-row:first-child{border-top:none} .oc-row.lead{background:rgba(255,176,32,.06)}
   .oc-row .bib{min-width:30px} .oc-row .nm{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .oc-row .sp{font-family:var(--mono);font-size:12px;color:var(--cyan);min-width:64px;text-align:right}
-  .oc-row .tm{font-family:var(--mono);font-weight:700;font-size:17px;font-variant-numeric:tabular-nums;color:var(--amber);min-width:74px;text-align:right}
-  .oc-empty{padding:18px 13px;text-align:center;color:var(--dimmer);font-style:italic}
+  .oc-row .tm{font-family:var(--mono);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums;color:var(--amber);min-width:74px;text-align:right}
+  .oc-empty{padding:8px 12px;text-align:center;color:var(--dimmer);font-style:italic;font-size:12px}
 
   .viewsel{display:flex;gap:4px}
   .viewsel button{padding:4px 9px;font-size:11px;background:#0c1117;color:var(--dim);border:1px solid var(--line);border-radius:7px;font-family:var(--cond);letter-spacing:.06em;font-weight:700}
@@ -360,6 +402,12 @@
     background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;font-family:var(--cond);font-weight:800;
     font-size:4vw;letter-spacing:.06em;box-shadow:0 0 50px rgba(0,229,138,.35);transition:filter .1s}
   .sv-startbtn:active{filter:brightness(.9) saturate(1.2)}
+  .sv-readybtn{margin-top:3vh;width:100%;padding:3.5vh 0;border-radius:16px;border:none;cursor:pointer;
+    background:linear-gradient(180deg,#22d3ee,#0bbbd6);color:#04131a;font-family:var(--cond);font-weight:800;
+    font-size:3.4vw;letter-spacing:.05em;box-shadow:0 0 50px rgba(34,211,238,.3);transition:filter .1s}
+  .sv-readybtn:hover{filter:brightness(1.06)}
+  .sv-readybtn:active{filter:brightness(.9)}
+  .sv-readybtn.sent{filter:brightness(1.15) saturate(1.2)}
   .src-tag.net{color:#4d8cff;background:#0c1626}
 
   /* Public results view */
@@ -384,6 +432,48 @@
   .rv-foot-lbl{letter-spacing:.12em;text-transform:uppercase;font-size:1.1vw;color:var(--dimmer)}
   .rv-foot .chip{font-family:var(--cond);background:rgba(255,176,32,.08);border:1px solid #2a2310;border-radius:8px;padding:.4vh 1vw;margin-right:.6vw}
   .rv-foot .chip b{font-family:var(--mono);color:var(--cyan)} .rv-foot .chip i{font-family:var(--mono);color:var(--amber);font-style:normal}
+
+  /* =====================================================================
+     HOCHFORMAT / SCHMALE SCHIRME (Zuschauer-Handy, Hochkant-Monitor)
+     Anzeigetafel + Start- + Ergebnis-Ansicht sind fürs Querformat (TV)
+     gebaut (vw-Einheiten). Im Hochformat einspaltig stapeln und Schrift
+     vergrößern, damit nichts winzig wird oder abgeschnitten erscheint.
+  ====================================================================== */
+  @media (orientation:portrait){
+    /* --- Anzeigetafel --- */
+    #board{padding:5vw 5vw}
+    .bd-main{grid-template-columns:1fr;gap:3vh;align-content:center}
+    .bd-top h2{font-size:6.5vw} .bd-top .run{font-size:3.6vw} .bd-top .x{font-size:3.2vw;padding:1.4vw 3vw}
+    .bd-cur .lbl2{font-size:3.2vw} .bd-cur .nm{font-size:8vw} .bd-cur .nm .b{margin-right:3vw}
+    .bd-clock{font-size:26vw} .bd-split{font-size:5vw;min-height:6vw}
+    .bd-board .lbl2{font-size:3.2vw}
+    .bd-li{font-size:4.6vw;gap:3vw} .bd-li .r{width:7vw} .bd-li .bb{width:9vw}
+    .bd-credit{font-size:2.6vw}
+    /* --- Start-Ansicht --- */
+    .sv-top{flex-wrap:wrap;gap:2vw}
+    .sv-top h2{font-size:6.5vw} .sv-top .tag{font-size:3.8vw} .sv-top .run{font-size:3.4vw}
+    .sv-top .right{font-size:3.2vw;gap:3vw} .sv-top .ctrl{font-size:3.2vw;padding:1.4vw 3vw}
+    .sv-main{grid-template-columns:1fr;gap:3vh}
+    .sv-ready{text-align:center}
+    .sv-ready .lbl{font-size:3.6vw} .sv-ready .bib{font-size:30vw;min-height:30vw}
+    .sv-ready .nm{font-size:9vw} .sv-ready .nm.empty{font-size:6vw}
+    .sv-interval{font-size:3.6vw} .sv-interval b{font-size:5.5vw}
+    .sv-box{padding:4vw} .sv-box .h{font-size:3.2vw}
+    .sv-li{font-size:5vw;gap:3vw} .sv-li .bb{min-width:9vw} .sv-empty{font-size:3.8vw}
+    .sv-startbtn{font-size:7vw;padding:4vh 0}
+    .sv-readybtn{font-size:6vw;padding:4vh 0}
+    /* --- Ergebnis-Ansicht (Zuschauer) --- */
+    .rv-tabs{gap:2vw} .rv-tab{font-size:3.8vw;padding:1vh 3.5vw}
+    .rv-li{grid-template-columns:9vw 11vw 1fr auto;gap:2.5vw;font-size:4.6vw;padding:1vh 2vw}
+    .rv-li .tt{min-width:20vw} .rv-li .df{display:none}  /* Diff ausblenden – zu eng im Hochformat */
+    .rv-empty{font-size:4.6vw} .rv-foot{font-size:3.4vw} .rv-foot-lbl{font-size:3vw}
+    .rv-foot .chip{padding:.6vh 2.5vw}
+  }
+  /* Sehr breite/Ultrawide-Schirme: Tafel-Riesenziffer nach oben deckeln */
+  @media (min-aspect-ratio:2/1){
+    .bd-clock{font-size:min(13vw,22vh)}
+    .sv-ready .bib{font-size:min(9vw,16vh)}
+  }
 </style>
 </head>
 <body>
@@ -409,6 +499,11 @@
     <div class="runsel" id="runsel"></div>
     <div class="spacer"></div>
     <div class="tod">Uhrzeit <b id="tod">--:--:--</b></div>
+    <div class="wx" id="wxChip" title="Wetter am Rennort - klick für Einstellungen" style="display:none">
+      <span class="wx-place" id="wxPlaceName"></span>
+      <span id="wxIcon">⛅</span><b id="wxTemp">—</b><span id="wxDesc" class="wx-desc"></span>
+      <span class="wx-live" id="wxLiveDot" title="Live-Wetter"></span>
+    </div>
     <div class="conn"><span class="dot" id="connDot"></span><span class="label" id="connLabel">Nicht verbunden</span></div>
     <button class="btn primary" id="btnConnect">Hardware verbinden</button>
     <button class="btn warn" id="btnSim">Simulation</button>
@@ -449,6 +544,7 @@
       <div class="phead"><h2>Ergebnisse</h2><span class="count" id="resCount">0</span>
         <div class="ph-actions"><select id="classSel" class="classsel" title="Altersklasse"></select><div class="viewsel" id="viewsel"></div><button class="btn sm ghost" id="btnPrintRes" title="Offizielle Ergebnisliste drucken/PDF">🖨</button><button class="btn sm ghost" id="btnExport" title="CSV exportieren">CSV</button></div></div>
       <div class="pbody">
+        <div id="dayBest" class="daybest" style="display:none"></div>
         <table><thead><tr><th>#</th><th>Nr</th><th>Name</th><th style="text-align:right">Zeit</th><th style="text-align:right">Diff</th></tr></thead><tbody id="resBody"></tbody></table>
       </div>
     </section>
@@ -460,7 +556,7 @@
   </section>
 
   <div class="foot">Tasten: <span class="kbd">␣</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎</span> Ziel · <span class="kbd">Z</span> rückgängig · <span class="kbd">B</span> Anzeigetafel · Zeit in Ergebnis anklicken = Handzeit eingeben</div>
-  <div class="credit">Made by Nico Warscher</div>
+  <div class="credit">Made by Nico Warscher · <span id="btnContact" style="cursor:pointer;text-decoration:underline">✉ Frage / Kontakt</span> · <span id="btnLegal" style="cursor:pointer;text-decoration:underline">Rechtliches (AGB · Datenschutz · Impressum)</span></div>
 </div>
 
 <!-- SCOREBOARD -->
@@ -489,11 +585,12 @@
       <div class="bib" id="svReadyBib"></div>
       <div class="nm" id="svReadyName">—</div>
       <div class="sv-interval">seit letztem Start: <b id="svInterval">—</b></div>
-      <button id="svStartBtn" class="sv-startbtn" style="display:none">▶ START senden</button>
+      <button id="svReadyBtn" class="sv-readybtn" style="display:none">✓ Startbereit ans Ziel melden</button>
     </div>
     <div class="sv-side">
       <div class="sv-box"><div class="h">Als Nächstes</div><div id="svNext"></div></div>
       <div class="sv-box"><div class="h">Auf der Strecke (<span id="svCourseCount">0</span>)</div><div id="svCourse"></div></div>
+      <div class="sv-box" id="svDsqBox" style="display:none;border-color:#3a1717"><div class="h" style="color:var(--red)">⚠ Disqualifiziert</div><div id="svDsq"></div></div>
     </div>
   </div>
   <div class="view-credit">Made by Nico Warscher</div>
@@ -526,10 +623,31 @@
     <div class="fld"><label>Kurssetzer / Tore</label><div style="display:flex;gap:6px"><input id="mSetter" placeholder="Kurssetzer"><input id="mGates" placeholder="Tore" style="max-width:80px"></div></div>
     <div class="fld"><label>Wetter / Schnee</label><div style="display:flex;gap:6px"><input id="mWeather" placeholder="Wetter"><input id="mSnow" placeholder="Schnee"></div></div>
     <div class="fld"><label>Temperatur Start / Ziel (°C)</label><div style="display:flex;gap:6px"><input id="mTempS" placeholder="Start"><input id="mTempF" placeholder="Ziel"></div></div>
+
+    <div class="fld" style="border-top:1px solid #141c24;padding-top:14px">
+      <label style="color:var(--cyan)">☁ Wetter automatisch (online)</label>
+      <div class="toggle" style="padding-top:0"><span>Wetter automatisch holen &amp; Protokoll füllen</span><div class="sw on" id="swWxAuto"></div></div>
+      <div style="position:relative;margin-top:10px">
+        <input id="wxSearch" placeholder="Rennort suchen – z.B. Schladming, Sölden…" autocomplete="off">
+        <div class="wx-results" id="wxResults"></div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">
+        <button class="btn sm" id="btnWxGps" type="button">📍 Standort (GPS)</button>
+        <span id="wxPlace" class="hint" style="margin:0">kein Ort gewählt</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <input id="wxLat" placeholder="Breite" inputmode="decimal">
+        <input id="wxLon" placeholder="Länge" inputmode="decimal">
+        <input id="wxEle" placeholder="Höhe m" inputmode="numeric" style="max-width:92px">
+      </div>
+      <div class="hint">Die <b style="color:var(--amber)">Höhe</b> korrigiert die Temperatur auf die echte Pistenhöhe – bei Bergstationen entscheidend. Quelle: Open-Meteo (Wettermodell, kostenlos). Für 1/10 °C am Starthaus später ein Sensor an der Zeitmessung.</div>
+    </div>
+
     <div class="fld"><label>Lizenziert für (White-Label)</label><input id="mLic" placeholder="erscheint auf Ausdrucken"></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Zeitnahme</label></div>
     <div class="fld"><label>Anzahl Läufe</label><select id="setRuns"><option value="1">1 Lauf</option><option value="2" selected>2 Läufe (Gesamtwertung)</option></select></div>
     <div class="toggle"><span>Zwischenzeit-Messpunkt</span><div class="sw on" id="swInter"></div></div>
+    <div class="toggle"><span>🔒 Start erst nach „Bereit"-Meldung der Startstation<br><small style="color:var(--dimmer)">Sicherung: Start nur möglich, wenn die Startstation für den aktuellen Lauf „bereit" gemeldet hat. Nur einschalten, wenn ein Start-Tablet im Einsatz ist.</small></span><div class="sw" id="swRequireReady"></div></div>
     <div class="fld" style="margin-top:16px"><label>Baudrate</label><select id="setBaud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select>
       <div class="hint">Muss mit deiner Hardware übereinstimmen.</div></div>
     <div class="fld"><label>Schlüsselwörter Start</label><input id="setStartKeys" value="S,START,C0,IMP1,A"></div>
@@ -582,6 +700,57 @@ F 1051110   → Ziel
   <div class="dh"><h3>Hilfe &amp; Handbuch</h3><span style="margin-left:8px;color:var(--dim);font-family:var(--mono);font-size:11px">v<span id="aboutVer"></span></span><div class="spacer"></div><button class="btn ghost" id="btnCloseAbout">✕</button></div>
   <div class="help-search"><input id="helpSearch" placeholder="🔍 Suchen … z. B. Lichtschranke, Klassen, Tablet, Cloud, Firewall"></div>
   <div class="mb" id="helpContent"></div>
+</div>
+
+<div class="overlay" id="legalOverlay"></div>
+<div class="modal" id="legalModal">
+  <div class="dh"><h3>Rechtliches</h3><div class="spacer"></div><button class="btn ghost" id="legalClose">✕</button></div>
+  <div class="mb" style="line-height:1.6">
+    <div class="disc" style="margin-bottom:16px"><b>⚠ Vorlage:</b> Bitte alle <span style="color:var(--amber)">[Platzhalter]</span> mit deinen Daten ersetzen und vor dem Verkauf <b>juristisch prüfen lassen</b>. Dies ist kein Rechtsrat.</div>
+
+    <h4 style="color:var(--green);margin:14px 0 6px">Impressum / Offenlegung (§ 5 ECG, § 25 MedienG)</h4>
+    <p>Anbieter: <b>[Vor- und Nachname / Firma]</b><br>
+    Anschrift: [Straße Nr., PLZ Ort, Österreich]<br>
+    E-Mail: nicowarscher@gmx.at<br>
+    Telefon: [optional]<br>
+    Unternehmensgegenstand: Software zur Sport-Zeitnahme<br>
+    UID-Nr. / Firmenbuch: [falls unternehmerisch tätig, sonst entfernen]</p>
+
+    <h4 style="color:var(--green);margin:18px 0 6px">AGB &amp; Haftungsausschluss</h4>
+    <p><b>1. Leistung.</b> „ALPIN TIMING PRO" ist eine Software (Hilfsmittel) zur Zeitnahme bei Trainings-, Vereins- und Hobbyrennen. Sie ist <b>nicht FIS-homologiert</b> und kein zertifiziertes Zeitmesssystem für offizielle/gewertete Rennen.</p>
+    <p><b>2. Keine Gewähr für Ergebnisse.</b> Die ermittelten Zeiten und Ergebnisse erfolgen <b>ohne Gewähr</b> auf Richtigkeit. Die Nutzung erfolgt auf eigenes Risiko. Für offizielle Wertungen gelten die Verbandsvorschriften (zertifizierte, redundante Hardware, Handzeit-Backup).</p>
+    <p><b>3. Pflichten des Nutzers.</b> Eigenständige Funktionsprüfung vor dem Einsatz, regelmäßige Datensicherung, sowie eine unabhängige Handzeit-Absicherung. Geeignete, kompatible Hardware (z. B. Lichtschranke) ist vom Nutzer bereitzustellen.</p>
+    <p><b>4. Verfügbarkeit.</b> Es besteht kein Anspruch auf ununterbrochene Verfügbarkeit; bei Cloud-Betrieb bestehen Abhängigkeiten von Internet und Hoster.</p>
+    <p><b>5. Haftung.</b> Die Haftung für Schäden – insbesondere aus fehlerhaften Zeiten/Ergebnissen, Daten- oder Verbindungsverlust – ist auf Vorsatz und grobe Fahrlässigkeit beschränkt, soweit gesetzlich zulässig. Eine Haftung für entgangenen Gewinn oder Folgeschäden ist ausgeschlossen.</p>
+    <p><b>6. Preise / Lizenz.</b> [Preis, Lizenzumfang, Laufzeit, Kündigung – ausfüllen.]</p>
+    <p><b>7. Widerrufsrecht (Verbraucher).</b> [Bei Verkauf an Verbraucher: Widerrufsbelehrung ergänzen.]</p>
+    <p><b>8. Recht &amp; Gerichtsstand.</b> Es gilt österreichisches Recht. Gerichtsstand ist [zuständiges Gericht], soweit gesetzlich zulässig.</p>
+
+    <h4 style="color:var(--green);margin:18px 0 6px">Datenschutzerklärung (DSGVO)</h4>
+    <p><b>Verantwortlicher:</b> [Name / Firma, Anschrift, E-Mail] (siehe Impressum).</p>
+    <p><b>Verarbeitete Daten.</b> (a) <b>Konten</b>: Benutzername und Passwort (Passwort nur <b>gehasht</b> mit scrypt gespeichert). (b) <b>Renndaten</b>, die du eingibst: Namen, Startnummern, Kategorien, Zeiten. (c) <b>Technisch</b>: Verbindungs-/Server-Logs.</p>
+    <p><b>Speicherort.</b> Lokal im Browser (localStorage – inkl. optional gemerkter Zugangsdaten auf <b>deinem Gerät</b>) sowie auf dem Server (Konten dauerhaft; Live-Renndaten im Arbeitsspeicher für die Live-Übertragung).</p>
+    <p><b>Zwecke &amp; Rechtsgrundlage.</b> Durchführung der Zeitnahme und Live-Anzeige (Art. 6 Abs. 1 lit. b/f DSGVO). Teilnehmerdaten verarbeitest du als Veranstalter eigenverantwortlich; hole nötige Einwilligungen ein.</p>
+    <p><b>Empfänger / Drittdienste.</b> Hosting: [z. B. Render, USA – Standardvertragsklauseln]. Wetter: <b>Open-Meteo</b> (nur die <b>Ortskoordinaten</b> des Rennorts werden übermittelt, keine personenbezogenen Daten). <b>Schriftarten werden lokal gehostet</b> – es findet <b>keine Übertragung an Google</b> oder andere Dritte statt.</p>
+    <p><b>Speicherdauer.</b> Konten bis zur Löschung; Renndaten bis du sie löschst/zurücksetzt. Anmelde-Token gültig 365 Tage.</p>
+    <p><b>Deine Rechte.</b> Auskunft, Berichtigung, Löschung, Einschränkung, Datenübertragbarkeit, Widerspruch. Beschwerde bei der <b>österr. Datenschutzbehörde</b> (dsb.gv.at). Anfragen an: nicowarscher@gmx.at.</p>
+    <p><b>Sicherheit.</b> Passwörter via scrypt gehasht, Sitzungen über signierte Tokens (HMAC), Übertragung per HTTPS empfohlen.</p>
+
+    <h4 style="color:var(--green);margin:18px 0 6px">Barrierefreiheit (EAA / BaFG)</h4>
+    <p>Diese Anwendung wird an den Anforderungen des EU-Barrierefreiheitsgesetzes (European Accessibility Act; in Österreich Barrierefreiheitsgesetz – BaFG, anwendbar seit 28.06.2025) ausgerichtet: hoher Kontrast, große Bedienelemente, Tastatur­bedienung der Kernfunktionen und skalierbare Anzeige. Eine vollständige WCAG-2.1-AA-Prüfung ist [in Arbeit / geplant]. Barrieren oder Verbesserungs­vorschläge bitte an nicowarscher@gmx.at – wir bemühen uns um zeitnahe Behebung.</p>
+  </div>
+</div>
+
+<div class="overlay" id="contactOverlay"></div>
+<div class="modal" id="contactModal">
+  <div class="dh"><h3>✉ Frage / Kontakt</h3><div class="spacer"></div><button class="btn ghost" id="contactClose">✕</button></div>
+  <div class="mb">
+    <p class="hint" style="margin-bottom:12px">Schreib uns – z. B. zur <b>Freischaltung/Lizenz</b>, bei Fragen oder Problemen. Wir antworten per E-Mail.</p>
+    <div class="fld"><label>Name / Verein</label><input id="ctName" placeholder="Dein Name oder Verein"></div>
+    <div class="fld"><label>Deine E-Mail (für die Antwort)</label><input id="ctEmail" type="email" placeholder="name@example.com"></div>
+    <div class="fld"><label>Nachricht</label><textarea id="ctMsg" rows="5" placeholder="Deine Frage …" style="width:100%;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:9px 10px;font-family:var(--sans);font-size:14px;resize:vertical"></textarea></div>
+    <div style="display:flex;gap:12px;align-items:center"><button class="btn primary" id="ctSend">Senden</button><span id="ctStatus" class="hint" style="margin:0"></span></div>
+  </div>
 </div>
 
 <div class="overlay" id="liveOverlay"></div>
@@ -654,6 +823,7 @@ F 1051110   → Ziel
 <input type="file" id="fileInput" accept=".json" class="hidden">
 <div class="toast" id="toast"></div>
 <div id="updateBar"><span>Neue Version <b id="upVer"></b> verfügbar.</span><button class="primary" id="upReload">Jetzt laden</button><button id="upLater">Später</button></div>
+<div id="readyBar"><span class="rb-dot"></span><span>Startstation meldet: <b>BEREIT für Rennstart</b><i id="rbTime"></i></span><button id="rbOk">Verstanden</button></div>
 
 <script src="/qrcode.js"></script>
 <script>
@@ -662,7 +832,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="1.8";
+const VERSION="4.1";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -675,6 +845,8 @@ const S = {
   settings:{ baud:115200, startKeys:["S","START","C0","IMP1","A"], interKeys:["Z","ZW","INT","C1","IMP2"],
     finishKeys:["F","FIN","ZIEL","C2","IMP3","B"], lockStart:1000,lockInter:1000,lockFinish:1500,
     decimals:2, useHwTs:true, autoNext:true, beep:true, hasInter:true, autoSerial:true,
+    requireReady:false,
+    wx:{ auto:true, name:'', lat:null, lon:null, elevation:null },
     disp:{ baud:9600, format:"{ss}.{cc}\\r", idle:"zeros", holdMs:5000 } }
 };
 /* Laufzeit-Status für die LED-Anzeigetafel (serieller Ausgang) */
@@ -687,18 +859,26 @@ const now=()=>performance.now();
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const cur=r=>r.runs[S.activeRun];
 
+/* Zeit-Zerlegung: schneidet auf die Anzeige-Genauigkeit AB (Sport-Timing-Konvention,
+ * nie aufrunden). Ganzzahlig in Millisekunden gerechnet -> kein Float-Drift. */
+function tparts(ms){
+  const dec=S.settings.decimals;
+  const f=Math.pow(10,dec);             // Einheiten pro Sekunde (dec=2 -> 100)
+  const unit=1000/f;                    // ms pro Anzeige-Einheit (dec=2 -> 10ms)
+  const ticks=Math.floor(ms/unit);      // abgeschnitten, nie aufgerundet
+  const totalSec=Math.floor(ticks/f);
+  return { m:Math.floor(totalSec/60), whole:totalSec%60, frac:ticks%f, dec };
+}
 function fmt(ms){
   if(ms==null||isNaN(ms)) return "—";
-  const dec=S.settings.decimals, total=ms/1000, m=Math.floor(total/60), s=total-m*60;
-  let str=s.toFixed(dec).padStart(dec>0?3+dec:2,'0');
-  return m>0 ? `${m}:${str.padStart(3+dec,'0')}` : str;
+  const p=tparts(ms);
+  const sec=String(p.whole).padStart(2,'0')+(p.dec>0?'.'+String(p.frac).padStart(p.dec,'0'):'');
+  return p.m>0 ? `${p.m}:${sec}` : sec;
 }
 function fmtParts(ms){
-  const dec=S.settings.decimals, total=ms/1000, m=Math.floor(total/60), s=total-m*60;
-  let whole=Math.floor(s), frac=Math.round((s-whole)*Math.pow(10,dec));
-  if(frac>=Math.pow(10,dec)){frac=0;whole++;}
-  const main=m>0?`${m}:${String(whole).padStart(2,'0')}`:String(whole);
-  return {main, cs:"."+String(frac).padStart(dec,'0')};
+  const p=tparts(ms);
+  const main=p.m>0?`${p.m}:${String(p.whole).padStart(2,'0')}`:String(p.whole);
+  return { main, cs:"."+String(p.frac).padStart(p.dec,'0') };
 }
 function fmtDelta(ms){ const s=(ms>=0?'+':'−')+fmt(Math.abs(ms)); return s; }
 function parseTime(str){
@@ -713,6 +893,7 @@ function logEvent(text,cls){ const time=new Date().toLocaleTimeString('de-DE'); 
   d.innerHTML=`<span class="ts">${time}</span> <span class="${cls||''}">${esc(text)}</span>`; const l=$('log'); l.prepend(d);
   while(l.children.length>200) l.removeChild(l.lastChild); }
 let audioCtx=null;
+let _startReadyRun=null;   /* Master: fuer welchen Lauf hat die Startstation "bereit" gemeldet */
 function beep(freq=880,dur=0.07){ if(!S.settings.beep) return; try{ audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
   const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.frequency.value=freq;o.type='square';o.connect(g);g.connect(audioCtx.destination);
   g.gain.setValueAtTime(0.08,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+dur);
@@ -769,6 +950,10 @@ function recomputeRunState(){
 
 /* Timing core */
 function handleImpulse(ch,hwTs){
+  if(ch==='start' && S.settings.requireReady && _startReadyRun!==S.activeRun){
+    logEvent(`Start gesperrt – Startstation hat für Lauf ${S.activeRun+1} noch nicht „bereit" gemeldet`,'ev-warn');
+    toast('Start gesperrt – Startstation noch nicht bereit'); beep(330); return;
+  }
   const t=now(), lock=ch==='start'?S.settings.lockStart:ch==='inter'?S.settings.lockInter:S.settings.lockFinish;
   if(t-S.lastImpulse[ch]<lock){ logEvent(`${ch} ignoriert (Sperrzeit)`,'ev-warn'); return; }
   S.lastImpulse[ch]=t; beep(ch==='start'?990:ch==='inter'?770:660);
@@ -777,7 +962,7 @@ function handleImpulse(ch,hwTs){
 function doStart(sw,hw){
   const r=S.racers.find(x=>x.id===S.readyId);
   if(!r){ logEvent("Start ohne bereiten Läufer – verworfen","ev-warn"); toast("Niemand am Start!"); return; }
-  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); S.onCourse.push(r.id);
+  const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); c.startServerT=serverNow(); c.startLocal=true; S.onCourse.push(r.id);
   S.history.push({type:'start',id:r.id,run:S.activeRun});
   logEvent(`START · Nr ${r.bib} ${r.name}`+(hw!=null?` (HW ${hw})`:''),'ev-start');
   S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
@@ -799,7 +984,9 @@ function doFinish(sw,hw){
   if(S.onCourse.length===0){ logEvent("Ziel ohne Läufer auf Strecke – verworfen","ev-warn"); toast("Kein Läufer auf der Strecke"); return; }
   const id=S.onCourse[0], r=S.racers.find(x=>x.id===id), c=cur(r);
   c.finSW=sw; c.finHW=(hw??null); c.finServerT=NET.synced?serverNow():null;
-  if(c.startServerT!=null && c.finServerT!=null){ c.runMs=c.finServerT-c.startServerT; c.src='NET'; }
+  /* Verteilte Messung (Start kam vom Tablet) -> synchronisierte Serverzeit.
+     Lokal gestarteter Laeufer (gleiches Geraet) -> praezise Hardware-/Monotonzeit. */
+  if(c.startLocal===false && c.startServerT!=null && c.finServerT!=null){ c.runMs=c.finServerT-c.startServerT; c.src='NET'; }
   else if(S.settings.useHwTs && c.startHW!=null && c.finHW!=null){ c.runMs=c.finHW-c.startHW; c.src='HW'; }
   else { c.runMs=c.finSW-c.startSW; c.src='SW'; }
   if(c.runMs<0) c.runMs=null;
@@ -822,15 +1009,21 @@ function undoLast(){
   logEvent(`↩ ${h.type==='finish'?'Ziel':'Start'} zurückgenommen · Nr ${r.bib} (Lauf ${h.run+1})`,'ev-info');
   renderAll(); persist();
 }
-function setStatus(id,st){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
-  S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null;
-  c.state=st; c.runMs=null; c.src=null;
-  logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${S.activeRun+1})`,'ev-warn');
-  if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
+function setStatus(id,st){ setStatusRun(id,st,S.activeRun); }
+function setStatusRun(id,st,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+  if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
+  if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null; }
+  c.state=st; c.runMs=null; c.src=null; c.hand=null;
+  logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-warn');
+  if(runIdx===S.activeRun && S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
   renderAll(); persist(); }
-function reopen(id){ const r=S.racers.find(x=>x.id===id); if(!r) return; const c=cur(r);
-  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=null; c.src=null;
-  S.onCourse=S.onCourse.filter(x=>x!==id); renderAll(); persist(); }
+function reopen(id){ reopenRun(id,S.activeRun); }
+function reopenRun(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+  if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
+  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=c.hand=null; c.src=null;
+  if(runIdx===S.activeRun) S.onCourse=S.onCourse.filter(x=>x!==id);
+  logEvent(`Zurückgesetzt · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-info');
+  renderAll(); persist(); }
 function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   const inp=prompt(`Handzeit für Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})\nFormat  SS,cc  oder  M:SS,cc  — leer = löschen:`, c.hand!=null?fmt(c.hand):'');
@@ -861,7 +1054,14 @@ function buildViewSel(){ const el=$('viewsel'); el.innerHTML='';
   if(S.numRuns>1) add('Gesamt',99); }
 
 function renderAll(){ renderStartList(); renderCenter(); buildClassSel(); renderResults(); $('timingTitle').textContent='Zeitnehmung · Lauf '+(S.activeRun+1);
-  document.querySelector('.triggers').className='triggers '+(S.settings.hasInter?'three':'two'); $('trigInter').classList.toggle('hidden',!S.settings.hasInter); }
+  document.querySelector('.triggers').className='triggers '+(S.settings.hasInter?'three':'two'); $('trigInter').classList.toggle('hidden',!S.settings.hasInter);
+  updateStartLock(); }
+function updateStartLock(){
+  const el=$('trigStart'); if(!el) return;
+  const locked = S.settings.requireReady && _startReadyRun!==S.activeRun;
+  el.classList.toggle('locked', locked);
+  el.title = locked ? 'Start gesperrt – Startstation hat für diesen Lauf noch nicht „bereit" gemeldet' : '';
+}
 
 function renderStartList(){
   const body=$('startBody'); body.innerHTML='';
@@ -912,7 +1112,8 @@ function renderCenter(){
       const row=document.createElement('div'); row.className='oc-row'+(i===0?' lead':'');
       row.innerHTML=`<span class="bib">${esc(rr.bib)}</span><span class="nm">${esc(rr.name)}</span>
         <span class="sp">${sp}</span><span class="tm" data-clock="${rr.id}">0.00</span>
-        <button class="ib" data-dnf="${rr.id}" title="Aufgabe / DNF" style="margin-left:8px">DNF</button>`;
+        <button class="ib" data-dnf="${rr.id}" title="Aufgabe / DNF" style="margin-left:8px">DNF</button>
+        <button class="ib" data-dsq="${rr.id}" title="Disqualifikation / DSQ">DSQ</button>`;
       list.appendChild(row); }); bigTarget=S.onCourse[0]; }
   $('ocCount').textContent=S.onCourse.length+' auf Strecke';
   const t=bigTarget!=null?S.racers.find(x=>x.id===bigTarget):null;
@@ -939,38 +1140,57 @@ function renderResults(){
     const tr=document.createElement('tr'); tr.className='res-row'+(rank<=3?' p'+rank:'');
     const src=combined?'':effSrc(c); const tag=src?`<span class="src-tag ${src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':'sw'}">${src}</span>`:'';
     const ha=combined?'':`data-hand="${r.id}" data-run="${S.resultView}"`;
+    const dsq=combined?'':` <button class="ib dsq" data-dsq="${r.id}" data-run="${S.resultView}" title="Disqualifizieren (DSQ)">DSQ</button>`;
     tr.innerHTML=`<td class="rank">${rank}</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}${r.cat?` <span style="color:var(--dimmer);font-size:11px">${esc(r.cat)}</span>`:''} ${tag}</td>
-      <td class="tm" ${ha}>${fmt(e.t)}</td><td class="diff">${e.t===best?'':fmtDelta(e.t-best)}</td>`;
+      <td class="tm" ${ha}>${fmt(e.t)}</td><td class="diff">${e.t===best?'':fmtDelta(e.t-best)}${dsq}</td>`;
     body.appendChild(tr);
   });
   if(!combined){ S.racers.filter(r=>['DNF','DNS','DSQ'].includes(r.runs[S.resultView].state) && (!S.resultClass || (r.cat||'').trim()===S.resultClass)).forEach(r=>{
     const tr=document.createElement('tr'); tr.className='res-row out';
     tr.innerHTML=`<td class="rank">–</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}</td>
-      <td class="tm" data-hand="${r.id}" data-run="${S.resultView}">${r.runs[S.resultView].state}</td><td class="diff"></td>`;
+      <td class="tm">${r.runs[S.resultView].state}</td><td class="diff"><button class="ib" data-reopen="${r.id}" data-run="${S.resultView}" title="Status zurücksetzen">↺</button></td>`;
     body.appendChild(tr); }); }
   $('resCount').textContent=ranked.length;
+  renderDayBest();
+}
+/* Tagesbestzeit-Podest: schnellste Einzelzeiten des Tages ueber ALLE Klassen und
+   Laeufe; je Laeufer zaehlt die beste Zeit (ein Athlet kommt nur einmal vor). */
+function dayBestTop(n){ const arr=[];
+  S.racers.forEach(r=>{ let best=null,run=-1; for(let i=0;i<Math.max(1,S.numRuns);i++){ const t=effRun(r.runs[i]); if(t!=null&&(best==null||t<best)){best=t;run=i;} } if(best!=null) arr.push({t:best,r:r,run:run}); });
+  arr.sort((a,b)=>a.t-b.t); return arr.slice(0,n); }
+function renderDayBest(){ const el=$('dayBest'); if(!el) return; const top=dayBestTop(3);
+  if(!top.length){ el.style.display='none'; return; }
+  el.style.display='block';
+  el.innerHTML='<div class="lbl">🏆 Tagesbestzeit</div>'+top.map((e,i)=>
+    `<div class="db-row"><span class="db-rk p${i+1}">${i+1}</span><span class="who">Nr ${esc(e.r.bib)} · ${esc(e.r.name)}${e.r.cat?' · '+esc(e.r.cat):''}${S.numRuns>1?' · L'+(e.run+1):''}</span><span class="tt">${fmt(e.t)}</span></div>`
+  ).join('');
 }
 
 /* Live clock */
+let _bigLast=null, _slLast=null;
 function tick(){
   const t=now();
+  // Strecken-Uhren: nur schreiben, wenn sich der angezeigte Wert wirklich ändert
   document.querySelectorAll('[data-clock]').forEach(el=>{ const id=+el.getAttribute('data-clock'); const r=S.racers.find(x=>x.id===id);
-    if(r&&cur(r).startSW!=null) el.textContent=fmt(t-cur(r).startSW); });
-  const big=$('bigClock'); const bd=$('bdClock');
+    if(r&&cur(r).startSW!=null){ const v=fmt(t-cur(r).startSW); if(el.textContent!==v) el.textContent=v; } });
+  const big=$('bigClock'); const boardShown=$('board').classList.contains('show'); const bd=$('bdClock');
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget); if(r&&cur(r).startSW!=null){
       const p=fmtParts(t-cur(r).startSW); const html=`${p.main}<span class="cs">${p.cs}</span>`;
-      big.innerHTML=html; big.classList.add('live'); bd.innerHTML=html; bd.classList.remove('idle'); } }
-  else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`; big.innerHTML=z; big.classList.remove('live'); bd.innerHTML=z; bd.classList.add('idle'); }
-  // split lines
+      if(html!==_bigLast){ big.innerHTML=html; big.classList.add('live'); _bigLast=html; }
+      if(boardShown){ bd.innerHTML=html; bd.classList.remove('idle'); } } }
+  else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`;
+    if(_bigLast!==' idle'){ big.innerHTML=z; big.classList.remove('live'); _bigLast=' idle'; }
+    if(boardShown){ bd.innerHTML=z; bd.classList.add('idle'); } }
+  // Zwischenzeit-Zeilen
   const sl=$('splitLine'), bs=$('bdSplit');
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget),c=cur(r);
     if(c&&c.interMs!=null){ const b=bestInter(S.activeRun,r.id); const d=b!=null?c.interMs-b:null;
       const dh=d!=null?` <span class="delta ${d>=0?'pos':'neg'}">${fmtDelta(d)}</span>`:'';
-      sl.innerHTML=`Zwischenzeit ${fmt(c.interMs)}${dh}`; bs.innerHTML=`ZW ${fmt(c.interMs)}${dh}`; }
-    else { sl.textContent=''; bs.textContent=''; } }
-  else { sl.textContent=''; bs.textContent=''; }
-  if($('board').classList.contains('show')) updateBoardName();
-  sponsorTick();
+      const slh=`Zwischenzeit ${fmt(c.interMs)}${dh}`; if(slh!==_slLast){ sl.innerHTML=slh; _slLast=slh; }
+      if(boardShown) bs.innerHTML=`ZW ${fmt(c.interMs)}${dh}`; }
+    else { if(_slLast!==''){ sl.textContent=''; _slLast=''; } if(boardShown) bs.textContent=''; } }
+  else { if(_slLast!==''){ sl.textContent=''; _slLast=''; } if(boardShown) bs.textContent=''; }
+  if(boardShown){ updateBoardName(); sponsorTick(); }
   requestAnimationFrame(tick);
 }
 setInterval(()=>{ $('tod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
@@ -1091,9 +1311,19 @@ async function readLoop(){
   }
 }
 function parseSerialLine(line){
-  const up=line.toUpperCase(), tokens=up.split(/[\s,;:]+/).filter(Boolean), first=tokens[0]||'';
-  let hwTs=null; for(let i=tokens.length-1;i>=1;i--){ if(/^\d+$/.test(tokens[i])){ hwTs=parseInt(tokens[i],10); break; } }
-  const match=keys=>keys.some(k=>k&&(first===k||first.startsWith(k)));
+  const up=line.toUpperCase().trim();
+  const tokens=up.split(/[\s,;]+/).filter(Boolean);   // NICHT an ':' trennen -> Uhrzeit bleibt erhalten
+  const first=tokens[0]||'';
+  /* Hardware-Zeitstempel: bevorzugt eine Tageszeit HH:MM:SS(.tttt) -> ms seit Mitternacht
+     (z.B. TAG Heuer CP 520/540), sonst die letzte Ganzzahl (Zaehler-Format "S 1043920"). */
+  let hwTs=null;
+  const tm=up.match(/(\d{1,2}):(\d{2}):(\d{2})(?:[.,](\d{1,4}))?/);
+  if(tm){ const h=+tm[1],m=+tm[2],s=+tm[3]; const frac=((tm[4]||'')+'000').slice(0,3);
+    hwTs=((h*3600+m*60+s)*1000)+(+frac); }
+  else { for(let i=tokens.length-1;i>=0;i--){ if(/^\d+$/.test(tokens[i])){ hwTs=parseInt(tokens[i],10); break; } } }
+  /* Kanal/Schluesselwort darf IRGENDWO in der Zeile stehen (CP540: "0001 C0 21:38:11.4567 00").
+     Exakter Token-Treffer ueberall, oder erstes Token beginnt mit dem Schluesselwort. */
+  const match=keys=>keys.some(k=>k&&(tokens.includes(k)||first.startsWith(k)));
   if(match(S.settings.startKeys)) handleImpulse('start',hwTs);
   else if(S.settings.hasInter && match(S.settings.interKeys)) handleImpulse('inter',hwTs);
   else if(match(S.settings.finishKeys)) handleImpulse('finish',hwTs);
@@ -1142,20 +1372,21 @@ function dispUpdateUI(){ const b=$('btnDispConnect'), st=$('dispStatus'); if(b) 
 function dispTest(){ if(!DISP.writer){ toast("Erst Tafel verbinden"); return; }
   const s=dispRender(); const el=$('dispLast'); if(el) el.textContent=dispVisible(s); dispWrite(s); toast("Testzeile an Tafel gesendet"); }
 
-/* Simulation – ganzes Rennen mit allem drum und dran */
+/* Simulation */
 const SIM_FIELD=[["Anna Berger","U16"],["Max Huber","U16"],["Lena Vogt","U16"],["Tom Reiter","U18"],["Jonas Klein","U18"],
   ["Mia Wolf","U14"],["Paul Lang","U14"],["Sara Frank","U16"],["Eva Sommer","U18"],["Leon Bauer","U14"],
   ["Hannah Moser","U16"],["Felix Gruber","U18"],["Nina Brand","U14"],["Lukas Egger","U16"],["Clara Wild","U18"],["David Roth","U14"]];
 function simSeedField(){
   const runnable=S.racers.some(r=>{ const st=cur(r).state; return st==='idle'||st==='ready'||st==='running'; });
-  if(runnable) return;                               // es gibt schon ein laufbares Feld -> nichts überschreiben
+  if(runnable) return;                               // schon ein laufbares Feld -> nicht überschreiben
   if(!$('raceName').value || $('raceName').value==='Rennen') $('raceName').value='Demo-Rennen';
-  if(!S.meta.organizer) S.meta.organizer='SC Demo';
+  if(S.meta && !S.meta.organizer) S.meta.organizer='SC Demo';
   let bib=Math.max(0,...S.racers.map(r=>parseInt(r.bib)||0));
   SIM_FIELD.forEach(n=>{ bib++; addRacer(String(bib),n[0],n[1],true); });
-  recomputeRunState(); renderAll(); applySettingsToUI();
+  recomputeRunState(); renderAll(); try{ applySettingsToUI(); }catch(e){}
   logEvent("Demo-Feld erstellt ("+SIM_FIELD.length+" Läufer)","ev-info");
 }
+function simMoreWaiting(){ return S.readyId!=null || S.racers.some(r=>cur(r).state==='idle'); }
 function toggleSim(){
   if(S.sim){ S.sim=false; S.simTimers.forEach(clearTimeout); S.simTimers=[]; $('btnSim').classList.remove('primary'); $('btnSim').textContent="Simulation";
     if(!S.port) setConn(false,false,"Nicht verbunden"); logEvent("Simulation gestoppt","ev-info"); return; }
@@ -1163,20 +1394,26 @@ function toggleSim(){
   simSeedField();
   logEvent("Simulation gestartet – komplettes Rennen läuft","ev-info"); simStep();
 }
+function simStartOne(){
+  const base=Math.floor(Date.now()%1e7); handleImpulse('start', S.settings.useHwTs?base:null);
+  const r=S.racers.find(x=>x.id===S.onCourse[S.onCourse.length-1]); if(!r) return; const c=cur(r);
+  const interT=1000+Math.random()*1500, run=4000+Math.random()*3500;   // längere Fahrten -> mehrere zugleich auf der Piste
+  if(S.settings.hasInter) S.simTimers.push(setTimeout(()=>{ if(S.sim&&c.state==='running') handleImpulse('inter', c.startHW!=null?c.startHW+Math.round(interT):null); }, interT));
+  const tryFinish=()=>{ if(!S.sim) return;
+    // mindestens 2 auf der Piste halten: nicht abwinken, solange nur 1 fährt und noch jemand wartet
+    if(S.onCourse.length<2 && simMoreWaiting()){ S.simTimers.push(setTimeout(tryFinish, 500)); return; }
+    if(!S.onCourse.length) return; const id=S.onCourse[0];
+    if(Math.random()<0.08){ setStatus(id,'DNF'); }                    // gelegentliche Aufgabe – fürs „drum und dran"
+    else { const lead=cur(S.racers.find(x=>x.id===id)); handleImpulse('finish', lead.startHW!=null?lead.startHW+Math.round(run):null); }
+  };
+  S.simTimers.push(setTimeout(tryFinish, run));
+}
 function simStep(){
   if(!S.sim) return;
-  // Rennen zu Ende? -> automatisch stoppen
-  const anyLeft = S.readyId!=null || S.onCourse.length>0 || S.racers.some(r=>cur(r).state==='idle');
-  if(!anyLeft){ toast("Simuliertes Rennen fertig 🎉"); logEvent("Simuliertes Rennen abgeschlossen","ev-info"); toggleSim(); return; }
-  if(S.readyId!=null){ const base=Math.floor(Date.now()%1e7); handleImpulse('start', S.settings.useHwTs?base:null);
-    const startR=S.racers.find(x=>x.id===S.onCourse[S.onCourse.length-1]); const c=startR?cur(startR):null;
-    const interT=1000+Math.random()*1500, run=interT+1500+Math.random()*2500;
-    if(S.settings.hasInter) S.simTimers.push(setTimeout(()=>{ if(S.sim&&c&&c.state==='running') handleImpulse('inter', c.startHW!=null?c.startHW+Math.round(interT):null); }, interT));
-    S.simTimers.push(setTimeout(()=>{ if(!S.sim) return; if(S.onCourse.length){ const id=S.onCourse[0];
-      if(Math.random()<0.08){ setStatus(id,'DNF'); }       // ab und zu eine Aufgabe – fürs „drum und dran"
-      else { const lead=cur(S.racers.find(x=>x.id===id)); handleImpulse('finish', lead.startHW!=null?lead.startHW+Math.round(run):null); } } }, run));
-  }
-  S.simTimers.push(setTimeout(simStep, 1500+Math.random()*900));
+  if(!simMoreWaiting() && S.onCourse.length===0){ toast("Simuliertes Rennen fertig 🎉"); logEvent("Simuliertes Rennen abgeschlossen","ev-info"); toggleSim(); return; }
+  // Piste auffüllen: starten, solange jemand bereit ist und < 3 auf der Strecke (Ziel: stets ≥2)
+  if(S.readyId!=null && S.onCourse.length<3) simStartOne();
+  S.simTimers.push(setTimeout(simStep, 1300+Math.random()*700));
 }
 
 /* Import / Export */
@@ -1282,7 +1519,7 @@ const HELP=[
    <p><b>Start wie bei FIS:</b> Ein <b>Starttor/Startwand</b>, das einen Start-Impuls (Schlüsselwort <code>S</code>) auf die Zeitmessung gibt, löst den Start automatisch aus – genau wie eine Lichtschranke. Start und Ziel werden nicht über den Anschluss, sondern über das <b>Signal-Schlüsselwort</b> zugeordnet (S/Z/F); Haupt- und Backup-Zelle am selben Tor werden über die Sperrzeit automatisch entstört. Ist der Start räumlich getrennt, die <b>Startstation</b> übers Netzwerk nutzen.</p>`},
  {t:"Simulation (ohne Hardware testen)", h:`<p>Knopf <b>Simulation</b> feuert automatisch Start-, Zwischen- und Ziel-Impulse – ideal zum Üben und um Anzeigetafel/Live-Ansicht zu sehen.</p>`},
  {t:"Startliste & Läufer", h:`<p>Nr, Name und Kat. (Klasse) eingeben, <b>+</b> zum Hinzufügen. <b>Import</b> fügt viele auf einmal ein (eine Zeile <code>Nr,Name,Klasse</code>). Der bereite Läufer am Start ist grün markiert.</p>`},
- {t:"Status: DNF / DNS / DSQ", h:`<p><b>DNS</b> (nicht gestartet) in der Startliste; <b>DNF</b> (Aufgabe) beim Läufer auf der Strecke; per Klick auf ein Ergebnis lässt sich dieses zurücksetzen.</p>`},
+ {t:"Status: DNF / DNS / DSQ (Disqualifikation)", h:`<p><b>DNS</b> (nicht gestartet): Knopf in der Startliste. <b>DNF</b> (Aufgabe) und <b>DSQ</b> (Disqualifikation, z.B. Tor verpasst): Knöpfe beim Läufer auf der Strecke. Ein Läufer, der schon im <b>Ziel</b> ist, wird über den <b>DSQ</b>-Knopf in der Ergebnisliste disqualifiziert. Disqualifizierte/ausgefallene Läufer stehen unten in der Rangliste unter „ausgefallen"; mit dem <b>↺</b>-Knopf dort wieder zurücksetzen.</p>`},
  {t:"Altersklassen / Kategorien", h:`<p>Das Feld <b>Kat.</b> ist die Altersklasse (z. B. U12, Herren). In den Ergebnissen oben die <b>Klassen-Auswahl</b> nutzen – dann wird <b>innerhalb der Klasse</b> gewertet (1, 2, 3 …). Der Druck listet bei „Alle Klassen" jede Klasse als eigenen Abschnitt; die CSV hat eine Spalte <b>Klassenrang</b>. In der Live-Ansicht gibt es Klassen-Tabs.</p>`},
  {t:"Zwei Läufe & Gesamtwertung", h:`<p>In den Einstellungen ⚙ Anzahl Läufe wählen. Oben zwischen <b>Lauf 1/2</b> umschalten. Ergebnis-Ansicht <b>Gesamt</b> = Summe beider Läufe (nur Läufer mit beiden Läufen).</p>`},
  {t:"Zwischenzeit", h:`<p>Optionaler Messpunkt (Einstellungen). Zeigt auf Strecke und Anzeigetafel den Vergleich zur Bestzeit (+/−). Taste <span class="kbd">M</span> oder Knopf ⏲ ZW.</p>`},
@@ -1294,14 +1531,17 @@ const HELP=[
  {t:"Sponsoren auf der Anzeigetafel", h:`<p>Knopf <b>★ Sponsoren</b> oben: Sponsor-Namen und/oder <b>Logos</b> hinzufügen (Logo wird automatisch verkleinert). Auf der <b>Anzeigetafel</b> (Beamer/TV) laufen sie automatisch durch, solange <b>niemand auf der Strecke</b> ist – ideal vor dem Rennen und in Pausen. Sobald gestartet wird, blendet das Reel aus und die Zeit erscheint. Sekunden pro Sponsor einstellbar; „Auf Anzeigetafel zeigen" für eine Sofort-Vorschau.</p>`},
  {t:"LED-Anzeigetafel ansteuern (rote Ziel-Tafel)", h:`<p>Für eine <b>physische LED-Tafel</b> am Ziel: Einstellungen ⚙ → <b>LED-Anzeigetafel (serieller Ausgang)</b> → <b>Tafel verbinden</b> (zweiter serieller Anschluss / USB-Adapter, getrennt von der Lichtschranke). <b>Baudrate</b> wie im Tafel-Handbuch einstellen.</p>
    <p>Mit der <b>Vorlage</b>/dem <b>Format</b> bestimmst du die Zeichenkette, die laufend an die Tafel geht – Platzhalter <code>{time}</code>, <code>{mm}</code>, <code>{ss}</code>, <code>{cc}</code>, <code>{bib}</code> und Steuerzeichen <code>\\r</code> <code>\\n</code>. Das Feld <b>„Was rausgeht"</b> zeigt dir live die gesendete Zeile; mit <b>Test senden</b> prüfst du die Tafel. Beim Ziel friert die Endzeit kurz ein. Passt das Format nicht zur Tafel, einfach anpassen, bis die richtigen Ziffern erscheinen.</p>`},
- {t:"Start-Ansicht (Tablet am Start)", h:`<p>Adresse <code>…/?room=DEINBENUTZER#start</code> – reine Anzeige: wer ist bereit, wer ist auf der Strecke. „Vollbild" für die Tablet-Ansicht. Nur zum Schauen; nichts bedienen.</p>`},
+ {t:"Start-Ansicht (Tablet am Start)", h:`<p>Adresse <code>…/?room=DEINBENUTZER#start</code> – zeigt: wer ist <b>bereit</b>, wer als <b>Nächstes</b>, wer <b>auf der Strecke</b>, und <b>disqualifizierte Läufer in Rot</b>. „Vollbild" für die Tablet-Ansicht. Zum aktiven Mitmelden „Als Startstation" (siehe Bereit-Meldung).</p>`},
  {t:"LiveTiming & QR-Code (Start / Zuschauer)", h:`<p>Knopf <b>🔗 LiveTiming</b> zeigt zwei <b>QR-Codes</b>: oben für die <b>Start-Ansicht</b> (am Start mit Tablet/Handy scannen → öffnet sofort bereit/Nächste/auf der Strecke, kein Tippen), unten für die <b>Live-Ergebnisse</b> der Zuschauer. Beide Links lassen sich auch kopieren. Voraussetzung: am Ziel-PC angemeldet und „Master senden" aktiv. Die QR werden in der App selbst erzeugt (kein fremder Dienst).</p>`},
  {t:"Konto & Anmeldung (keine PIN)", h:`<p>Statt PIN gibt es <b>Benutzerkonten</b>. Einstellungen ⚙ → <b>Vernetzung &amp; Konto</b> → Benutzer + Passwort → <b>Registrieren</b> (erstmalig) bzw. <b>Anmelden</b>. Ein Konto = ein Rennen. Wer mit dem Konto angemeldet ist, darf senden; Zuschauer brauchen kein Konto.</p>`},
  {t:"Master senden (Ziel-PC)", h:`<p>Am Ziel-PC nach dem Anmelden <b>„Diesen PC als Master senden"</b> aktivieren. Dieser PC hat die Ziel-Lichtschranke und überträgt das Rennen live an alle Anzeigen.</p>`},
- {t:"Startstation (Tablet sendet Start)", h:`<p>Falls der Start vom Tablet ausgelöst werden soll: <code>…/#start</code> öffnen → <b>„Als Startstation"</b> → mit demselben Konto anmelden → großer <b>START</b>-Knopf (oder Leertaste).</p>`},
+ {t:"Startstation & Bereit-Meldung (Tablet am Start)", h:`<p><code>…/#start</code> öffnen → <b>„Als Startstation"</b> → mit <b>demselben Konto</b> wie am Ziel anmelden. Dann erscheint der Knopf <b>„Bereit für Lauf X melden"</b>: er signalisiert dem Ziel-PC, dass der Start bereit ist (Banner + Ton am Ziel). Pro Lauf einmal – bei Lauf 2 kommt er wieder. <i>(Der Start selbst kommt über die Start-Lichtschranke bzw. den Ziel-PC, nicht mehr per Knopf am Tablet.)</i></p>`},
  {t:"Lokal im WLAN (Wochenende)", h:`<p>PC und Tablet im selben WLAN: am PC <code>npm install</code>, dann <code>npm start</code>; im Chrome <code>http://localhost:3000</code> öffnen. Tablet über die PC-IP: <code>http://192.168.x.x:3000/?room=BENUTZER#results</code>. PC-IP via <code>ipconfig</code>. <b>Firewall-Abfrage von Node auf „Zulassen"</b>, sonst erreicht das Tablet den PC nicht.</p>`},
- {t:"Cloud / Internet (getrennt, Mobilfunk)", h:`<p>Wenn PC und Tablet nicht im selben Netz sind: Server zu einem Hoster (z. B. Render). Build <code>npm install</code>, Start <code>node server.js</code>, Umgebungsvariable <b>AUTH_SECRET</b> setzen (sonst werden Logins beim Neustart ungültig). Danach öffnen alle Geräte die Cloud-Adresse über ihr eigenes Internet.</p>`},
- {t:"Genauigkeit & Uhren-Sync", h:`<p>Hardware-Zeitstempel werden bevorzugt (mikrocontroller-genau). Bei getrennten Geräten synchronisiert die App die Uhren über den Server – realistisch einige Hundertstel bis Zehntel. Offizielle 1/100 brauchen GPS-synchronisierte Zeitmess-Boxen.</p>`},
+ {t:"Cloud / Internet (getrennt, Mobilfunk)", h:`<p>Wenn PC und Tablet nicht im selben Netz sind: Server zu einem Hoster (z. B. Render). Build <code>npm install</code>, Start <code>node server.js</code>. <b>AUTH_SECRET</b> setzen (sonst werden Logins beim Neustart ungültig); für dauerhafte Konten/Ergebnisse eine <b>Persistent Disk</b> mounten und <b>DATA_DIR</b> darauf zeigen lassen. Optional <b>ACCESS_CODE</b> setzen, um die ganze Seite mit einem Passwort zu sperren. Danach öffnen alle Geräte die Cloud-Adresse über ihr eigenes Internet.</p>`},
+ {t:"Wetter automatisch (online)", h:`<p>Einstellungen ⚙ → <b>Wetter automatisch (online)</b>: Rennort <b>suchen</b> oder <b>📍 GPS</b> übernehmen; die <b>Höhe</b> korrigiert die Temperatur auf die echte Pistenhöhe. Oben im Kopf erscheint ein Live-Wetter-Chip mit Ortsname, und die Felder <b>Wetter</b> und <b>Temperatur Start</b> im Protokoll füllen sich automatisch. Aktualisiert alle 10 Min. Quelle: Open-Meteo (kostenlos), offline bleibt der letzte Stand.</p>`},
+ {t:"Startbereit-Meldung & Start-Sperre", h:`<p>Die Startstation meldet mit <b>„Bereit für Lauf X melden"</b>, dass der Start bereit ist – am Ziel-PC erscheint ein Banner mit Ton. Optional in Einstellungen ⚙ → <b>„Start erst nach Bereit-Meldung der Startstation"</b>: dann lässt der Ziel-PC einen Start <b>erst zu</b>, wenn die Station für den aktuellen Lauf „bereit" gemeldet hat (Schutz vor zu frühem Start). Der START-Knopf ist bis dahin gesperrt. Pro Lauf neu nötig.</p>`},
+ {t:"Angemeldet bleiben / Passwort gemerkt", h:`<p>Nach dem Anmelden bleibst du lange angemeldet, und Benutzer + Passwort werden auf dem Gerät gemerkt und im Login-Formular vorausgefüllt. Im angemeldeten Zustand (Einstellungen ⚙ → Vernetzung) kannst du die <b>gespeicherten Zugangsdaten anzeigen</b> – falls du das Passwort vergisst – oder <b>löschen</b> (z. B. auf einem geteilten Gerät).</p>`},
+ {t:"Genauigkeit & Uhren-Sync", h:`<p>Zeiten werden <b>abgeschnitten</b> (nie aufgerundet) – Sport-Zeitnahme-Konvention. Hardware-Zeitstempel werden bevorzugt (mikrocontroller-genau); auf einem Gerät zählt die präzise Monotonzeit. Bei getrennten Geräten synchronisiert die App die Uhren über den Server – realistisch einige Hundertstel bis Zehntel. Offizielle 1/100 brauchen GPS-synchronisierte Zeitmess-Boxen.</p>`},
  {t:"Daten sichern / laden / Reset", h:`<p>Im Protokoll-Bereich: <b>Sichern</b> (JSON-Datei), <b>Laden</b>, <b>Reset</b>. Es wird zusätzlich automatisch im Browser zwischengespeichert (Absturz-/Reload-sicher).</p>`},
  {t:"Sicherheit & Datenschutz", h:`<p>Passwörter werden mit scrypt gehasht, Sitzungen über signierte Tokens. Für Produktivbetrieb HTTPS erzwingen und starkes AUTH_SECRET setzen. Daten bleiben lokal/auf deinem Server.</p>`},
  {t:"Wichtiger Hinweis (Haftung)", h:`<div class="disc"><b>Wichtig:</b> Zeitnahme-Hilfe für Vereins-, Trainings- und Hobbyrennen. Nicht FIS-homologiert, ohne Gewähr auf Richtigkeit. Für gewertete Rennen gelten die Verbandsvorschriften (zertifizierte Hardware, redundante Anlage, Handzeit-Backup).</div>`}
@@ -1314,6 +1554,23 @@ function renderHelp(q){ q=(q||'').trim().toLowerCase();
 }
 function openAbout(){ $('aboutVer').textContent=VERSION; $('helpSearch').value=''; renderHelp(''); $('aboutModal').classList.add('open'); $('aboutOverlay').classList.add('show'); setTimeout(()=>{ try{ $('helpSearch').focus(); }catch(e){} },60); }
 function closeAbout(){ $('aboutModal').classList.remove('open'); $('aboutOverlay').classList.remove('show'); }
+function openLegal(){ $('legalModal').classList.add('open'); $('legalOverlay').classList.add('show'); }
+function closeLegal(){ $('legalModal').classList.remove('open'); $('legalOverlay').classList.remove('show'); }
+function openContact(){ $('ctStatus').textContent=''; if(NET.user && !$('ctName').value) $('ctName').value=NET.user;
+  $('contactModal').classList.add('open'); $('contactOverlay').classList.add('show'); setTimeout(()=>{ try{$('ctMsg').focus();}catch(e){} },60); }
+function closeContact(){ $('contactModal').classList.remove('open'); $('contactOverlay').classList.remove('show'); }
+async function sendContact(){
+  const name=$('ctName').value.trim(), email=$('ctEmail').value.trim(), message=$('ctMsg').value.trim();
+  if(message.length<2){ $('ctStatus').style.color='var(--amber)'; $('ctStatus').textContent='Bitte eine Nachricht eingeben.'; return; }
+  $('ctStatus').style.color='var(--dim)'; $('ctStatus').textContent='Senden…'; $('ctSend').disabled=true;
+  try{
+    const r=await fetch('/api/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,email,message,account:NET.user||''})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok && d.ok){ $('ctStatus').style.color='var(--green)'; $('ctStatus').textContent='Gesendet – danke! Wir melden uns.'; $('ctMsg').value=''; setTimeout(closeContact,1400); }
+    else { $('ctStatus').style.color='var(--amber)'; $('ctStatus').textContent=(d.msg||'Konnte nicht senden – bitte später erneut.'); }
+  }catch(e){ $('ctStatus').style.color='var(--amber)'; $('ctStatus').textContent='Keine Verbindung zum Server.'; }
+  $('ctSend').disabled=false;
+}
 function checkUpdate(){ if(location.protocol==='file:') return;
   fetch('/api/version',{cache:'no-store'}).then(r=>r.json()).then(d=>{
     if(d && d.version && d.version!==VERSION){ $('upVer').textContent=d.version; $('updateBar').style.display='flex'; }
@@ -1324,11 +1581,17 @@ function applySettingsToUI(){ $('setRuns').value=S.numRuns; $('setBaud').value=S
   const m=S.meta; $('mOrg').value=m.organizer; $('mLoc').value=m.location; $('mDate').value=m.date; $('mDisc').value=m.discipline;
   $('mRef').value=m.referee; $('mSetter').value=m.setter; $('mGates').value=m.gates; $('mWeather').value=m.weather; $('mSnow').value=m.snow;
   $('mTempS').value=m.tempS; $('mTempF').value=m.tempF; $('mLic').value=S.licensee;
+  if(!S.settings.wx) S.settings.wx={auto:true,name:'',lat:null,lon:null,elevation:null};
+  const wx=S.settings.wx;
+  if($('swWxAuto')) $('swWxAuto').classList.toggle('on',wx.auto!==false);
+  if($('wxLat')){ $('wxLat').value=wx.lat??''; $('wxLon').value=wx.lon??''; $('wxEle').value=wx.elevation??''; }
+  if(typeof wxSetPlaceLabel==='function') wxSetPlaceLabel();
   $('setStartKeys').value=S.settings.startKeys.join(','); $('setInterKeys').value=S.settings.interKeys.join(',');
   $('setFinishKeys').value=S.settings.finishKeys.join(','); $('setLockStart').value=S.settings.lockStart;
   $('setLockInter').value=S.settings.lockInter; $('setLockFinish').value=S.settings.lockFinish; $('setDecimals').value=S.settings.decimals;
   $('swInter').classList.toggle('on',S.settings.hasInter); $('swHwTs').classList.toggle('on',S.settings.useHwTs);
   $('swAutoNext').classList.toggle('on',S.settings.autoNext); $('swBeep').classList.toggle('on',S.settings.beep);
+  if($('swRequireReady')) $('swRequireReady').classList.toggle('on',!!S.settings.requireReady);
   if($('swAutoSerial')) $('swAutoSerial').classList.toggle('on',S.settings.autoSerial!==false);
   if(!S.settings.disp) S.settings.disp={baud:9600,format:"{ss}.{cc}\\r",idle:"zeros",holdMs:5000};
   const dp=S.settings.disp; if($('dispBaud')){ $('dispBaud').value=dp.baud||9600; $('dispFormat').value=dp.format||''; $('dispIdle').value=dp.idle||'zeros';
@@ -1350,14 +1613,114 @@ function readSettingsFromUI(){
   const m=S.meta; m.organizer=$('mOrg').value; m.location=$('mLoc').value; m.date=$('mDate').value; m.discipline=$('mDisc').value;
   m.referee=$('mRef').value; m.setter=$('mSetter').value; m.gates=$('mGates').value; m.weather=$('mWeather').value; m.snow=$('mSnow').value;
   m.tempS=$('mTempS').value; m.tempF=$('mTempF').value; S.licensee=$('mLic').value;
+  if(!S.settings.wx) S.settings.wx={auto:true,name:'',lat:null,lon:null,elevation:null};
+  { const wx=S.settings.wx, la=parseFloat($('wxLat').value), lo=parseFloat($('wxLon').value), el=$('wxEle').value;
+    const moved=(wx.lat!==(isNaN(la)?null:la))||(wx.lon!==(isNaN(lo)?null:lo))||(String(wx.elevation??'')!==String(el||''));
+    wx.lat=isNaN(la)?null:la; wx.lon=isNaN(lo)?null:lo; wx.elevation=(el==='')?null:(parseInt(el)||0);
+    if(wx.lat!=null && /^[-\d.]/.test($('wxLat').value)) wx.name=wx.name||'';
+    if(moved && typeof wxFetch==='function'){ wxSetPlaceLabel(); wxFetch(); } }
   if(!S.settings.disp) S.settings.disp={};
   const dp=S.settings.disp; if($('dispBaud')){ dp.baud=parseInt($('dispBaud').value)||9600; dp.format=$('dispFormat').value; dp.idle=$('dispIdle').value; if(dp.holdMs==null) dp.holdMs=5000; }
   persist(); renderAll();
 }
 
+/* ====================== Wetter (automatisch, online) ====================== */
+const WX={ live:false, _t:0, _searchT:0, last:null };
+function wmoMap(c){
+  const m={0:['klar','☀️'],1:['heiter','🌤️'],2:['wolkig','⛅'],3:['bedeckt','☁️'],
+    45:['Nebel','🌫️'],48:['Reifnebel','🌫️'],51:['Niesel','🌦️'],53:['Niesel','🌦️'],55:['Niesel','🌦️'],
+    56:['Eisniesel','🌧️'],57:['Eisniesel','🌧️'],61:['Regen','🌧️'],63:['Regen','🌧️'],65:['Starkregen','🌧️'],
+    66:['Eisregen','🌧️'],67:['Eisregen','🌧️'],71:['Schneefall','🌨️'],73:['Schneefall','❄️'],75:['Schneesturm','❄️'],
+    77:['Schneegriesel','🌨️'],80:['Schauer','🌦️'],81:['Schauer','🌧️'],82:['Starkschauer','🌧️'],
+    85:['Schneeschauer','🌨️'],86:['Schneeschauer','❄️'],95:['Gewitter','⛈️'],96:['Gewitter','⛈️'],99:['Gewitter','⛈️']};
+  return m[c]||['—','⛅'];
+}
+function wxChipUI(){
+  const chip=$('wxChip'); if(!chip) return;
+  const w=S.settings.wx||{};
+  const show = w.auto && w.lat!=null && w.lon!=null;
+  chip.style.display = show ? 'flex' : 'none';
+  chip.classList.toggle('off', !WX.live);
+  const nm = w.name ? w.name.split(',')[0].trim() : '';
+  const pn = $('wxPlaceName');
+  if(pn){ pn.textContent = nm ? '📍 '+nm : ''; pn.style.display = nm ? '' : 'none'; }
+  if(WX.last){ $('wxIcon').textContent=WX.last.icon; $('wxTemp').textContent=WX.last.temp+' °C'; $('wxDesc').textContent=WX.last.desc; }
+  else { $('wxIcon').textContent='⛅'; $('wxTemp').textContent='…'; $('wxDesc').textContent=''; }
+  $('wxLiveDot').title = WX.live ? ('Live · aktualisiert '+(WX.last?WX.last.updated:'')) : 'offline – letzter Stand';
+}
+async function wxFetch(){
+  const w=S.settings.wx||{};
+  if(!w.auto || w.lat==null || w.lon==null){ WX.live=false; wxChipUI(); return; }
+  try{
+    let u=`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}`
+      +`&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,snowfall&timezone=auto`;
+    if(w.elevation!=null && w.elevation!=='') u+=`&elevation=${w.elevation}`;
+    const r=await fetch(u); if(!r.ok) throw new Error(r.status);
+    const d=await r.json(), c=d.current, [desc,icon]=wmoMap(c.weather_code);
+    WX.last={ temp:Math.round(c.temperature_2m), feels:Math.round(c.apparent_temperature),
+      wind:Math.round(c.wind_speed_10m), desc, icon, code:c.weather_code,
+      updated:new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) };
+    WX.live=true;
+    wxAutoFillMeta();
+  }catch(e){ WX.live=false; }   /* offline am Berg → letzter Stand bleibt */
+  wxChipUI();
+}
+/* Befüllt das offizielle Protokoll (Ergebnisliste/Urkunde) automatisch */
+function wxAutoFillMeta(){
+  if(!S.settings.wx.auto || !WX.last) return;
+  S.meta.weather = WX.last.desc.charAt(0).toUpperCase()+WX.last.desc.slice(1);
+  S.meta.tempS = String(WX.last.temp);
+  if($('mWeather')) $('mWeather').value=S.meta.weather;
+  if($('mTempS')) $('mTempS').value=S.meta.tempS;
+  persist();
+}
+function wxSetPlaceLabel(){
+  const w=S.settings.wx||{};
+  const el=$('wxPlace'); if(!el) return;
+  if(w.lat==null){ el.textContent='kein Ort gewählt'; return; }
+  el.textContent=(w.name?w.name+' · ':'')+(+w.lat).toFixed(3)+'°, '+(+w.lon).toFixed(3)+'°'+(w.elevation!=null?' · '+w.elevation+' m':'');
+}
+async function wxSearch(q){
+  const box=$('wxResults'); if(!box) return;
+  if(!q || q.trim().length<2){ box.classList.remove('show'); box.innerHTML=''; return; }
+  try{
+    const u=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=6&language=de&format=json`;
+    const d=await (await fetch(u)).json();
+    const res=(d.results||[]);
+    if(!res.length){ box.classList.remove('show'); box.innerHTML=''; return; }
+    box.innerHTML=res.map(r=>{
+      const label=[r.name,r.admin1,r.country_code].filter(Boolean).join(', ');
+      return `<button type="button" data-lat="${r.latitude}" data-lon="${r.longitude}" data-ele="${Math.round(r.elevation)}" data-name="${esc(label)}">
+        <span>${esc(label)}</span><span class="ele">${Math.round(r.elevation)} m</span></button>`;
+    }).join('');
+    box.classList.add('show');
+  }catch(e){ box.classList.remove('show'); }
+}
+function wxApply(lat,lon,ele,name){
+  S.settings.wx.lat=parseFloat(lat); S.settings.wx.lon=parseFloat(lon);
+  S.settings.wx.elevation=(ele==null||ele==='')?null:parseInt(ele); S.settings.wx.name=name||'';
+  $('wxLat').value=S.settings.wx.lat; $('wxLon').value=S.settings.wx.lon;
+  $('wxEle').value=S.settings.wx.elevation??'';
+  wxSetPlaceLabel(); persist(); wxFetch();
+}
+function wxUseGPS(){
+  if(!navigator.geolocation){ toast('Gerät unterstützt kein GPS'); return; }
+  $('wxPlace').textContent='Ortung läuft…';
+  navigator.geolocation.getCurrentPosition(p=>{
+    const{latitude,longitude,altitude,accuracy}=p.coords;
+    wxApply(latitude.toFixed(4),longitude.toFixed(4), altitude!=null?Math.round(altitude):S.settings.wx.elevation, 'Eigener Standort (GPS)');
+    toast('Standort übernommen · ±'+Math.round(accuracy)+' m'+(altitude==null?' – Höhe bitte prüfen':''));
+  }, err=>{ $('wxPlace').textContent='Ortung fehlgeschlagen'; toast('Ortung fehlgeschlagen: '+err.message); },
+  {enableHighAccuracy:true,timeout:10000});
+}
+function startWeather(){
+  wxChipUI(); wxFetch();
+  clearInterval(WX._t); WX._t=setInterval(wxFetch, 10*60*1000);  /* alle 10 Min */
+}
+
 /* ====================== Netzwerk (WLAN / Internet) ====================== */
 const NET={ ws:null, role:'viewer', master:false, station:false, token:'', user:'', enabled:false, connected:false, _t:0,
-  offset:0, rtt:Infinity, synced:false, _sync:0 };
+  offset:0, rtt:Infinity, synced:false, _sync:0, license:{licensed:false, exp:null} };
 const NETKEY="alpin_net_v1";
 let REMOTE=null, VIEWKIND=null, rvClass='';
 function serverNow(){ return Date.now()+NET.offset; }
@@ -1366,8 +1729,13 @@ function netSyncHandle(d){ const t2=Date.now(), rtt=t2-d.t1; if(rtt<NET.rtt){ NE
 function netStartSync(){ clearInterval(NET._sync); NET.rtt=Infinity; let n=0;
   const burst=setInterval(()=>{ netSyncOnce(); if(++n>=5) clearInterval(burst); },300);
   NET._sync=setInterval(netSyncOnce,5000); }
-function loadNet(){ try{ if(window.localStorage){ const j=localStorage.getItem(NETKEY); if(j){ const d=JSON.parse(j); NET.master=!!d.master; NET.station=!!d.station; NET.token=d.token||''; NET.user=d.user||''; } } }catch(e){} }
-function saveNet(){ try{ if(window.localStorage) localStorage.setItem(NETKEY,JSON.stringify({master:NET.master,station:NET.station,token:NET.token,user:NET.user})); }catch(e){} }
+function loadNet(){ try{ if(window.localStorage){ const j=localStorage.getItem(NETKEY); if(j){ const d=JSON.parse(j); NET.master=!!d.master; NET.station=!!d.station; NET.token=d.token||''; NET.user=d.user||''; if(d.license) NET.license=d.license; } } }catch(e){} }
+function saveNet(){ try{ if(window.localStorage) localStorage.setItem(NETKEY,JSON.stringify({master:NET.master,station:NET.station,token:NET.token,user:NET.user,license:NET.license})); }catch(e){} }
+/* Zugangsdaten auf diesem Geraet merken (angemeldet bleiben + bei vergessenem Passwort nachschauen) */
+const CREDKEY="alpin_cred_v1";
+function saveCred(u,p){ try{ localStorage.setItem(CREDKEY,JSON.stringify({u:u,p:p})); }catch(e){} }
+function loadCred(){ try{ const j=localStorage.getItem(CREDKEY); return j?JSON.parse(j):null; }catch(e){ return null; } }
+function clearCred(){ try{ localStorage.removeItem(CREDKEY); }catch(e){} }
 function lsState(){ try{ if(window.localStorage){ const j=localStorage.getItem(LS_KEY); if(j) return JSON.parse(j); } }catch(e){} return null; }
 function viewState(){ return REMOTE || lsState(); }
 function viewerRoom(){ try{ const p=new URLSearchParams(location.search); return (p.get('room')||NET.user||'').toLowerCase(); }catch(e){ return (NET.user||'').toLowerCase(); } }
@@ -1383,8 +1751,11 @@ function netConnect(){
   ws.onmessage=ev=>{ let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
     if(d.type==='time'){ netSyncHandle(d); return; }
     if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
-    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); return; }
-    if(d.type==='state' && NET.role==='viewer'){ REMOTE=d.data; onRemoteState(); } };
+    if(d.type==='license'){ NET.license={licensed:!!d.licensed, exp:d.exp||null}; saveNet();
+      if(NET.role==='master' && !NET.license.licensed){ toast("Keine gültige Lizenz – Live-Senden gesperrt."); }
+      updateNetUI(); return; }
+    if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(d.run); return; }
+    if(d.type==='state' && (NET.role==='viewer' || NET.role==='station')){ REMOTE=d.data; onRemoteState(); } };
   ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
   ws.onerror=()=>{};
 }
@@ -1397,18 +1768,27 @@ async function doLogin(user,pw,register){
   if(location.protocol==='file:'){ toast("Konten brauchen den Server – nicht die lokale Datei."); return; }
   if(!user||!pw){ toast("Benutzer und Passwort eingeben"); return; }
   try{ const d=await authRequest(register?'/api/register':'/api/login', user, pw);
-    NET.token=d.token; NET.user=d.user; saveNet(); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
+    NET.token=d.token; NET.user=d.user; if(d.license) NET.license=d.license; saveNet(); saveCred(user,pw); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
     updateNetUI(); if(NET.master) netStartMaster(); }
   catch(e){ toast(e.message||'Anmeldung fehlgeschlagen'); }
 }
-function doLogout(){ NET.token=''; NET.user=''; NET.master=false; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
+function doLogout(){ NET.token=''; NET.user=''; NET.master=false; NET.license={licensed:false,exp:null}; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
+/* Lizenzstatus frisch vom Server holen (greift ohne Neu-Login, z.B. nach Freischaltung) */
+async function refreshLicense(){
+  if(location.protocol==='file:' || !NET.token) return;
+  try{ const r=await fetch('/api/license/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:NET.token})});
+    if(!r.ok) return; const d=await r.json(); if(d.license){ NET.license=d.license; saveNet(); updateNetUI(); } }catch(e){}
+}
 /* Master: Start-Ereignis von der Startstation anwenden (Zeitstempel in Serverzeit) */
 function applyRemoteStart(serverT){
+  if(S.settings.requireReady && _startReadyRun!==S.activeRun){
+    logEvent(`Start gesperrt – Startstation hat für Lauf ${S.activeRun+1} noch nicht „bereit" gemeldet`,'ev-warn'); return;
+  }
   const r=S.racers.find(x=>x.id===S.readyId);
   if(!r){ logEvent("Start (Station) ohne bereiten Läufer – verworfen","ev-warn"); return; }
   if(typeof serverT!=='number') serverT=serverNow();
   const elapsed=Math.max(0, serverNow()-serverT);
-  const c=cur(r); c.state='running'; c.startServerT=serverT;
+  const c=cur(r); c.state='running'; c.startServerT=serverT; c.startLocal=false;
   c.startSW=performance.now()-elapsed; c.startWall=Date.now()-elapsed; c.startHW=null;
   S.onCourse.push(r.id); S.history.push({type:'start',id:r.id,run:S.activeRun});
   logEvent(`START (Startstation) · Nr ${r.bib} ${r.name}`,'ev-start'); beep(990);
@@ -1423,6 +1803,26 @@ function sendStartEvent(){
   try{ NET.ws.send(JSON.stringify({type:'event',kind:'start',serverT:serverNow()})); }catch(e){ return; }
   beep(990); const b=$('svStartBtn'); if(b){ b.style.filter='brightness(1.6)'; setTimeout(()=>b.style.filter='',150); }
 }
+/* Startstation: "Startbereit" ans Ziel melden (Koordination, kein Zeitstempel) */
+function sendReadyEvent(){
+  if(!NET.connected || !NET.ws || NET.ws.readyState!==1){ toast("Keine Verbindung zum Ziel"); return; }
+  const ar=(_sv.data&&_sv.data.activeRun)||0;
+  try{ NET.ws.send(JSON.stringify({type:'event',kind:'ready',run:ar,serverT:serverNow()})); }catch(e){ return; }
+  beep(660); toast("Bereit für Lauf "+(ar+1)+" ans Ziel gemeldet");
+  _readySentRun=ar; updateReadyBtn();   /* Knopf für diesen Lauf ausblenden */
+}
+/* Master (Ziel): Startstation meldet "bereit" -> deutlich anzeigen */
+function onStartReady(run){
+  _startReadyRun=(typeof run==='number')?run:S.activeRun;   /* Start fuer diesen Lauf freigeben */
+  updateStartLock();
+  const t=new Date().toLocaleTimeString('de-DE');
+  const label=(typeof run==='number')?('BEREIT für Lauf '+(run+1)):'BEREIT für Rennstart';
+  const bar=$('readyBar'); if(bar){ const b=bar.querySelector('b'); if(b) b.textContent=label;
+    const ti=$('rbTime'); if(ti) ti.textContent='· '+t; bar.classList.add('show');
+    clearTimeout(onStartReady._t); onStartReady._t=setTimeout(()=>bar.classList.remove('show'),30000); }
+  logEvent("Startstation meldet: "+label,"ev-start");
+  beep(660); setTimeout(()=>beep(880),140);
+}
 function netStartMaster(){ if(location.protocol==='file:'){ toast("Master-Senden braucht den Server (http://…)."); NET.master=false; updateNetUI(); return; }
   if(!NET.token){ toast("Bitte zuerst anmelden."); NET.master=false; updateNetUI(); return; }
   NET.role='master'; NET.enabled=true; netConnect(); }
@@ -1430,20 +1830,38 @@ function netStop(){ NET.enabled=false; if(NET.ws){ try{NET.ws.close();}catch(e){
 function wireAuthButtons(){ const lg=$('btnLogin'), rg=$('btnRegister'), lo=$('btnLogout');
   if(lg) lg.onclick=()=>doLogin((($('inUser')||{}).value)||'', (($('inPass')||{}).value)||'', false);
   if(rg) rg.onclick=()=>doLogin((($('inUser')||{}).value)||'', (($('inPass')||{}).value)||'', true);
-  if(lo) lo.onclick=doLogout; }
+  if(lo) lo.onclick=doLogout;
+  const sp=$('inShowPw'); if(sp) sp.onchange=()=>{ const p=$('inPass'); if(p) p.type=sp.checked?'text':'password'; };
+  const sc=$('btnShowCred'); if(sc) sc.onclick=()=>{ const cr=loadCred()||{}; const el=$('credPw'); if(el) el.textContent=cr.p?cr.p:'(nichts gespeichert)'; };
+  const cc=$('btnClearCred'); if(cc) cc.onclick=()=>{ clearCred(); const el=$('credPw'); if(el) el.textContent='(gelöscht)'; toast('Gespeicherte Zugangsdaten gelöscht'); }; }
 function updateNetUI(){
   const auth=$('netAuth'), st=$('netStatus'), lk=$('netLinks'), sw=$('swMaster'); if(!st) return;
   const li=!!NET.user;
   if(auth && updateNetUI._li!==li){ updateNetUI._li=li;
+    const cr=loadCred()||{};
+    const inSt='flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px';
     auth.innerHTML = li
       ? 'Angemeldet als <b style="color:var(--green)">'+esc(NET.user)+'</b> &nbsp;<button class="btn sm ghost" id="btnLogout">Abmelden</button>'
-      : '<div style="display:flex;gap:6px;flex-wrap:wrap"><input id="inUser" placeholder="Benutzer" autocomplete="username" style="flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px"><input id="inPass" type="password" placeholder="Passwort" autocomplete="current-password" style="flex:1;min-width:90px;background:#0a0f15;border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px;font-family:var(--mono);font-size:13px"></div><div style="display:flex;gap:6px;margin-top:6px"><button class="btn sm primary" id="btnLogin">Anmelden</button><button class="btn sm" id="btnRegister">Registrieren</button></div>';
+        +'<div class="hint" style="margin-top:8px">Gespeichert auf diesem Gerät: <b>'+esc(cr.u||NET.user)+'</b> · <span id="credPw">••••••</span> '
+        +'<button class="btn sm ghost" id="btnShowCred">anzeigen</button> <button class="btn sm ghost" id="btnClearCred">löschen</button></div>'
+      : '<div style="display:flex;gap:6px;flex-wrap:wrap"><input id="inUser" placeholder="Benutzer" autocomplete="username" value="'+esc(cr.u||'')+'" style="'+inSt+'"><input id="inPass" type="password" placeholder="Passwort" autocomplete="current-password" value="'+esc(cr.p||'')+'" style="'+inSt+'"></div>'
+        +'<div style="display:flex;gap:6px;margin-top:6px;align-items:center"><button class="btn sm primary" id="btnLogin">Anmelden</button><button class="btn sm" id="btnRegister">Registrieren</button>'
+        +'<label style="font-size:11px;color:var(--dim);margin-left:auto;display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" id="inShowPw">Passwort zeigen</label></div>'
+        +'<div class="hint" style="margin-top:5px">Zugangsdaten werden auf diesem Gerät gemerkt – du bleibst angemeldet.</div>';
     wireAuthButtons();
   }
   if(location.protocol==='file:'){ st.innerHTML='Lokale Datei – Konten/Vernetzung brauchen den Server (http://…).'; }
   else if(!li){ st.innerHTML='Nicht angemeldet – Bedienung läuft lokal.'; }
-  else if(NET.master){ st.innerHTML = NET.connected?'<span style="color:var(--green)">● Master verbunden – sendet live.</span>':'<span style="color:var(--amber)">○ verbinde…</span>'; }
-  else st.innerHTML='Angemeldet. „Master senden" aktivieren zum Live-Übertragen.';
+  else {
+    const L=NET.license||{};
+    let base = NET.master ? (NET.connected?'<span style="color:var(--green)">● Master verbunden – sendet live.</span>':'<span style="color:var(--amber)">○ verbinde…</span>')
+                          : 'Angemeldet. „Master senden" aktivieren zum Live-Übertragen.';
+    let lic;
+    if(L.owner){ lic='<div style="margin-top:5px;color:var(--green)">🔑 Vollversion (Inhaber) – dauerhaft</div>'; }
+    else if(L.licensed){ const dt=L.exp?new Date(L.exp).toLocaleDateString('de-AT'):''; lic='<div style="margin-top:5px;color:var(--green)">🔑 Lizenz gültig'+(dt?' bis '+dt:'')+'</div>'; }
+    else lic='<div style="margin-top:5px;color:var(--amber)">🔒 Keine gültige Lizenz – Live-Senden gesperrt. Freischaltung: <b>nicowarscher@gmx.at</b></div>';
+    st.innerHTML = base + lic;
+  }
   if(lk){ if(location.protocol==='file:'||!li) lk.textContent='Nach Anmeldung erscheint hier der öffentliche Link.';
     else lk.innerHTML='Öffentlich teilbar: <code>'+esc(location.origin+location.pathname+'?room='+NET.user+'#results')+'</code>'; }
   if(sw) sw.classList.toggle('on',NET.master);
@@ -1498,7 +1916,16 @@ function openLiveShare(){
 }
 function closeLiveShare(){ $('liveModal').classList.remove('open'); $('liveOverlay').classList.remove('show'); }
 const _sv={data:null};
+let _readySentRun=null;   /* fuer welchen Lauf wurde "bereit" schon gemeldet */
 function svCur(r){ return r.runs[(_sv.data&&_sv.data.activeRun)||0]; }
+/* Bereit-Knopf: pro Lauf einmal; nach Melden weg, bei neuem Lauf wieder da */
+function updateReadyBtn(){
+  const b=$('svReadyBtn'); if(!b) return;
+  const ar=(_sv.data&&_sv.data.activeRun)||0;
+  const show = NET.station && _readySentRun!==ar;
+  b.style.display = show ? '' : 'none';
+  if(show){ b.classList.remove('sent'); b.textContent='✓ Bereit für Lauf '+(ar+1)+' melden'; }
+}
 function initStartView(){
   VIEWKIND='start'; loadNet();
   const wrap=document.querySelector('.wrap'); if(wrap) wrap.style.display='none';
@@ -1506,13 +1933,13 @@ function initStartView(){
   $('svClose').onclick=()=>window.close();
   $('svFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
   $('svStation').onclick=async ()=>{
-    if(!NET.token){ const u=prompt("Benutzername (dasselbe Konto wie am Ziel):"); if(!u) return; const p=prompt("Passwort:"); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
-    NET.station=true; NET.role='station'; saveNet(); $('svStartBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; netConnect(); toast("Startstation aktiv – START sendet jetzt."); };
-  $('svStartBtn').onclick=sendStartEvent;
-  if(NET.station && NET.token){ $('svStartBtn').style.display=''; $('svStation').textContent='Startstation aktiv'; }
+    if(!NET.token){ const c=loadCred()||{}; const u=prompt("Benutzername (dasselbe Konto wie am Ziel):", c.u||''); if(!u) return; const p=prompt("Passwort:", c.p||''); if(p===null) return; await doLogin(u,p,false); if(!NET.token) return; }
+    NET.station=true; NET.role='station'; saveNet(); $('svStation').textContent='Startstation aktiv'; netConnect(); updateReadyBtn(); toast("Startstation aktiv – Bereit-Knopf verfügbar."); };
+  $('svReadyBtn').onclick=sendReadyEvent;
+  if(NET.station && NET.token){ $('svStation').textContent='Startstation aktiv'; }
+  updateReadyBtn();
   NET.role=(NET.station && NET.token)?'station':'viewer'; NET.enabled=(location.protocol!=='file:'); if(NET.enabled) netConnect();
   window.addEventListener('storage',e=>{ if(e.key===LS_KEY) svRefresh(); });
-  document.addEventListener('keydown',e=>{ if(NET.station && e.code==='Space' && (e.target.tagName||'').toLowerCase()!=='input'){ e.preventDefault(); sendStartEvent(); } });
   setInterval(svRefresh,1000); svRefresh();
   setInterval(()=>{ $('svTod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
   (function loop(){ updateStartClocks(); requestAnimationFrame(loop); })();
@@ -1533,14 +1960,22 @@ function renderStartView(){
   const up=d.racers.filter(r=>svCur(r).state==='idle').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).slice(0,6);
   $('svNext').innerHTML=up.length?up.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span></div>`).join(''):'<div class="sv-empty">—</div>';
   const oc=d.racers.filter(r=>svCur(r).state==='running').sort((a,b)=>(svCur(a).startWall||0)-(svCur(b).startWall||0));
-  $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
+  $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}" data-st="${svCur(r).startServerT||''}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
   $('svCourseCount').textContent=oc.length;
+  const dsq=d.racers.filter(r=>svCur(r).state==='DSQ').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9));
+  $('svDsqBox').style.display = dsq.length ? '' : 'none';
+  $('svDsq').innerHTML = dsq.map(r=>`<div class="sv-li"><span class="bb" style="color:var(--red)">${esc(r.bib)}</span><span class="nn" style="color:var(--red)">${esc(r.name)}</span><span class="tt" style="color:var(--red)">DSQ</span></div>`).join('');
+  updateReadyBtn();
 }
 function updateStartClocks(){
-  const d=_sv.data; if(!d) return; const wNow=Date.now();
-  document.querySelectorAll('#svCourse [data-wall]').forEach(el=>{ const w=+el.getAttribute('data-wall'); el.textContent=w?fmt(wNow-w):'—'; });
-  let last=0; d.racers.forEach(r=>{ if(svCur(r).state==='running'){ const w=svCur(r).startWall||0; if(w>last) last=w; } });
-  $('svInterval').textContent=last?fmt(wNow-last):'—';
+  const d=_sv.data; if(!d) return; const wNow=Date.now(), sNow=serverNow();
+  /* synchronisierte verstrichene Zeit, nie negativ: bevorzugt Server-Zeitstempel,
+     sonst Geraete-Wanduhr; Uhren-Versatz zwischen Tablet und Ziel-PC wird so abgefangen */
+  const elapsed=(wall,st)=>{ let ms = (st!==''&&st!=null) ? (sNow-(+st)) : (wall?wNow-wall:null);
+    if(ms!=null && ms<0) ms=0; return ms; };
+  document.querySelectorAll('#svCourse [data-wall]').forEach(el=>{ const ms=elapsed(+el.getAttribute('data-wall'), el.getAttribute('data-st')); el.textContent=ms!=null?fmt(ms):'—'; });
+  let minEl=null; d.racers.forEach(r=>{ const c=svCur(r); if(c.state==='running'){ const ms=elapsed(c.startWall||0, c.startServerT!=null?c.startServerT:''); if(ms!=null && (minEl==null||ms<minEl)) minEl=ms; } });
+  $('svInterval').textContent = minEl!=null ? fmt(minEl) : '—';
 }
 
 /* ---- Read-only RESULTS view (öffentliche Live-Ergebnisse) ---- */
@@ -1594,6 +2029,7 @@ function init(){
   loadNet();
   loadSponsors();
   applySettingsToUI(); buildRunSel(); buildViewSel(); tryRestore(); renderAll(); requestAnimationFrame(tick);
+  startWeather();
 
   $('btnAdd').onclick=()=>{ addRacer($('inBib').value,$('inName').value,$('inCat').value); $('inBib').value='';$('inName').value='';$('inCat').value='';$('inBib').focus(); };
   $('inName').addEventListener('keydown',e=>{ if(e.key==='Enter') $('btnAdd').click(); });
@@ -1608,9 +2044,16 @@ function init(){
     else if(b.dataset.act==='dns'){ if(confirm("Als DNS (nicht gestartet) werten?")) setStatus(id,'DNS'); } });
   $('startBody').addEventListener('keydown',e=>{ const inp=e.target.closest&&e.target.closest('input[id^="edBib_"],input[id^="edName_"],input[id^="edCat_"]'); if(!inp) return;
     if(e.key==='Enter'){ e.preventDefault(); saveEdit(+inp.id.split('_')[1]); } else if(e.key==='Escape'){ e.preventDefault(); cancelEdit(); } });
-  $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf]'); if(!b) return; const id=+b.dataset.dnf;
-    const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF werten?`)) setStatus(id,'DNF'); });
-  $('resBody').addEventListener('click',e=>{ const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
+  $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf],button[data-dsq]'); if(!b) return;
+    if(b.dataset.dnf!=null){ const id=+b.dataset.dnf; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF (Aufgabe) werten?`)) setStatus(id,'DNF'); }
+    else { const id=+b.dataset.dsq; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} disqualifizieren (DSQ)?`)) setStatus(id,'DSQ'); } });
+  $('resBody').addEventListener('click',e=>{
+    const dq=e.target.closest('[data-dsq]');
+    if(dq){ const id=+dq.dataset.dsq, run=dq.dataset.run!=null?+dq.dataset.run:undefined; const r=S.racers.find(x=>x.id===id);
+      if(r&&confirm(`Nr ${r.bib} ${r.name} disqualifizieren (DSQ)?`)) setStatusRun(id,'DSQ',run); return; }
+    const ro=e.target.closest('[data-reopen]');
+    if(ro){ const id=+ro.dataset.reopen, run=ro.dataset.run!=null?+ro.dataset.run:undefined; reopenRun(id,run); return; }
+    const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
 
   $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
   $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
@@ -1629,16 +2072,21 @@ function init(){
   $('btnCopyStart').onclick=()=>{ if(location.protocol!=='file:' && NET.user) copyText(startShareUrl()); else toast("Noch kein Start-Link – erst anmelden."); };
   $('btnOpenStartPreview').onclick=openStartView;
   $('btnOpenStart2').onclick=openStartView; $('btnOpenResults2').onclick=openResultsView;
-  $('swMaster').onclick=()=>{ NET.master=!NET.master; saveNet(); if(NET.master) netStartMaster(); else netStop(); updateNetUI(); };
+  $('swMaster').onclick=()=>{
+    if(!NET.master && !(NET.license&&NET.license.licensed)){ toast("Lizenz erforderlich für Live-Senden."); refreshLicense(); updateNetUI(); return; }
+    NET.master=!NET.master; saveNet(); if(NET.master) netStartMaster(); else netStop(); updateNetUI(); };
   $('btnExport').onclick=exportCSV;
   $('classSel').onchange=()=>{ S.resultClass=$('classSel').value; renderResults(); persist(); };
   $('btnPrintRes').onclick=()=>printResultSheet(S.resultView);
   $('btnPrintStart').onclick=printStartSheet;
   $('btnAbout').onclick=openAbout; $('btnCloseAbout').onclick=closeAbout; $('aboutOverlay').onclick=closeAbout;
+  $('btnLegal').onclick=openLegal; $('legalClose').onclick=closeLegal; $('legalOverlay').onclick=closeLegal;
+  $('btnContact').onclick=openContact; $('contactClose').onclick=closeContact; $('contactOverlay').onclick=closeContact; $('ctSend').onclick=sendContact;
   $('helpSearch').addEventListener('input',e=>renderHelp(e.target.value));
   $('helpSearch').addEventListener('keydown',e=>{ if(e.key==='Escape') closeAbout(); });
   $('upReload').onclick=()=>location.reload();
   $('upLater').onclick=()=>{ $('updateBar').style.display='none'; };
+  $('rbOk').onclick=()=>$('readyBar').classList.remove('show');
   setTimeout(checkUpdate,3000); setInterval(checkUpdate,300000);
   $('btnImport').onclick=openImport;
   $('importClose').onclick=closeImport; $('importCancel').onclick=closeImport; $('importOverlay').onclick=closeImport;
@@ -1652,16 +2100,23 @@ function init(){
   $('btnReset').onclick=()=>{ if(confirm("Alles zurücksetzen?")){ S.racers=[];S.onCourse=[];S.readyId=null;S.nextId=1;S.history=[];S.activeRun=0;$('log').innerHTML='';buildRunSel();renderAll();persist(); } };
   $('raceName').onchange=()=>{ persist(); refreshBoard(); };
 
-  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); };
+  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); refreshLicense(); };
   const closeD=()=>{ $('drawer').classList.remove('open'); $('overlay').classList.remove('show'); readSettingsFromUI(); refreshBoard(); };
   $('btnSettings').onclick=openD; $('btnCloseSettings').onclick=closeD; $('overlay').onclick=closeD;
-  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','wxLat','wxLon','wxEle','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
+  $('swWxAuto').onclick=()=>{ S.settings.wx.auto=!S.settings.wx.auto; $('swWxAuto').classList.toggle('on'); persist(); if(S.settings.wx.auto) wxFetch(); else wxChipUI(); };
+  $('btnWxGps').onclick=wxUseGPS;
+  $('wxSearch').addEventListener('input',e=>{ clearTimeout(WX._searchT); const v=e.target.value; WX._searchT=setTimeout(()=>wxSearch(v),350); });
+  $('wxResults').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return;
+    wxApply(b.dataset.lat,b.dataset.lon,b.dataset.ele,b.dataset.name); $('wxResults').classList.remove('show'); $('wxSearch').value=''; });
+  $('wxChip').onclick=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); setTimeout(()=>{ try{$('wxSearch').focus();}catch(e){} },80); };
   $('btnDispConnect').onclick=dispConnect; $('btnDispTest').onclick=dispTest;
   $('dispPreset').onchange=()=>{ const v=$('dispPreset').value; if(v!=='__custom__'){ $('dispFormat').value=v; } readSettingsFromUI(); };
   $('dispFormat').addEventListener('input',()=>{ const el=$('dispLast'); if(el && DISP.active) el.textContent=dispVisible(dispRender()); });
   $('swInter').onclick=()=>{ S.settings.hasInter=!S.settings.hasInter; $('swInter').classList.toggle('on'); renderAll(); persist(); };
   $('swHwTs').onclick=()=>{ S.settings.useHwTs=!S.settings.useHwTs; $('swHwTs').classList.toggle('on'); persist(); };
   $('swAutoNext').onclick=()=>{ S.settings.autoNext=!S.settings.autoNext; $('swAutoNext').classList.toggle('on'); persist(); };
+  $('swRequireReady').onclick=()=>{ S.settings.requireReady=!S.settings.requireReady; $('swRequireReady').classList.toggle('on'); persist(); updateStartLock(); };
   $('swBeep').onclick=()=>{ S.settings.beep=!S.settings.beep; $('swBeep').classList.toggle('on'); persist(); };
   $('swAutoSerial').onclick=()=>{ S.settings.autoSerial=!S.settings.autoSerial; $('swAutoSerial').classList.toggle('on'); persist(); if(S.settings.autoSerial) autoConnectSerial(); };
 
@@ -1675,6 +2130,7 @@ function init(){
 
   window.addEventListener('beforeunload',e=>{ if(S.racers.length){ e.preventDefault(); e.returnValue=''; } });
   updateNetUI();
+  if(NET.token) refreshLicense();
   if(NET.master && NET.token && location.protocol!=='file:'){ netStartMaster(); }
   initSerialAuto();
   logEvent("Bereit. Läufer hinzufügen, verbinden oder Simulation testen. Taste B = Anzeigetafel.","ev-info");
