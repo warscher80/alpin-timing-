@@ -590,6 +590,7 @@
     <div class="sv-side">
       <div class="sv-box"><div class="h">Als Nächstes</div><div id="svNext"></div></div>
       <div class="sv-box"><div class="h">Auf der Strecke (<span id="svCourseCount">0</span>)</div><div id="svCourse"></div></div>
+      <div class="sv-box" id="svDayBox" style="display:none;border-color:#2a2310"><div class="h" style="color:var(--amber)">🏆 Tagesbestzeit</div><div id="svDayBest"></div></div>
       <div class="sv-box" id="svDsqBox" style="display:none;border-color:#3a1717"><div class="h" style="color:var(--red)">⚠ Disqualifiziert</div><div id="svDsq"></div></div>
     </div>
   </div>
@@ -832,7 +833,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.2";
+const VERSION="4.3";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1867,6 +1868,7 @@ function updateNetUI(){
 function onRemoteState(){ if(VIEWKIND==='start') svRefresh(); else if(VIEWKIND==='results') rvRefresh(); }
 /* viewer-seitige Wertungsfunktionen (arbeiten auf empfangenem Zustand d) */
 function dEff(c){ if(c && c.state==='finished') return c.runMs!=null?c.runMs:c.hand; return null; }
+function dDayBest(d,n){ const arr=[]; d.racers.forEach(r=>{ let best=null; for(let i=0;i<Math.max(1,d.numRuns||1);i++){ const t=dEff(r.runs[i]); if(t!=null&&(best==null||t<best)) best=t; } if(best!=null) arr.push({t:best,r}); }); arr.sort((a,b)=>a.t-b.t); return arr.slice(0,n); }
 function dRankRun(d,ri){ return d.racers.filter(r=>dEff(r.runs[ri])!=null).map(r=>({r,t:dEff(r.runs[ri])})).sort((a,b)=>a.t-b.t); }
 function dRankComb(d){ return d.racers.filter(r=>{ for(let i=0;i<d.numRuns;i++) if(dEff(r.runs[i])==null) return false; return true; })
   .map(r=>{ let t=0; for(let i=0;i<d.numRuns;i++) t+=dEff(r.runs[i]); return {r,t}; }).sort((a,b)=>a.t-b.t); }
@@ -1963,6 +1965,9 @@ function renderStartView(){
   const dsq=d.racers.filter(r=>svCur(r).state==='DSQ').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9));
   $('svDsqBox').style.display = dsq.length ? '' : 'none';
   $('svDsq').innerHTML = dsq.map(r=>`<div class="sv-li"><span class="bb" style="color:var(--red)">${esc(r.bib)}</span><span class="nn" style="color:var(--red)">${esc(r.name)}</span><span class="tt" style="color:var(--red)">DSQ</span></div>`).join('');
+  const db=dDayBest(d,3); const dbBox=$('svDayBox');
+  if(dbBox){ dbBox.style.display = db.length ? '' : 'none';
+    $('svDayBest').innerHTML = db.map((e,i)=>`<div class="sv-li"><span class="bb" style="color:${i===0?'#ffd24d':i===1?'#d7e0e6':'#d8954b'}">${i+1}</span><span class="nn">${esc(e.r.bib)} · ${esc(e.r.name)}</span><span class="tt" style="color:var(--amber)">${fmt(e.t)}</span></div>`).join(''); }
   updateReadyBtn();
 }
 function updateStartClocks(){
