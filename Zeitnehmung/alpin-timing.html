@@ -864,7 +864,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.8";
+const VERSION="4.9";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -934,7 +934,8 @@ function beep(freq=880,dur=0.07){ if(!S.settings.beep) return; try{ audioCtx=aud
 /* Persistence */
 const LS_KEY="alpin_timing_pro_v1";
 function exportState(){ return JSON.stringify({v:VERSION,raceName:$('raceName').value,racers:S.racers,nextId:S.nextId,
-  numRuns:S.numRuns,activeRun:S.activeRun,onCourse:S.onCourse,readyId:S.readyId,resultClass:S.resultClass,meta:S.meta,licensee:S.licensee,settings:S.settings}); }
+  numRuns:S.numRuns,activeRun:S.activeRun,onCourse:S.onCourse,readyId:S.readyId,resultClass:S.resultClass,meta:S.meta,licensee:S.licensee,settings:S.settings,
+  history:S.history.slice(-100),startReadyRun:_startReadyRun}); }
 function persist(){ try{ if(window.localStorage) localStorage.setItem(LS_KEY,exportState()); }catch(e){} netPush(); }
 function migrate(r){ if(!r.runs){ r.runs=[]; } while(r.runs.length<Math.max(2,S.numRuns)) r.runs.push(emptyRun()); return r; }
 function importState(json){
@@ -942,6 +943,9 @@ function importState(json){
     S.numRuns=d.numRuns||2; S.activeRun=d.activeRun||0;
     S.racers=d.racers.map(migrate); S.nextId=d.nextId||(Math.max(0,...S.racers.map(r=>r.id))+1);
     S.onCourse=d.onCourse||[]; S.readyId=d.readyId??null;
+    if(S.activeRun>=S.numRuns || S.activeRun<0) S.activeRun=0;   // gegen defekte/alte Stände absichern
+    S.history=Array.isArray(d.history)?d.history:[];             // Undo bleibt nach Reload erhalten
+    _startReadyRun=(typeof d.startReadyRun==='number')?d.startReadyRun:null;  // Start-Freigabe übersteht Reload
     if(d.settings) Object.assign(S.settings,d.settings);
     if(d.meta) Object.assign(S.meta,d.meta); if(d.licensee!=null) S.licensee=d.licensee;
     if(d.raceName) $('raceName').value=d.raceName;
