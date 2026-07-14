@@ -169,6 +169,16 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { user: u, license: licenseInfo(u) });
   }
 
+  /* --- Admin: alle Konten + Lizenzstatus auflisten (fuer die Admin-Seite) --- */
+  if (url === '/api/admin/list') {
+    const ADMIN = process.env.ADMIN_KEY || '';
+    if (!ADMIN || req.headers['x-admin-key'] !== ADMIN) return json(res, 403, { error: 'forbidden' });
+    const list = Object.keys(users).map(u => { const li = licenseInfo(u);
+      return { user: u, created: users[u].created || 0, owner: !!li.owner, licensed: !!li.licensed, exp: li.exp || null }; })
+      .sort((a, b) => (a.created || 0) - (b.created || 0));
+    return json(res, 200, { users: list, count: list.length });
+  }
+
   if (url === '/api/license/status') {
     if (req.method !== 'POST') return json(res, 405, { error: 'method' });
     let d; try { d = JSON.parse(await readBody(req)); } catch (e) { return json(res, 400, { error: 'json' }); }
@@ -208,7 +218,8 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true, mailed: mailed });
   }
 
-  let safe = path.normalize(url === '/' ? '/alpin-timing.html' : url).replace(/^(\.\.[/\\])+/, '');
+  const route = url === '/' ? '/alpin-timing.html' : (url === '/admin' ? '/admin.html' : (url === '/anleitung' ? '/anleitung.html' : url));
+  let safe = path.normalize(route).replace(/^(\.\.[/\\])+/, '');
   const file = path.join(ROOT, safe);
   if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(file, (err, data) => {
