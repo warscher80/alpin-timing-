@@ -680,7 +680,16 @@
     <div class="fld"><label>Anzahl Läufe</label><select id="setRuns"><option value="1">1 Lauf</option><option value="2" selected>2 Läufe (Gesamtwertung)</option></select></div>
     <div class="toggle"><span>Zwischenzeit-Messpunkt</span><div class="sw on" id="swInter"></div></div>
     <div class="toggle"><span>🔒 Start erst nach „Bereit"-Meldung der Startstation<br><small style="color:var(--dimmer)">Sicherung: Start nur möglich, wenn die Startstation für den aktuellen Lauf „bereit" gemeldet hat. Nur einschalten, wenn ein Start-Tablet im Einsatz ist.</small></span><div class="sw" id="swRequireReady"></div></div>
-    <div class="fld" style="margin-top:16px"><label>Baudrate</label><select id="setBaud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select>
+    <div class="fld" style="margin-top:16px"><label>Geräteprofil</label><select id="devProfile">
+        <option value="">— wählen (füllt Baud &amp; Schlüsselwörter) —</option>
+        <option value="generic">Generisch (S / Z / F)</option>
+        <option value="esp32">ESP32 / Arduino (eigenes Modul)</option>
+        <option value="tagheuer">TAG Heuer CP520/540</option>
+        <option value="brower">Brower Timing</option>
+        <option value="microgate">Microgate (generisch)</option>
+      </select>
+      <div class="hint">Wählt Baudrate &amp; Schlüsselwörter passend vor. Marken-Profile sind <b>Startvorlagen</b> – falls nichts ankommt, unten anpassen (das „Unbekannt: …"-Protokoll zeigt, was das Gerät sendet).</div></div>
+    <div class="fld"><label>Baudrate</label><select id="setBaud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option selected>115200</option></select>
       <div class="hint">Muss mit deiner Hardware übereinstimmen.</div></div>
     <div class="fld"><label>Schlüsselwörter Start</label><input id="setStartKeys" value="S,START,C0,IMP1,A"></div>
     <div class="fld"><label>Schlüsselwörter Zwischenzeit</label><input id="setInterKeys" value="Z,ZW,INT,C1,IMP2"></div>
@@ -693,6 +702,11 @@
     <div class="toggle"><span>Auto-Aufrücken am Start</span><div class="sw on" id="swAutoNext"></div></div>
     <div class="toggle"><span>Ton bei Impuls</span><div class="sw on" id="swBeep"></div></div>
     <div class="toggle"><span>Hardware automatisch verbinden<br><small style="color:var(--dimmer)">bereits freigegebene Zeitmessung wird beim Start automatisch erkannt</small></span><div class="sw on" id="swAutoSerial"></div></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Netzwerk-Zeitmessung (WLAN, z. B. ESP32)</label>
+      <div class="hint">Für Zeitmessgeräte, die per <b>WLAN</b> senden statt per Kabel. Die App verbindet sich zum Gerät (WebSocket) und liest die Impulse – gleiche Schlüsselwörter/Format wie oben. Ideal für ein eigenes ESP32-Modul.</div></div>
+    <div class="fld"><label>Geräte-Adresse (WebSocket)</label><input id="netDevUrl" placeholder="ws://192.168.4.1:81" spellcheck="false">
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn sm" id="btnNetDev">Verbinden</button><span id="netDevStatus" class="hint" style="margin:0">nicht verbunden</span></div>
+      <div class="hint">Das Gerät sendet je Impuls eine Textzeile, z. B. <code>S 1043920</code> (Start + Zeitstempel), <code>F 1051110</code> (Ziel). Verbindet bei Abriss automatisch neu.</div></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Vernetzung (Internet) & Konto</label></div>
     <div class="fld"><label>Konto</label><div id="netAuth"></div><div class="hint">Mit demselben Konto an Ziel und (optional) Start anmelden – keine PIN nötig. Zuschauer brauchen kein Konto.</div></div>
     <div class="toggle"><span>Diesen PC als Master senden (Ziel)<br><small style="color:var(--dimmer)">überträgt das Rennen live an die Anzeigen</small></span><div class="sw" id="swMaster"></div></div>
@@ -864,7 +878,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="4.9";
+const VERSION="5.0";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1313,6 +1327,44 @@ async function openSerialPort(port,manual){
   setConn(true,false,(manual?"Verbunden · ":"Auto · ")+S.settings.baud);
   logEvent(manual?"Hardware verbunden":"Hardware automatisch erkannt & verbunden","ev-info"); readLoop(); return true;
 }
+/* ===== Hardware-Abstraktion: Geräteprofile (füllen Baud + Schlüsselwörter) ===== */
+const DEVICE_PROFILES = {
+  generic:  { baud:9600,   start:'S,START,C0,IMP1,A', inter:'Z,ZW,INT,C1,IMP2', finish:'F,FIN,ZIEL,C2,IMP3,B' },
+  esp32:    { baud:115200, start:'S,START',           inter:'Z,ZW',            finish:'F,FIN,ZIEL' },
+  tagheuer: { baud:38400,  start:'S,C0,IMP1',         inter:'Z,C1,IMP2',       finish:'F,C2,IMP3,B' },
+  brower:   { baud:9600,   start:'S,START',           inter:'Z,SPLIT',         finish:'F,FINISH,STOP' },
+  microgate:{ baud:9600,   start:'S,START',           inter:'Z,SPLIT',         finish:'F,STOP,FINISH' }
+};
+function applyDeviceProfile(id){ const p=DEVICE_PROFILES[id]; if(!p) return;
+  if($('setBaud')) $('setBaud').value=String(p.baud);
+  if($('setStartKeys')) $('setStartKeys').value=p.start;
+  if($('setInterKeys')) $('setInterKeys').value=p.inter;
+  if($('setFinishKeys')) $('setFinishKeys').value=p.finish;
+  readSettingsFromUI(); toast('Profil übernommen – bei Bedarf Baud/Schlüsselwörter anpassen.'); }
+
+/* ===== Hardware-Abstraktion: Netzwerk-Quelle (WLAN/WebSocket, z. B. ESP32) =====
+   Impulse laufen durch denselben Trichter wie Seriell: parseSerialLine() -> handleImpulse(). */
+const NETDEV = { ws:null, url:'', on:false, _t:0 };
+function netDevStatus(txt, ok){ const s=$('netDevStatus'), b=$('btnNetDev');
+  if(s) s.innerHTML = ok?'<span style="color:var(--green)">● '+esc(txt)+'</span>':esc(txt);
+  if(b) b.textContent = NETDEV.on ? 'Trennen' : 'Verbinden'; }
+function netDevOpen(){
+  if(NETDEV.ws){ try{ NETDEV.ws.close(); }catch(e){} }
+  let ws; try{ ws=new WebSocket(NETDEV.url); }catch(e){ netDevStatus('ungültige Adresse',false); return; }
+  NETDEV.ws=ws;
+  ws.onopen=()=>{ netDevStatus('verbunden · '+NETDEV.url,true); $('connDot').className='dot on'; $('connLabel').textContent='Netzwerk-Gerät verbunden'; logEvent('Netzwerk-Zeitmessung verbunden: '+NETDEV.url,'ev-info'); };
+  ws.onmessage=ev=>{ String(ev.data).split(/[\r\n]+/).forEach(l=>{ l=l.trim(); if(l) parseSerialLine(l); }); };
+  ws.onclose=()=>{ netDevStatus('getrennt',false); if(!S.port){ $('connDot').className='dot'; $('connLabel').textContent='Nicht verbunden'; }
+    if(NETDEV.on){ clearTimeout(NETDEV._t); NETDEV._t=setTimeout(netDevOpen,2000); logEvent('Netzwerk-Gerät getrennt – verbinde neu…','ev-warn'); } };
+  ws.onerror=()=>{};
+}
+function netDevConnect(url){ url=String(url||'').trim(); if(!url){ toast('WebSocket-Adresse eingeben (ws://…)'); return; }
+  if(!/^wss?:\/\//i.test(url)) url='ws://'+url;
+  NETDEV.url=url; NETDEV.on=true; try{ localStorage.setItem('alpin_netdev_url',url); }catch(e){}
+  netDevStatus('verbinde…',false); netDevOpen(); }
+function netDevDisconnect(){ NETDEV.on=false; clearTimeout(NETDEV._t); if(NETDEV.ws){ try{ NETDEV.ws.close(); }catch(e){} } NETDEV.ws=null;
+  if(!S.port){ $('connDot').className='dot'; $('connLabel').textContent='Nicht verbunden'; } netDevStatus('nicht verbunden',false); logEvent('Netzwerk-Zeitmessung getrennt','ev-info'); }
+
 async function connectSerial(){
   if(S.port){ await disconnectSerial(); return; }
   if(!('serial' in navigator)){ toast("Web Serial nur in Chrome/Edge"); logEvent("Web Serial nicht verfügbar","ev-warn"); return; }
@@ -1550,6 +1602,8 @@ const HELP=[
    <li>Mehrere Läufer dürfen gleichzeitig auf der Strecke sein (FIFO): der Ziel-Impuls trifft den, der am längsten unterwegs ist.</li>
    <li><b>Lauf 1 / Lauf 2</b> oben umschalten; Ergebnis-Ansicht L1 / L2 / Gesamt.</li></ol>`},
  {t:"Tasten / Tastatur", h:`<p><span class="kbd">Leertaste</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎ Enter</span> Ziel · <span class="kbd">Z</span> letzten Impuls rückgängig · <span class="kbd">B</span> Anzeigetafel.</p>`},
+ {t:"Geräteprofile & Netzwerk-Zeitmessung (WLAN/ESP32)", h:`<p><b>Geräteprofil</b> (Einstellungen ⚙): ein Klick füllt Baudrate + Schlüsselwörter passend vor (Generisch, ESP32, TAG Heuer, Brower, Microgate). Marken-Profile sind <b>Startvorlagen</b> – falls nichts ankommt, Baud/Schlüsselwörter anpassen; das Protokoll zeigt „Unbekannt: …", also was das Gerät wirklich sendet.</p>
+   <p><b>Netzwerk-Zeitmessung (WLAN):</b> Für Geräte, die per WLAN statt Kabel senden (z. B. eigenes ESP32-Modul). Adresse eintragen (<code>ws://…</code>) → <b>Verbinden</b>. Das Gerät schickt je Impuls eine Textzeile (<code>S</code>/<code>Z</code>/<code>F</code>, optional mit Zeitstempel) – gleiche Schlüsselwörter wie bei Seriell. Bei Abriss verbindet die App automatisch neu.</p>`},
  {t:"Hardware / Lichtschranke verbinden", h:`<p>Funktioniert nur in <b>Chrome oder Edge am Computer</b> (nicht am Tablet). Knopf <b>Hardware verbinden</b>, Port wählen, Baudrate muss zur Hardware passen (Einstellungen ⚙).</p>
    <p>Erwartetes Format je Zeile: <code>S</code> = Start, <code>Z</code> = Zwischenzeit, <code>F</code> = Ziel. Mit Hardware-Zeitstempel z. B. <code>S 1043920</code>. Schlüsselwörter sind in den Einstellungen anpassbar; ein Arduino-Beispiel steht dort ebenfalls.</p>
    <p><b>Automatisch erkennen:</b> Einmal über „Hardware verbinden" das Gerät freigeben – danach merkt es sich die App und <b>verbindet beim nächsten Start automatisch</b> (auch beim Einstecken während des Betriebs). Schalter „Hardware automatisch verbinden" in den Einstellungen. Hinweis: Der Browser verlangt aus Sicherheitsgründen <b>einmalig</b> die manuelle Freigabe pro Gerät – ganz ohne ersten Klick geht es technisch nicht.</p>
@@ -2104,6 +2158,9 @@ function init(){
 
   $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
   $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
+  if($('devProfile')) $('devProfile').onchange=()=>{ const v=$('devProfile').value; if(v) applyDeviceProfile(v); };
+  if($('btnNetDev')) $('btnNetDev').onclick=()=>{ if(NETDEV.on) netDevDisconnect(); else netDevConnect($('netDevUrl').value); };
+  try{ const u=localStorage.getItem('alpin_netdev_url'); if(u && $('netDevUrl')) $('netDevUrl').value=u; }catch(e){}
   $('btnSponsors').onclick=openSponsors; $('spClose').onclick=closeSponsors; $('spOverlay').onclick=closeSponsors;
   $('spAddBtn').onclick=spAdd; $('spName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); spAdd(); } });
   $('spFileBtn').onclick=()=>$('spFile').click();
