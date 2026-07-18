@@ -702,6 +702,10 @@
     <div class="toggle"><span>Auto-Aufrücken am Start</span><div class="sw on" id="swAutoNext"></div></div>
     <div class="toggle"><span>Ton bei Impuls</span><div class="sw on" id="swBeep"></div></div>
     <div class="toggle"><span>Hardware automatisch verbinden<br><small style="color:var(--dimmer)">bereits freigegebene Zeitmessung wird beim Start automatisch erkannt</small></span><div class="sw on" id="swAutoSerial"></div></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Automatische Backups</label>
+      <div class="hint">Zusaetzlich zum Autosave sichert die App laufend Schnappschuesse des Rennens in einer zweiten, unabhaengigen Datenbank (IndexedDB). Sie ueberleben sogar ein geleertes localStorage. Hier kannst du einen frueheren Stand wiederherstellen.</div>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm" id="btnBkNow">Jetzt sichern</button><button class="btn sm" id="btnBkRefresh">Aktualisieren</button></div>
+      <div id="bkList" class="hint" style="margin-top:8px;max-height:200px;overflow:auto">—</div></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Netzwerk-Zeitmessung (WLAN, z. B. ESP32)</label>
       <div class="hint">Für Zeitmessgeräte, die per <b>WLAN</b> senden statt per Kabel. Die App verbindet sich zum Gerät (WebSocket) und liest die Impulse – gleiche Schlüsselwörter/Format wie oben. Ideal für ein eigenes ESP32-Modul.</div></div>
     <div class="fld"><label>Geräte-Adresse (WebSocket)</label><input id="netDevUrl" placeholder="ws://192.168.4.1:81" spellcheck="false">
@@ -878,7 +882,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.0";
+const VERSION="5.1";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -945,12 +949,76 @@ function beep(freq=880,dur=0.07){ if(!S.settings.beep) return; try{ audioCtx=aud
   g.gain.setValueAtTime(0.08,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,audioCtx.currentTime+dur);
   o.start();o.stop(audioCtx.currentTime+dur);}catch(e){} }
 
+/* ---------- Automatische Backups (IndexedDB) ----------
+   Redundante, vom localStorage UNABHAENGIGE Sicherung: rotierende Snapshots des
+   kompletten Rennzustands in IndexedDB (viel groessere Quota, ueberlebt sogar ein
+   geleertes localStorage). Rein additiv – aendert nichts an der Zeitmessung. Faellt
+   IndexedDB aus, macht das Modul stillschweigend nichts (App laeuft normal weiter). */
+const Backups = (function(){
+  const DB='alpin_backups', STORE='snap', KEEP=25;   // die letzten 25 Snapshots aufbewahren
+  let db=null, ready=false, lastTs=0;
+  function open(){ return new Promise(res=>{ try{
+    const rq=indexedDB.open(DB,1);
+    rq.onupgradeneeded=e=>{ const d=e.target.result; if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE,{keyPath:'id',autoIncrement:true}); };
+    rq.onsuccess=e=>{ db=e.target.result; ready=true; res(true); };
+    rq.onerror=()=>{ ready=false; res(false); };
+  }catch(e){ res(false); } }); }
+  async function init(){ if(!('indexedDB' in window)) return; try{ await open(); }catch(e){} }
+  function store(mode){ return db.transaction(STORE,mode).objectStore(STORE); }
+  /* Snapshot ablegen. Debounced: hoechstens alle 8 s automatisch; force=true umgeht
+     den Debounce (z.B. bewusst per Knopf). Fehler werden geschluckt – ein Backup
+     darf die App nie stoeren. */
+  function snapshot(reason,force){
+    if(!ready||!db) return;
+    const t=Date.now(); if(!force && t-lastTs<8000) return; lastTs=t;
+    try{
+      let data; try{ data=exportState(); }catch(e){ return; }
+      const st=store('readwrite');
+      st.add({ts:t, reason:reason||'', racers:(S.racers?S.racers.length:0), data:data});
+      const cnt=st.count(); cnt.onsuccess=()=>{ let over=cnt.result-KEEP; if(over<=0) return;
+        const cur=st.openCursor(); cur.onsuccess=e=>{ const c=e.target.result; if(c&&over>0){ c.delete(); over--; c.continue(); } }; };
+    }catch(e){}
+  }
+  function list(){ return new Promise(res=>{ if(!ready||!db){ res([]); return; } try{
+    const out=[], cur=store('readonly').openCursor(null,'prev');   // neueste zuerst
+    cur.onsuccess=e=>{ const c=e.target.result; if(c){ out.push({id:c.value.id,ts:c.value.ts,reason:c.value.reason,racers:c.value.racers}); c.continue(); } else res(out); };
+    cur.onerror=()=>res(out);
+  }catch(e){ res([]); } }); }
+  function get(id){ return new Promise(res=>{ if(!ready||!db){ res(null); return; } try{
+    const rq=store('readonly').get(id); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null);
+  }catch(e){ res(null); } }); }
+  return {init, snapshot, list, get, isReady:()=>ready};
+})();
+
+/* Backup-Liste in den Einstellungen anzeigen (neueste zuerst) */
+function renderBackups(){
+  const el=document.getElementById('bkList'); if(!el) return;
+  el.textContent='laedt…';
+  Backups.list().then(list=>{
+    if(!list.length){ el.textContent = Backups.isReady() ? 'Noch keine Backups vorhanden.' : 'Backups nicht verfuegbar (IndexedDB aus).'; return; }
+    el.innerHTML = list.map(s=>{
+      const d=new Date(s.ts), t=d.toLocaleDateString('de-AT')+' '+d.toLocaleTimeString('de-AT');
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">
+        <span style="flex:1"><b>${t}</b><br><small style="color:var(--dimmer)">${s.racers} Laeufer · ${esc(s.reason||'auto')}</small></span>
+        <button class="btn sm" data-bkrestore="${s.id}">Wiederherstellen</button>
+        <button class="btn sm" data-bkdl="${s.id}" title="Als Datei speichern">⭳</button></div>`;
+    }).join('');
+  }).catch(()=>{ el.textContent='Backups konnten nicht gelesen werden.'; });
+}
+
 /* Persistence */
 const LS_KEY="alpin_timing_pro_v1";
+let _persistFailed=false;   // true, sobald ein Autosave scheitert (z.B. Speicher voll) → sichtbare Warnung statt stummem Verlust
 function exportState(){ return JSON.stringify({v:VERSION,raceName:$('raceName').value,racers:S.racers,nextId:S.nextId,
   numRuns:S.numRuns,activeRun:S.activeRun,onCourse:S.onCourse,readyId:S.readyId,resultClass:S.resultClass,meta:S.meta,licensee:S.licensee,settings:S.settings,
   history:S.history.slice(-100),startReadyRun:_startReadyRun}); }
-function persist(){ try{ if(window.localStorage) localStorage.setItem(LS_KEY,exportState()); }catch(e){} netPush(); }
+function persist(){
+  try{ if(window.localStorage){ localStorage.setItem(LS_KEY,exportState()); if(_persistFailed){ _persistFailed=false; logEvent("✓ Autosave läuft wieder.",'ev-info'); } } }
+  catch(e){ if(!_persistFailed){ _persistFailed=true;   // nur bei der ERSTEN Fehlermeldung warnen, sonst würde jeder Impuls den Log fluten
+      logEvent("⚠ AUTOSAVE FEHLGESCHLAGEN (Speicher voll?) – Rennen SOFORT ueber den Knopf 'Sichern' als Datei exportieren!",'ev-warn');
+      try{ toast("⚠ Speichern fehlgeschlagen – bitte 'Sichern'!"); }catch(_){} } }
+  try{ Backups.snapshot('autosave'); }catch(_){}   // redundante IndexedDB-Sicherung, UNABHAENGIG vom localStorage (debounced, ~alle 8s)
+  netPush(); }
 function migrate(r){ if(!r.runs){ r.runs=[]; } while(r.runs.length<Math.max(2,S.numRuns)) r.runs.push(emptyRun()); return r; }
 function importState(json){
   try{ const d=JSON.parse(json); if(!d.racers) return false;
@@ -967,9 +1035,19 @@ function importState(json){
     applySettingsToUI(); buildRunSel(); buildViewSel(); renderAll(); return true;
   }catch(e){ toast("Datei unlesbar"); return false; }
 }
-function rebaseRunning(){ const tNow=now(), wNow=Date.now();
-  S.racers.forEach(r=>r.runs.forEach(c=>{ if(c.state==='running' && c.startWall){ c.startSW=tNow-(wNow-c.startWall); } })); }
-function tryRestore(){ try{ if(window.localStorage){ const j=localStorage.getItem(LS_KEY); if(j) importState(j); } }catch(e){} }
+function rebaseRunning(){ const tNow=now(), wNow=Date.now(); let suspicious=0;
+  S.racers.forEach(r=>r.runs.forEach(c=>{ if(c.state==='running' && c.startWall){
+    const impliedMs=wNow-c.startWall;                    // seit dem Start vergangene Wanduhr-Zeit
+    if(impliedMs<0 || impliedMs>3600000) suspicious++;   // negativ = Systemuhr zurueckgestellt; >1h = fuer einen laufenden Lauf unplausibel
+    c.startSW=tNow-impliedMs;                             // Rebase exakt wie bisher (Rechnung unveraendert)
+  } }));
+  if(suspicious) logEvent("⚠ "+suspicious+" laufende(r) Lauf/Laeufe: Systemuhr wurde seit dem Start evtl. verstellt – laufende Zeit pruefen, ggf. Handzeit setzen.",'ev-warn'); }
+function tryRestore(){ try{ if(window.localStorage){ const j=localStorage.getItem(LS_KEY);
+  if(j){ const ok=importState(j);
+    if(!ok){ // defekter Autosave: Rohkopie sichern, BEVOR der nächste persist() sie überschreibt (sonst stiller Totalverlust)
+      try{ localStorage.setItem(LS_KEY+"_broken", j); }catch(_){}
+      logEvent("⚠ Gespeicherter Rennstand war unlesbar – eine Kopie wurde als '..._broken' gesichert. Ggf. eine Backup-Datei ueber 'Laden' einspielen.",'ev-warn'); }
+  } } }catch(e){} }
 
 /* Start list */
 function makeRacer(bib,name,cat){
@@ -2130,6 +2208,7 @@ function init(){
   if(hk==='results'){ initResultsView(); return; }
   loadNet();
   loadSponsors();
+  Backups.init();   // IndexedDB-Backup-Engine starten (asynchron, blockiert nicht)
   applySettingsToUI(); buildRunSel(); buildViewSel(); tryRestore(); renderAll(); requestAnimationFrame(tick);
   startWeather();
 
@@ -2148,10 +2227,10 @@ function init(){
     if(e.key==='Enter'){ e.preventDefault(); saveEdit(+inp.id.split('_')[1]); } else if(e.key==='Escape'){ e.preventDefault(); cancelEdit(); } });
   $('onCourseList').addEventListener('click',e=>{ const b=e.target.closest('button[data-dnf],button[data-dsq]'); if(!b) return;
     if(b.dataset.dnf!=null){ const id=+b.dataset.dnf; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} als DNF (Aufgabe) werten?`)) setStatus(id,'DNF'); }
-    else { const id=+b.dataset.dsq; if(S.racers.find(x=>x.id===id)) setStatus(id,'DSQ'); } });
+    else { const id=+b.dataset.dsq; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} disqualifizieren (DSQ)?\nDie gemessene Zeit wird dabei verworfen.`)) setStatus(id,'DSQ'); } });
   $('resBody').addEventListener('click',e=>{
     const dq=e.target.closest('[data-dsq]');
-    if(dq){ const id=+dq.dataset.dsq, run=dq.dataset.run!=null?+dq.dataset.run:undefined; if(S.racers.find(x=>x.id===id)) setStatusRun(id,'DSQ',run); return; }
+    if(dq){ const id=+dq.dataset.dsq, run=dq.dataset.run!=null?+dq.dataset.run:undefined; const r=S.racers.find(x=>x.id===id); if(r&&confirm(`Nr ${r.bib} disqualifizieren (DSQ)?\nDie gemessene Zeit wird dabei verworfen.`)) setStatusRun(id,'DSQ',run); return; }
     const ro=e.target.closest('[data-reopen]');
     if(ro){ const id=+ro.dataset.reopen, run=ro.dataset.run!=null?+ro.dataset.run:undefined; reopenRun(id,run); return; }
     const c=e.target.closest('[data-hand]'); if(!c) return; editHand(+c.dataset.hand, c.dataset.run!=null?+c.dataset.run:undefined); });
@@ -2205,9 +2284,24 @@ function init(){
   $('btnReset').onclick=()=>{ if(confirm("Alles zurücksetzen?")){ S.racers=[];S.onCourse=[];S.readyId=null;S.nextId=1;S.history=[];S.activeRun=0;$('log').innerHTML='';buildRunSel();renderAll();persist(); } };
   $('raceName').onchange=()=>{ persist(); refreshBoard(); };
 
-  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); refreshLicense(); };
+  const openD=()=>{ $('drawer').classList.add('open'); $('overlay').classList.add('show'); refreshLicense(); renderBackups(); };
   const closeD=()=>{ $('drawer').classList.remove('open'); $('overlay').classList.remove('show'); readSettingsFromUI(); refreshBoard(); };
   $('btnSettings').onclick=openD; $('btnCloseSettings').onclick=closeD; $('overlay').onclick=closeD;
+  // Backup-Verwaltung
+  $('btnBkNow').onclick=()=>{ Backups.snapshot('manuell',true); setTimeout(renderBackups,150); toast('Backup gesichert'); };
+  $('btnBkRefresh').onclick=renderBackups;
+  $('bkList').addEventListener('click',async e=>{
+    const rb=e.target.closest('[data-bkrestore]');
+    if(rb){ const id=+rb.dataset.bkrestore;
+      if(!confirm('Diesen Stand wiederherstellen?\nDer aktuelle Stand wird ersetzt – er wird vorher selbst als Backup gesichert.')) return;
+      Backups.snapshot('vor-wiederherstellung',true);                 // aktuellen Stand sichern, bevor er ersetzt wird
+      const snap=await Backups.get(id);
+      if(snap&&snap.data&&importState(snap.data)){ logEvent('↩ Backup wiederhergestellt ('+new Date(snap.ts).toLocaleString('de-AT')+')','ev-info'); toast('Backup wiederhergestellt'); persist(); }
+      else toast('Backup unlesbar'); return; }
+    const dl=e.target.closest('[data-bkdl]');
+    if(dl){ const id=+dl.dataset.bkdl; const snap=await Backups.get(id);
+      if(snap&&snap.data) download('alpin-backup-'+new Date(snap.ts).toISOString().replace(/[:.]/g,'-')+'.json', snap.data, 'application/json'); return; }
+  });
   ['setRuns','setBaud','setStartKeys','setInterKeys','setFinishKeys','setLockStart','setLockInter','setLockFinish','setDecimals','mOrg','mLoc','mDate','mDisc','mRef','mSetter','mGates','mWeather','mSnow','mTempS','mTempF','mLic','wxLat','wxLon','wxEle','dispBaud','dispFormat','dispIdle'].forEach(idd=>$(idd).addEventListener('change',readSettingsFromUI));
   $('swWxAuto').onclick=()=>{ S.settings.wx.auto=!S.settings.wx.auto; $('swWxAuto').classList.toggle('on'); persist(); if(S.settings.wx.auto) wxFetch(); else wxChipUI(); };
   $('btnWxGps').onclick=wxUseGPS;
