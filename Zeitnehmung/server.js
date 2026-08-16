@@ -20,6 +20,15 @@ const ROOT = __dirname;
    was auf Gratis-Tarifen bei Redeploy verloren gehen kann. */
 const DATA = process.env.DATA_DIR || path.join(ROOT, 'data');
 try { fs.mkdirSync(DATA, { recursive: true }); } catch (e) {}
+/* Schreib-Selbsttest: schlaegt Persistenz fehl (z.B. DATA_DIR nicht gemountet),
+   dann LAUT warnen statt Registrierungen/Lizenzen still zu verlieren. */
+try { const _t = path.join(DATA, '.writetest'); fs.writeFileSync(_t, 'ok'); fs.unlinkSync(_t); }
+catch (e) { console.error('!! WARNUNG: Datenordner NICHT schreibbar (' + DATA + '): ' + e.message + ' -> Konten/Lizenzen ueberleben keinen Neustart! DATA_DIR pruefen.'); }
+
+/* Globale Absturz-Sicherung: ein einzelner kaputter Request oder ein abrupt
+   getrennter Client darf NIE den ganzen Server (und damit alle Live-Clients) killen. */
+process.on('uncaughtException', e => console.error('uncaughtException:', e && e.stack || e));
+process.on('unhandledRejection', e => console.error('unhandledRejection:', e && e.stack || e));
 
 /* Atomar schreiben: erst in temp, dann umbenennen -> nie halbe/kaputte Datei bei Absturz */
 function writeAtomic(file, content) {
@@ -112,12 +121,18 @@ const _contactHits = {};   // einfache Ratenbegrenzung pro IP
 
 /* --- HTTP: statische Dateien + Auth-API --- */
 const MIME = { '.html':'text/html; charset=utf-8', '.js':'text/javascript', '.css':'text/css', '.json':'application/json',
-  '.png':'image/png', '.svg':'image/svg+xml', '.ico':'image/x-icon', '.woff2':'font/woff2' };
-function readBody(req) { return new Promise(res => { let b = ''; req.on('data', c => { b += c; if (b.length > 1e5) req.destroy(); }); req.on('end', () => res(b)); }); }
+  '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.gif':'image/gif', '.svg':'image/svg+xml', '.ico':'image/x-icon',
+  '.woff2':'font/woff2', '.woff':'font/woff', '.ttf':'font/ttf', '.map':'application/json', '.txt':'text/plain; charset=utf-8',
+  '.webmanifest':'application/manifest+json', '.wasm':'application/wasm' };
+function readBody(req) { return new Promise(resolve => { let b = ''; let done = false; const fin = () => { if (!done) { done = true; resolve(b); } };
+  req.on('data', c => { b += c; if (b.length > 1e5) { b = b.slice(0, 1e5); req.destroy(); fin(); } });
+  req.on('end', fin); req.on('close', fin); req.on('error', fin); }); }
 function json(res, code, obj) { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); }
 
 const server = http.createServer(async (req, res) => {
-  const url = decodeURIComponent((req.url || '/').split('?')[0]);
+  let url;
+  try { url = decodeURIComponent((req.url || '/').split('?')[0]); }
+  catch (e) { res.writeHead(400); return res.end('bad request'); }   // kaputtes %-Encoding darf den Server nicht killen
 
   /* --- Optionale Zugangssperre für die ganze Seite ---
    * Nur aktiv, wenn die Umgebungsvariable ACCESS_CODE gesetzt ist (z.B. auf Render).
@@ -221,7 +236,17 @@ const server = http.createServer(async (req, res) => {
   const route = url === '/' ? '/alpin-timing.html' : (url === '/admin' ? '/admin.html' : (url === '/anleitung' ? '/anleitung.html' : url));
   let safe = path.normalize(route).replace(/^(\.\.[/\\])+/, '');
   const file = path.join(ROOT, safe);
-  if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('forbidden'); }
+  if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+  /* Nur oeffentliche statische Dateien ausliefern. NIEMALS Server-Code, Konten
+     oder das Signatur-Geheimnis. Ohne diese Sperre liefert /data/secret das
+     AUTH_SECRET aus -> jeder koennte Lizenzen/Logins faelschen. */
+  const rel = path.relative(ROOT, file).replace(/\\/g, '/');
+  const seg = rel.split('/');
+  const ALLOW_EXT = new Set(['.html', '.js', '.css', '.json', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webmanifest', '.woff', '.woff2', '.ttf', '.map', '.txt', '.wasm']);
+  const DENY_FILE = new Set(['server.js', 'package.json', 'package-lock.json', 'readme.md']);
+  const blocked = seg[0] === 'data' || seg[0] === 'node_modules' || seg.some(p => p.startsWith('.'))
+                  || DENY_FILE.has(rel.toLowerCase()) || !ALLOW_EXT.has(path.extname(file).toLowerCase());
+  if (blocked) { res.writeHead(404); return res.end('not found'); }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); return res.end('not found'); }
     res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
@@ -260,6 +285,7 @@ wss.on('connection', (ws, req) => {
     try { ws.send(JSON.stringify({ type:'state', data: rooms[ws.room].state })); } catch (e){}
   }
   ws.isAlive = true; ws.on('pong', () => { ws.isAlive = true; });
+  ws.on('error', () => {});   // abrupt getrennter Client darf keine uncaught exception werfen (killt sonst den Server)
 
   ws.on('message', (raw) => {
     let d; try { d = JSON.parse(raw.toString()); } catch (e) { return; }
@@ -269,11 +295,16 @@ wss.on('connection', (ws, req) => {
       if (!licenseInfo(ws.user).licensed) return;   // ohne gueltige Lizenz wird nicht live gesendet
       rooms[ws.room] = { state: d.data }; broadcastRoom(ws.room);
     }
-    else if (d.type === 'event') { relayToRoomMasters(ws.room, { type:'event', kind: d.kind, serverT: d.serverT }); }
+    else if (d.type === 'event') { relayToRoomMasters(ws.room, { type:'event', kind: d.kind, run: d.run, serverT: d.serverT });
+      if (d.id != null) { try { ws.send(JSON.stringify({ type:'ack', id: d.id })); } catch (e) {} } }   // Quittung: Startimpuls kam an
   });
 });
 
-setInterval(() => { wss.clients.forEach(c => { if (c.isAlive === false) return c.terminate(); c.isAlive = false; try { c.ping(); } catch (e){} }); }, 30000);
+setInterval(() => {
+  wss.clients.forEach(c => { if (c.isAlive === false) return c.terminate(); c.isAlive = false; try { c.ping(); } catch (e){} });
+  const t = Date.now();   // Ratenbegrenzungs-Map nicht unbegrenzt wachsen lassen (Memory-Leak bei Dauerbetrieb)
+  for (const ip in _contactHits) { if (!_contactHits[ip].some(x => t - x < 600000)) delete _contactHits[ip]; }
+}, 30000);
 
 server.listen(PORT, () => {
   console.log('ALPIN TIMING Server  http://0.0.0.0:' + PORT);

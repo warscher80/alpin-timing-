@@ -882,7 +882,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.1";
+const VERSION="5.2";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -931,6 +931,10 @@ function fmtParts(ms){
   return { main, cs:"."+String(p.frac).padStart(p.dec,'0') };
 }
 function fmtDelta(ms){ const s=(ms>=0?'+':'−')+fmt(Math.abs(ms)); return s; }
+/* Auf Anzeigepraezision abschneiden (nie aufrunden). Rangliste, Gesamtzeit,
+   Gleichstand und Delta muessen mit der ANGEZEIGTEN Zeit rechnen, sonst kann
+   das Podest kippen (zwei Fahrer zeigen 45.67, bekommen aber verschiedene Raenge). */
+function truncMs(ms){ if(ms==null||isNaN(ms)) return ms; const unit=1000/Math.pow(10,S.settings.decimals); return Math.floor(ms/unit)*unit; }
 function parseTime(str){
   if(!str) return null; str=str.trim().replace(',','.');
   let m=0,s;
@@ -955,7 +959,7 @@ function beep(freq=880,dur=0.07){ if(!S.settings.beep) return; try{ audioCtx=aud
    geleertes localStorage). Rein additiv – aendert nichts an der Zeitmessung. Faellt
    IndexedDB aus, macht das Modul stillschweigend nichts (App laeuft normal weiter). */
 const Backups = (function(){
-  const DB='alpin_backups', STORE='snap', KEEP=25;   // die letzten 25 Snapshots aufbewahren
+  const DB='alpin_backups', STORE='snap', KEEP=300;   // ~letzte 300 Snapshots: deckt auch lange, dichte Rennen ab (bei ~8s-Takt viele Stunden)
   let db=null, ready=false, lastTs=0;
   function open(){ return new Promise(res=>{ try{
     const rq=indexedDB.open(DB,1);
@@ -1021,10 +1025,14 @@ function persist(){
   netPush(); }
 function migrate(r){ if(!r.runs){ r.runs=[]; } while(r.runs.length<Math.max(2,S.numRuns)) r.runs.push(emptyRun()); return r; }
 function importState(json){
-  try{ const d=JSON.parse(json); if(!d.racers) return false;
+  // 1) NUR echtes Parsen/uebernehmen darf ueber "kaputt" entscheiden.
+  let d;
+  try{ d=JSON.parse(json); }catch(e){ toast("Datei unlesbar"); return false; }
+  if(!d || !Array.isArray(d.racers)) return false;
+  try{
     S.numRuns=d.numRuns||2; S.activeRun=d.activeRun||0;
     S.racers=d.racers.map(migrate); S.nextId=d.nextId||(Math.max(0,...S.racers.map(r=>r.id))+1);
-    S.onCourse=d.onCourse||[]; S.readyId=d.readyId??null;
+    S.onCourse=Array.isArray(d.onCourse)?d.onCourse:[]; S.readyId=d.readyId??null;
     if(S.activeRun>=S.numRuns || S.activeRun<0) S.activeRun=0;   // gegen defekte/alte Stände absichern
     S.history=Array.isArray(d.history)?d.history:[];             // Undo bleibt nach Reload erhalten
     _startReadyRun=(typeof d.startReadyRun==='number')?d.startReadyRun:null;  // Start-Freigabe übersteht Reload
@@ -1032,8 +1040,13 @@ function importState(json){
     if(d.meta) Object.assign(S.meta,d.meta); if(d.licensee!=null) S.licensee=d.licensee;
     if(d.raceName) $('raceName').value=d.raceName;
     rebaseRunning();
-    applySettingsToUI(); buildRunSel(); buildViewSel(); renderAll(); return true;
+    recomputeRunState();   // onCourse deterministisch aus den state-Feldern rekonstruieren (heilt Divergenzen)
   }catch(e){ toast("Datei unlesbar"); return false; }
+  // 2) Rendering GETRENNT kapseln: ein Anzeige-Fehler darf den GUTEN Stand nicht
+  //    als kaputt verwerfen (sonst bootet die App leer und persist() ueberschreibt die Zeiten).
+  try{ applySettingsToUI(); buildRunSel(); buildViewSel(); renderAll(); }
+  catch(e){ console.error('Render nach Wiederherstellung fehlgeschlagen:',e); try{ toast("Anzeige-Fehler – Daten sind da, ggf. neu laden"); }catch(_){} }
+  return true;
 }
 function rebaseRunning(){ const tNow=now(), wNow=Date.now(); let suspicious=0;
   S.racers.forEach(r=>r.runs.forEach(c=>{ if(c.state==='running' && c.startWall){
@@ -1130,7 +1143,13 @@ function doFinish(sw,hw){
 function bestInter(runIdx,exceptId){ let best=null; S.racers.forEach(r=>{ if(r.id===exceptId) return; const c=r.runs[runIdx];
   if(c.interMs!=null && (best==null||c.interMs<best)) best=c.interMs; }); return best; }
 function undoLast(){
-  const h=S.history.pop(); if(!h){ toast("Nichts zum Rückgängigmachen"); return; }
+  const last=S.history[S.history.length-1]; if(!last){ toast("Nichts zum Rückgängigmachen"); return; }
+  if(last.type==='finish'){   // Ziel-Ruecknahme loescht eine gemessene Zeit unwiederbringlich -> gegen versehentliches 'z' absichern
+    const rr=S.racers.find(x=>x.id===last.id); const nm=rr?`Nr ${rr.bib} ${rr.name}`:'';
+    const zt=rr&&rr.runs[last.run]&&rr.runs[last.run].runMs!=null?(' ('+fmt(rr.runs[last.run].runMs)+')'):'';
+    if(!confirm(`Letzte ZIELZEIT zurücknehmen?\n${nm}${zt}\nDie gemessene Zeit geht verloren – kein Redo.`)) return;
+  }
+  const h=S.history.pop(); if(!h) return;
   const r=S.racers.find(x=>x.id===h.id); if(!r) return; const c=r.runs[h.run];
   const wasActive=S.activeRun; S.activeRun=h.run;
   if(h.type==='finish'){ c.state='running'; c.finSW=c.finHW=c.runMs=null; c.src=null; }
@@ -1143,7 +1162,7 @@ function setStatus(id,st){ setStatusRun(id,st,S.activeRun); }
 function setStatusRun(id,st,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null; }
-  c.state=st; c.runMs=null; c.src=null; c.hand=null;
+  c.state=st; c.runMs=null; c.src=null; c.hand=null; c.interMs=null; c.interSW=c.interHW=null;   // DSQ/DNF darf auch die beste Zwischenzeit nicht mehr verfaelschen
   logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-warn');
   if(runIdx===S.activeRun && S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
   renderAll(); persist(); }
@@ -1250,11 +1269,11 @@ function renderCenter(){
   $('bigWho').textContent=t?`Nr ${t.bib} · ${t.name}`:'';
 }
 function rankedRun(runIdx){
-  return S.racers.filter(r=>effRun(r.runs[runIdx])!=null).map(r=>({r,t:effRun(r.runs[runIdx])})).sort((a,b)=>a.t-b.t);
+  return S.racers.filter(r=>effRun(r.runs[runIdx])!=null).map(r=>({r,t:truncMs(effRun(r.runs[runIdx]))})).sort((a,b)=>a.t-b.t);
 }
 function rankedCombined(){
   return S.racers.filter(r=>{ for(let i=0;i<S.numRuns;i++) if(effRun(r.runs[i])==null) return false; return true; })
-    .map(r=>{ let tot=0; for(let i=0;i<S.numRuns;i++) tot+=effRun(r.runs[i]); return {r,t:tot}; }).sort((a,b)=>a.t-b.t);
+    .map(r=>{ let tot=0; for(let i=0;i<S.numRuns;i++) tot+=truncMs(effRun(r.runs[i])); return {r,t:tot}; }).sort((a,b)=>a.t-b.t);
 }
 function buildClassSel(){ const el=$('classSel'); if(!el) return; const cls=distinctClasses();
   if(cls.length && S.resultClass && cls.indexOf(S.resultClass)<0 && S.resultClass!=='') S.resultClass='';
@@ -1286,7 +1305,7 @@ function renderResults(){
 /* Tagesbestzeit-Podest: schnellste Einzelzeiten des Tages ueber ALLE Klassen und
    Laeufe; je Laeufer zaehlt die beste Zeit (ein Athlet kommt nur einmal vor). */
 function dayBestTop(n){ const arr=[];
-  S.racers.forEach(r=>{ let best=null,run=-1; for(let i=0;i<Math.max(1,S.numRuns);i++){ const t=effRun(r.runs[i]); if(t!=null&&(best==null||t<best)){best=t;run=i;} } if(best!=null) arr.push({t:best,r:r,run:run}); });
+  S.racers.forEach(r=>{ let best=null,run=-1; for(let i=0;i<Math.max(1,S.numRuns);i++){ const raw=effRun(r.runs[i]); const t=raw!=null?truncMs(raw):null; if(t!=null&&(best==null||t<best)){best=t;run=i;} } if(best!=null) arr.push({t:best,r:r,run:run}); });
   arr.sort((a,b)=>a.t-b.t); return arr.slice(0,n); }
 function renderDayBest(){ const el=$('dayBest'); if(!el) return; const top=dayBestTop(3);
   if(!top.length){ el.style.display='none'; return; }
@@ -1310,8 +1329,8 @@ function tick(){
       if(html!==_bigLast){ big.innerHTML=html; big.classList.add('live'); _bigLast=html; }
       if(boardShown && html!==_bdLast){ bd.innerHTML=html; bd.classList.remove('idle'); _bdLast=html; } } }
   else { const z=`0<span class="cs">.${'0'.repeat(S.settings.decimals)}</span>`;
-    if(_bigLast!==' idle'){ big.innerHTML=z; big.classList.remove('live'); _bigLast=' idle'; }
-    if(boardShown && _bdLast!==' idle'){ bd.innerHTML=z; bd.classList.add('idle'); _bdLast=' idle'; } }
+    if(_bigLast!=='idle'){ big.innerHTML=z; big.classList.remove('live'); _bigLast='idle'; }
+    if(boardShown && _bdLast!=='idle'){ bd.innerHTML=z; bd.classList.add('idle'); _bdLast='idle'; } }
   // Zwischenzeit-Zeilen
   const sl=$('splitLine'), bs=$('bdSplit');
   if(bigTarget!=null){ const r=S.racers.find(x=>x.id===bigTarget),c=cur(r);
@@ -1917,22 +1936,25 @@ function viewState(){ return REMOTE || lsState(); }
 function viewerRoom(){ try{ const p=new URLSearchParams(location.search); return (p.get('room')||NET.user||'').toLowerCase(); }catch(e){ return (NET.user||'').toLowerCase(); } }
 function netConnect(){
   if(location.protocol==='file:') return;
-  if(NET.ws){ try{NET.ws.close();}catch(e){} NET.ws=null; }
+  if(NET.ws){ const old=NET.ws; old.onopen=old.onmessage=old.onclose=old.onerror=null; try{old.close();}catch(e){} NET.ws=null; }
+  clearTimeout(NET._t);   // evtl. geplanten Reconnect eines alten Sockets verwerfen (sonst Reconnect-Storm)
   const base=(location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/?';
   let u;
   if(NET.role==='master' || NET.role==='station'){ if(!NET.token) return; u=base+'role='+NET.role+'&token='+encodeURIComponent(NET.token); }
   else { const room=viewerRoom(); if(!room) return; u=base+'room='+encodeURIComponent(room); }
   let ws; try{ ws=new WebSocket(u); }catch(e){ return; } NET.ws=ws;
-  ws.onopen=()=>{ NET.connected=true; updateNetUI(); if(NET.role==='master'){ netStartSync(); netPush(); } if(NET.role==='station') netStartSync(); };
+  ws.onopen=()=>{ NET.connected=true; updateNetUI(); if(NET.role==='master'){ netStartSync(); netPush(); } if(NET.role==='station'){ netStartSync(); netFlushOutbox(); } };
   ws.onmessage=ev=>{ let d; try{ d=JSON.parse(ev.data); }catch(e){ return; }
     if(d.type==='time'){ netSyncHandle(d); return; }
+    if(d.type==='ack'){ if(NET._outbox){ delete NET._outbox[d.id]; } return; }   // Impuls kam am Ziel an -> aus der Warteschlange nehmen
     if(d.type==='authfail'){ toast("Anmeldung abgelaufen – bitte neu anmelden."); NET.token=''; NET.user=''; NET.enabled=false; saveNet(); updateNetUI(); return; }
     if(d.type==='license'){ NET.license={licensed:!!d.licensed, exp:d.exp||null}; saveNet();
       if(NET.role==='master' && !NET.license.licensed){ toast("Keine gültige Lizenz – Live-Senden gesperrt."); }
       updateNetUI(); return; }
     if(d.type==='event' && NET.role==='master'){ if(d.kind==='start') applyRemoteStart(d.serverT); else if(d.kind==='ready') onStartReady(d.run); return; }
     if(d.type==='state' && (NET.role==='viewer' || NET.role==='station')){ REMOTE=d.data; onRemoteState(); } };
-  ws.onclose=()=>{ NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
+  ws.onclose=()=>{ if(ws!==NET.ws) return;   // nur der AKTUELLE Socket darf einen Reconnect planen (verhindert Endlos-Reconnect)
+    NET.connected=false; updateNetUI(); if(NET.enabled){ clearTimeout(NET._t); NET._t=setTimeout(netConnect,1500); } };
   ws.onerror=()=>{};
 }
 function netPush(){ if(NET.master && NET.role==='master' && NET.connected && NET.ws && NET.ws.readyState===1){
@@ -1972,19 +1994,38 @@ function applyRemoteStart(serverT){
   S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
   renderAll(); persist();
 }
+/* Zuverlaessiges Senden von Start-/Bereit-Impulsen: jede Nachricht bekommt eine ID
+   und wandert in eine Warteschlange, bis der Server sie quittiert ('ack'). Bei
+   Reconnect wird die Warteschlange erneut gesendet -> kein Startimpuls geht durch
+   einen kurzen WLAN-Abriss verloren. Der Zeitstempel (serverT) wird beim Knopfdruck
+   gesetzt, ein spaeter nachgesendeter Impuls behaelt also die korrekte Startzeit. */
+function netSend(obj){
+  NET._outbox=NET._outbox||{}; obj.id=(NET._eid=(NET._eid||0)+1);
+  NET._outbox[obj.id]={obj:obj, ts:Date.now(), warned:false};
+  try{ if(NET.ws && NET.ws.readyState===1) NET.ws.send(JSON.stringify(obj)); }catch(e){}
+  return NET.ws && NET.ws.readyState===1;
+}
+function netFlushOutbox(){ if(!NET._outbox) return; for(const id in NET._outbox){ try{ if(NET.ws && NET.ws.readyState===1) NET.ws.send(JSON.stringify(NET._outbox[id].obj)); }catch(e){} } }
+/* Waechter: warnt hoerbar, wenn ein Impuls nach 3 s nicht quittiert ist (halb-offene
+   Verbindung), und raeumt uralte Eintraege nach 60 s ab. Sendet NICHT von sich aus
+   erneut (das uebernimmt der Reconnect-Flush) – so entstehen keine Doppel-Starts. */
+setInterval(()=>{ if(!NET._outbox) return; const t=Date.now();
+  for(const id in NET._outbox){ const it=NET._outbox[id];
+    if(!it.warned && t-it.ts>3000){ it.warned=true; try{ toast("⚠ Impuls nicht bestätigt – Verbindung zum Ziel prüfen!"); }catch(e){} beep(300); }
+    if(t-it.ts>60000) delete NET._outbox[id];
+  } },2000);
 /* Startstation: Start senden */
 function sendStartEvent(){
-  if(!NET.connected || !NET.ws || NET.ws.readyState!==1){ toast("Keine Verbindung"); return; }
   if(!NET.synced){ toast("Uhren-Sync läuft noch – kurz warten"); return; }
-  try{ NET.ws.send(JSON.stringify({type:'event',kind:'start',serverT:serverNow()})); }catch(e){ return; }
+  const online=netSend({type:'event',kind:'start',serverT:serverNow()});
+  if(!online) toast("Keine Verbindung – Start gepuffert, wird bei Reconnect gesendet");
   beep(990); const b=$('svStartBtn'); if(b){ b.style.filter='brightness(1.6)'; setTimeout(()=>b.style.filter='',150); }
 }
 /* Startstation: "Startbereit" ans Ziel melden (Koordination, kein Zeitstempel) */
 function sendReadyEvent(){
-  if(!NET.connected || !NET.ws || NET.ws.readyState!==1){ toast("Keine Verbindung zum Ziel"); return; }
   const ar=(_sv.data&&_sv.data.activeRun)||0;
-  try{ NET.ws.send(JSON.stringify({type:'event',kind:'ready',run:ar,serverT:serverNow()})); }catch(e){ return; }
-  beep(660); toast("Bereit für Lauf "+(ar+1)+" ans Ziel gemeldet");
+  const online=netSend({type:'event',kind:'ready',run:ar,serverT:serverNow()});
+  beep(660); toast(online?("Bereit für Lauf "+(ar+1)+" ans Ziel gemeldet"):("Keine Verbindung – bereit-Meldung gepuffert"));
   _readySentRun=ar; updateReadyBtn();   /* Knopf für diesen Lauf ausblenden */
 }
 /* Master (Ziel): Startstation meldet "bereit" -> deutlich anzeigen */
