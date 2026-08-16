@@ -882,7 +882,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.2";
+const VERSION="5.3";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1424,6 +1424,62 @@ async function openSerialPort(port,manual){
   setConn(true,false,(manual?"Verbunden · ":"Auto · ")+S.settings.baud);
   logEvent(manual?"Hardware verbunden":"Hardware automatisch erkannt & verbunden","ev-info"); readLoop(); return true;
 }
+/* ===== Automatische Baudraten-Erkennung (Plug-and-Play) =====
+   Nach dem einmaligen Port-Freigeben probiert die App gaengige Baudraten durch und
+   rastet ein, sobald ein plausibles Zeitmess-Signal ankommt. Der Bediener muss nur
+   am Geraet einmal einen Impuls ausloesen. Erkannte Baud wird gespeichert -> beim
+   naechsten Mal sofort ohne Suche. Funktioniert fuer CP540 & alle Text-Protokolle. */
+let _scan={active:false, cancel:false};
+const BAUD_CANDIDATES=[38400,9600,115200,57600,19200,4800];
+function looksLikeTiming(txt){
+  if(!txt) return false;
+  let pr=0; for(let i=0;i<txt.length;i++){ const c=txt.charCodeAt(i); if(c===9||c===10||c===13||(c>=32&&c<=126)) pr++; }
+  const ratio=txt.length?pr/txt.length:0;
+  const hasBreak=/[\r\n]/.test(txt);
+  const hasSignal=/(\d{1,2}:\d{2}:\d{2})|C0|C1|C2|IMP\d|START|FIN|ZIEL|SPLIT|STOP/i.test(txt);
+  return hasSignal || (ratio>0.85 && hasBreak && /\d/.test(txt));   // sauberer ASCII-Text mit Zeilenumbruch = richtige Baud
+}
+async function probeBaud(port,baud,ms){
+  try{ await port.open({baudRate:baud}); }catch(e){ return {ok:false}; }
+  const dec=new TextDecoder(); let buf='', ok=false, reader;
+  try{ reader=port.readable.getReader(); }catch(e){ try{await port.close();}catch(_){} return {ok:false}; }
+  const timer=setTimeout(()=>{ try{reader.cancel();}catch(e){} }, ms);
+  try{ while(true){ const {value,done}=await reader.read(); if(done) break;
+    if(value){ buf+=dec.decode(value,{stream:true}); if(looksLikeTiming(buf)){ ok=true; break; } } } }catch(e){}
+  clearTimeout(timer);
+  try{ reader.releaseLock(); }catch(e){}
+  if(!ok){ try{ await port.close(); }catch(e){} }   // falsche Baud: Port wieder schliessen, naechste probieren
+  return {ok, baud, sample:buf};
+}
+function _scanStatus(txt){ const d=$('connDot'),l=$('connLabel'),b=$('btnConnect');
+  if(d) d.className='dot sim'; if(l) l.textContent=txt; if(b) b.textContent='Abbrechen'; }
+async function autoConnectDetect(port){
+  _scan.active=true; _scan.cancel=false;
+  const cands=[S.settings.baud,...BAUD_CANDIDATES].filter((v,i,a)=>v&&a.indexOf(v)===i);
+  logEvent('Automatische Geräte-Erkennung – bitte am Zeitmessgerät EINMAL einen Impuls auslösen (z. B. Start)…','ev-info');
+  toast('Erkennung läuft – am Gerät einmal auslösen');
+  for(let round=0; round<3 && !_scan.cancel; round++){
+    for(const baud of cands){
+      if(_scan.cancel) break;
+      _scanStatus('Suche Gerät… '+baud+' Baud');
+      const res=await probeBaud(port,baud,1600);
+      if(res.ok){
+        _scan.active=false;
+        S.settings.baud=baud; if($('setBaud')) $('setBaud').value=String(baud);
+        S.port=port; S.keepReading=true; saveSerialId(port); persist();
+        setConn(true,false,'Verbunden · '+baud+' Baud (autom.)');
+        logEvent('✓ Zeitmessgerät erkannt bei '+baud+' Baud','ev-start'); toast('✓ Gerät erkannt: '+baud+' Baud');
+        readLoop(); return true;
+      }
+    }
+  }
+  _scan.active=false;
+  setConn(false,false,'Nicht verbunden');
+  if(_scan.cancel){ logEvent('Erkennung abgebrochen','ev-info'); return false; }
+  logEvent('Kein Signal erkannt. Sendet das Gerät? Sonst Baud/Profil manuell wählen (⚙).','ev-warn');
+  toast('Nichts erkannt – am Gerät auslösen und erneut „verbinden"');
+  return false;
+}
 /* ===== Hardware-Abstraktion: Geräteprofile (füllen Baud + Schlüsselwörter) ===== */
 const DEVICE_PROFILES = {
   generic:  { baud:9600,   start:'S,START,C0,IMP1,A', inter:'Z,ZW,INT,C1,IMP2', finish:'F,FIN,ZIEL,C2,IMP3,B' },
@@ -1463,10 +1519,11 @@ function netDevDisconnect(){ NETDEV.on=false; clearTimeout(NETDEV._t); if(NETDEV
   if(!S.port){ $('connDot').className='dot'; $('connLabel').textContent='Nicht verbunden'; } netDevStatus('nicht verbunden',false); logEvent('Netzwerk-Zeitmessung getrennt','ev-info'); }
 
 async function connectSerial(){
+  if(_scan.active){ _scan.cancel=true; return; }        // laufende Suche abbrechen
   if(S.port){ await disconnectSerial(); return; }
-  if(!('serial' in navigator)){ toast("Web Serial nur in Chrome/Edge"); logEvent("Web Serial nicht verfügbar","ev-warn"); return; }
-  try{ const port=await navigator.serial.requestPort(); await openSerialPort(port,true); }
-  catch(e){ logEvent("Verbindung abgebrochen: "+e.message,"ev-warn"); }
+  if(!('serial' in navigator)){ toast("Web Serial nur in Chrome/Edge (Laptop, kein Tablet)"); logEvent("Web Serial nicht verfügbar","ev-warn"); return; }
+  let port; try{ port=await navigator.serial.requestPort(); }catch(e){ logEvent("Verbindung abgebrochen: "+e.message,"ev-warn"); return; }
+  await autoConnectDetect(port);   // Baudrate automatisch finden – Bediener loest nur am Geraet aus
 }
 /* Auto-Erkennung: bereits freigegebene Zeitmessung beim Start automatisch öffnen */
 async function autoConnectSerial(){
@@ -1701,7 +1758,7 @@ const HELP=[
  {t:"Tasten / Tastatur", h:`<p><span class="kbd">Leertaste</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎ Enter</span> Ziel · <span class="kbd">Z</span> letzten Impuls rückgängig · <span class="kbd">B</span> Anzeigetafel.</p>`},
  {t:"Geräteprofile & Netzwerk-Zeitmessung (WLAN/ESP32)", h:`<p><b>Geräteprofil</b> (Einstellungen ⚙): ein Klick füllt Baudrate + Schlüsselwörter passend vor (Generisch, ESP32, TAG Heuer, Brower, Microgate). Marken-Profile sind <b>Startvorlagen</b> – falls nichts ankommt, Baud/Schlüsselwörter anpassen; das Protokoll zeigt „Unbekannt: …", also was das Gerät wirklich sendet.</p>
    <p><b>Netzwerk-Zeitmessung (WLAN):</b> Für Geräte, die per WLAN statt Kabel senden (z. B. eigenes ESP32-Modul). Adresse eintragen (<code>ws://…</code>) → <b>Verbinden</b>. Das Gerät schickt je Impuls eine Textzeile (<code>S</code>/<code>Z</code>/<code>F</code>, optional mit Zeitstempel) – gleiche Schlüsselwörter wie bei Seriell. Bei Abriss verbindet die App automatisch neu.</p>`},
- {t:"Hardware / Lichtschranke verbinden", h:`<p>Funktioniert nur in <b>Chrome oder Edge am Computer</b> (nicht am Tablet). Knopf <b>Hardware verbinden</b>, Port wählen, Baudrate muss zur Hardware passen (Einstellungen ⚙).</p>
+ {t:"Hardware / Lichtschranke verbinden", h:`<p>Funktioniert nur in <b>Chrome oder Edge am Computer</b> (nicht am Tablet). <b>So einfach geht's:</b> Gerät anstecken → Knopf <b>Hardware verbinden</b> → Port wählen → am Zeitmessgerät einmal einen Impuls auslösen. Die <b>Baudrate wird automatisch erkannt</b> und gemerkt – kein Einstellen nötig. (Wer will, kann Baud/Profil weiterhin in den Einstellungen ⚙ von Hand setzen.)</p>
    <p>Erwartetes Format je Zeile: <code>S</code> = Start, <code>Z</code> = Zwischenzeit, <code>F</code> = Ziel. Mit Hardware-Zeitstempel z. B. <code>S 1043920</code>. Schlüsselwörter sind in den Einstellungen anpassbar; ein Arduino-Beispiel steht dort ebenfalls.</p>
    <p><b>Automatisch erkennen:</b> Einmal über „Hardware verbinden" das Gerät freigeben – danach merkt es sich die App und <b>verbindet beim nächsten Start automatisch</b> (auch beim Einstecken während des Betriebs). Schalter „Hardware automatisch verbinden" in den Einstellungen. Hinweis: Der Browser verlangt aus Sicherheitsgründen <b>einmalig</b> die manuelle Freigabe pro Gerät – ganz ohne ersten Klick geht es technisch nicht.</p>
    <p><b>Start wie bei FIS:</b> Ein <b>Starttor/Startwand</b>, das einen Start-Impuls (Schlüsselwort <code>S</code>) auf die Zeitmessung gibt, löst den Start automatisch aus – genau wie eine Lichtschranke. Start und Ziel werden nicht über den Anschluss, sondern über das <b>Signal-Schlüsselwort</b> zugeordnet (S/Z/F); Haupt- und Backup-Zelle am selben Tor werden über die Sperrzeit automatisch entstört. Ist der Start räumlich getrennt, die <b>Startstation</b> übers Netzwerk nutzen.</p>`},
