@@ -521,6 +521,7 @@
     <div class="brand"><div class="logo"><svg viewBox="0 0 64 64"><use href="#atMark"/></svg></div>
       <div><h1>ALPIN&nbsp;TIMING <span style="color:var(--green)">PRO</span></h1>
       <div class="sub">Zeitnehmung</div></div></div>
+    <img id="clubLogo" alt="Vereinslogo" style="display:none;height:36px;max-width:110px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 4px;margin-left:4px">
     <input class="race-name" id="raceName" value="Rennen" spellcheck="false">
     <div class="runsel" id="runsel"></div>
     <div class="spacer"></div>
@@ -571,6 +572,7 @@
       <div class="phead"><h2>Ergebnisse</h2><span class="count" id="resCount">0</span>
         <div class="ph-actions"><select id="classSel" class="classsel" title="Altersklasse"></select><div class="viewsel" id="viewsel"></div><button class="btn sm ghost" id="btnPrintRes" title="Offizielle Ergebnisliste drucken/PDF">🖨</button><button class="btn sm ghost" id="btnExport" title="CSV exportieren">CSV</button></div></div>
       <div class="pbody">
+        <div id="resLogoWrap" style="display:none;text-align:center;padding:4px 0 10px"><img id="resLogo" alt="Vereinslogo" style="max-height:64px;max-width:70%;object-fit:contain"></div>
         <div id="dayBest" class="daybest" style="display:none"></div>
         <table><thead><tr><th>#</th><th>Nr</th><th>Name</th><th style="text-align:right">Zeit</th><th style="text-align:right">Diff</th></tr></thead><tbody id="resBody"></tbody></table>
       </div>
@@ -648,6 +650,14 @@
   <div class="db">
     <div class="fld"><label style="color:var(--green)">▣ Veranstaltung (für Ergebnisliste)</label></div>
     <div class="fld"><label>Veranstalter / Verein</label><input id="mOrg" placeholder="z.B. SC Musterstadt"></div>
+    <div class="fld"><label>Vereinslogo (Kopf &amp; Ergebnisliste)</label>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <img id="clubLogoPrev" alt="Logo" style="display:none;height:44px;max-width:130px;object-fit:contain;background:#fff;border-radius:6px;padding:3px">
+        <input type="file" id="clubLogoFile" accept="image/*" class="hidden">
+        <button class="btn sm" id="btnClubLogo" type="button">Logo wählen</button>
+        <button class="btn sm ghost" id="btnClubLogoDel" type="button" style="display:none">Entfernen</button>
+      </div>
+      <div class="hint">PNG/JPG – wird automatisch verkleinert. Erscheint oben in der App und auf jeder Ergebnisliste (auch im Ausdruck). Pro Konto gespeichert – SCL sieht sein Logo, sobald SCL angemeldet ist.</div></div>
     <div class="fld"><label>Ort</label><input id="mLoc" placeholder="z.B. Musterberg"></div>
     <div class="fld"><label>Datum</label><input id="mDate" type="date"></div>
     <div class="fld"><label>Disziplin</label><select id="mDisc"><option>Slalom</option><option>Riesenslalom</option><option>Super-G</option><option>Abfahrt</option><option>Parallel</option><option>Training</option></select></div>
@@ -882,7 +892,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.3";
+const VERSION="5.4";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1396,6 +1406,23 @@ function spAdd(){ const nm=$('spName').value.trim(); if(!nm && !spPendingImg){ t
   S.sponsors.push({name:nm,img:spPendingImg||''}); spPendingImg=''; $('spName').value='';
   $('spFileName').textContent='Optional: PNG/JPG-Logo – wird automatisch verkleinert.'; saveSponsors(); renderSpList(); toast("Sponsor hinzugefügt"); }
 function spDel(i){ S.sponsors.splice(i,1); saveSponsors(); renderSpList(); }
+
+/* ===== Vereinslogo (pro Konto, lokal gespeichert) =====
+   Erscheint im App-Kopf, auf der Ergebnisliste und im Ausdruck/Export.
+   Keyed am eingeloggten Konto: meldet sich SCL an, zeigt die App das SCL-Logo. */
+const CLUBLOGOKEY="alpin_clublogo_v1";
+let _clubLogo='';
+function _clubKey(){ try{ return (NET.user||'').toLowerCase() || '_lokal'; }catch(e){ return '_lokal'; } }
+function loadClubLogos(){ try{ const j=localStorage.getItem(CLUBLOGOKEY); const d=j?JSON.parse(j):{}; return (d&&typeof d==='object')?d:{}; }catch(e){ return {}; } }
+function refreshClubLogo(){ _clubLogo=loadClubLogos()[_clubKey()]||''; renderClubLogo(); }
+function setClubLogo(data){ const m=loadClubLogos(); if(data) m[_clubKey()]=data; else delete m[_clubKey()];
+  try{ localStorage.setItem(CLUBLOGOKEY, JSON.stringify(m)); }catch(e){ toast("Speicher voll – Logo zu groß"); return; }
+  _clubLogo=data||''; renderClubLogo(); }
+function renderClubLogo(){ const d=_clubLogo;
+  const h=$('clubLogo'); if(h){ if(d){ h.src=d; h.style.display=''; } else h.style.display='none'; }
+  const r=$('resLogo'), rw=$('resLogoWrap'); if(r&&rw){ if(d){ r.src=d; rw.style.display=''; } else rw.style.display='none'; }
+  const p=$('clubLogoPrev'); if(p){ if(d){ p.src=d; p.style.display=''; } else p.style.display='none'; }
+  const del=$('btnClubLogoDel'); if(del) del.style.display=d?'':'none'; }
 function spPreview(){ if(!S.sponsors.length){ toast("Erst Sponsoren hinzufügen"); return; }
   if(!S.sponsorCfg.enabled){ S.sponsorCfg.enabled=true; $('spEnabled').classList.add('on'); saveSponsors(); }
   closeSponsors(); if(!$('board').classList.contains('show')) toggleBoard(); _spR.idleSince=now()-3000; }
@@ -1705,8 +1732,8 @@ function metaBlock(){ const m=S.meta,items=[]; const add=(l,v)=>{ if(v) items.pu
   add('Schiedsrichter',m.referee); add('Kurssetzer',m.setter); add('Tore',m.gates); add('Wetter',m.weather); add('Schnee',m.snow);
   if(m.tempS||m.tempF) items.push(`<span><b>Temp Start/Ziel:</b> ${esc(m.tempS||'–')}/${esc(m.tempF||'–')} °C</span>`);
   return items.length?`<div class="ps-meta">${items.join('')}</div>`:'<div style="height:8px"></div>'; }
-function sheetHeader(label){ const m=S.meta; return `<div class="ps-head">
-    <div><div class="ps-title">${esc($('raceName').value||'Rennen')}</div><div class="ps-sub">${esc(metaSubtitle())}${label?' — '+esc(label):''}</div></div>
+function sheetHeader(label){ const m=S.meta; const logo=_clubLogo; return `<div class="ps-head">
+    <div style="display:flex;align-items:center;gap:12px">${logo?`<img src="${logo}" style="max-height:58px;max-width:140px;object-fit:contain">`:''}<div><div class="ps-title">${esc($('raceName').value||'Rennen')}</div><div class="ps-sub">${esc(metaSubtitle())}${label?' — '+esc(label):''}</div></div></div>
     <div class="ps-org">${m.organizer?esc(m.organizer)+'<br>':''}${S.licensee?'Lizenz: '+esc(S.licensee):''}</div></div>${metaBlock()}`; }
 function sheetFoot(){ return `<div class="ps-sign"><div>Schiedsrichter</div><div>Zeitnahme</div></div>
     <div class="ps-foot"><span>Erstellt mit ALPIN TIMING PRO v${VERSION}</span><span>${new Date().toLocaleString('de-DE')}</span></div>`; }
@@ -2024,10 +2051,10 @@ async function doLogin(user,pw,register){
   if(!user||!pw){ toast("Benutzer und Passwort eingeben"); return; }
   try{ const d=await authRequest(register?'/api/register':'/api/login', user, pw);
     NET.token=d.token; NET.user=d.user; if(d.license) NET.license=d.license; saveNet(); saveCred(user,pw); toast((register?'Registriert':'Angemeldet')+' als '+d.user);
-    updateNetUI(); if(NET.master) netStartMaster(); }
+    updateNetUI(); refreshClubLogo(); if(NET.master) netStartMaster(); }
   catch(e){ toast(e.message||'Anmeldung fehlgeschlagen'); }
 }
-function doLogout(){ NET.token=''; NET.user=''; NET.master=false; NET.license={licensed:false,exp:null}; saveNet(); netStop(); updateNetUI(); toast("Abgemeldet"); }
+function doLogout(){ NET.token=''; NET.user=''; NET.master=false; NET.license={licensed:false,exp:null}; saveNet(); netStop(); updateNetUI(); refreshClubLogo(); toast("Abgemeldet"); }
 /* Lizenzstatus frisch vom Server holen (greift ohne Neu-Login, z.B. nach Freischaltung) */
 async function refreshLicense(){
   if(location.protocol==='file:' || !NET.token) return;
@@ -2306,6 +2333,7 @@ function init(){
   if(hk==='results'){ initResultsView(); return; }
   loadNet();
   loadSponsors();
+  refreshClubLogo();
   Backups.init();   // IndexedDB-Backup-Engine starten (asynchron, blockiert nicht)
   applySettingsToUI(); buildRunSel(); buildViewSel(); tryRestore(); renderAll(); requestAnimationFrame(tick);
   startWeather();
@@ -2342,6 +2370,9 @@ function init(){
   $('spAddBtn').onclick=spAdd; $('spName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); spAdd(); } });
   $('spFileBtn').onclick=()=>$('spFile').click();
   $('spFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; scaleImage(f,520,d=>{ spPendingImg=d||''; $('spFileName').textContent=d?('Logo bereit: '+(f.name||'Bild')):'Bild konnte nicht geladen werden'; }); e.target.value=''; };
+  $('btnClubLogo').onclick=()=>$('clubLogoFile').click();
+  $('clubLogoFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; scaleImage(f,520,d=>{ if(d){ setClubLogo(d); toast('Vereinslogo gesetzt'); } else toast('Bild konnte nicht geladen werden'); }); e.target.value=''; };
+  $('btnClubLogoDel').onclick=()=>{ setClubLogo(''); toast('Vereinslogo entfernt'); };
   $('spList').addEventListener('click',e=>{ const b=e.target.closest('[data-sp-del]'); if(b) spDel(+b.dataset.spDel); });
   $('spEnabled').onclick=()=>{ S.sponsorCfg.enabled=!S.sponsorCfg.enabled; $('spEnabled').classList.toggle('on'); saveSponsors(); };
   $('spSec').addEventListener('change',()=>{ S.sponsorCfg.sec=Math.max(2,Math.min(60,parseInt($('spSec').value)||6)); $('spSec').value=S.sponsorCfg.sec; saveSponsors(); });
