@@ -500,6 +500,38 @@
     .bd-clock{font-size:min(13vw,22vh)}
     .sv-ready .bib{font-size:min(9vw,16vh)}
   }
+  /* Hilfe-Bot */
+  #botFab{position:fixed;right:18px;bottom:18px;z-index:95;display:none;align-items:center;gap:8px;
+    background:linear-gradient(135deg,var(--green),var(--cyan));color:#04130d;border:none;border-radius:26px;
+    padding:11px 16px;font-family:var(--sans);font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+  #botFab:hover{filter:brightness(1.06)}
+  #botPanel{position:fixed;right:18px;bottom:18px;z-index:96;width:372px;max-width:calc(100vw - 24px);height:544px;max-height:calc(100vh - 24px);
+    display:none;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.55)}
+  #botPanel.open{display:flex}
+  .bot-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(0,229,138,.04)}
+  .bot-head .av{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:#0e1620;border:1px solid rgba(0,229,138,.5)}
+  .bot-head .av svg{width:22px;height:22px}
+  .bot-head h3{font-family:var(--cond);font-size:15px;letter-spacing:.08em;text-transform:uppercase;line-height:1.1}
+  .bot-head .sub{font-size:10px;color:var(--dim);letter-spacing:.04em}
+  .bot-head .x{margin-left:auto;cursor:pointer;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:3px 9px;font-size:14px}
+  .bot-head .x:hover{color:var(--ink)}
+  .bot-msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+  .bot-msg{max-width:90%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.55}
+  .bot-msg.bot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .bot-msg.me{align-self:flex-end;background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;border-bottom-right-radius:4px;font-weight:600}
+  .bot-msg b{color:var(--green)} .bot-msg.me b{color:#03130c}
+  .bot-msg p{margin:5px 0} .bot-msg p:first-child{margin-top:0} .bot-msg ol,.bot-msg ul{margin:5px 0 5px 18px}
+  .bot-msg code{font-family:var(--mono);font-size:12px;background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--cyan)}
+  .bot-msg .kbd{font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  .bot-msg .more{margin-top:8px;padding-top:6px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .bot-chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
+  .bot-chip{font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:16px;padding:6px 10px;cursor:pointer;font-family:var(--sans)}
+  .bot-chip:hover{border-color:var(--green-dim);color:var(--green)}
+  .bot-in{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+  .bot-in input{flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 11px;font-family:var(--sans);font-size:14px}
+  .bot-in input:focus{outline:none;border-color:var(--green)}
+  .bot-in button{background:linear-gradient(180deg,#13c479,#0a9d5f);color:#03130c;border:none;border-radius:10px;padding:0 15px;font-weight:800;cursor:pointer}
+  @media(max-width:480px){ #botPanel{height:72vh;right:12px;bottom:12px} #botFab{right:12px;bottom:12px} }
 </style>
 </head>
 <body>
@@ -881,6 +913,24 @@ F 1051110   → Ziel
 </div>
 
 <input type="file" id="fileInput" accept=".json" class="hidden">
+<button id="botFab" title="Hilfe-Assistent">💬 Fragen?</button>
+<div id="botPanel" aria-label="Hilfe-Assistent">
+  <div class="bot-head">
+    <div class="av"><svg viewBox="0 0 64 64"><use href="#atMark"/></svg></div>
+    <div><h3>Assistent</h3><div class="sub">Frag mich, wie was funktioniert</div></div>
+    <div class="x" id="botClose" title="Schließen">✕</div>
+  </div>
+  <div class="bot-msgs" id="botMsgs"></div>
+  <div class="bot-chips" id="botChips">
+    <button class="bot-chip">Lichtschranke verbinden</button>
+    <button class="bot-chip">Ergebnisse den Zuschauern zeigen</button>
+    <button class="bot-chip">Anzeigetafel / Beamer</button>
+    <button class="bot-chip">Tablet am Start</button>
+    <button class="bot-chip">Ergebnisse drucken</button>
+    <button class="bot-chip">DSQ und DNF</button>
+  </div>
+  <div class="bot-in"><input id="botInput" placeholder="Frage eingeben …" autocomplete="off"><button id="botSend" title="Senden">➤</button></div>
+</div>
 <div class="toast" id="toast"></div>
 <div id="updateBar"><span>Neue Version <b id="upVer"></b> verfügbar.</span><button class="primary" id="upReload">Jetzt laden</button><button id="upLater">Später</button></div>
 <div id="readyBar"><span class="rb-dot"></span><span>Startstation meldet: <b>BEREIT für Rennstart</b><i id="rbTime"></i></span><button id="rbOk">Verstanden</button></div>
@@ -892,7 +942,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.5";
+const VERSION="5.6";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1378,7 +1428,8 @@ function leadFlash(){ const f=$('bdLeadFlash'); if(!f) return; f.classList.remov
 function toggleBoard(){ const b=$('board'); const open=!b.classList.contains('show');
   b.classList.toggle('show',open); if(open){ renderBoardList(); updateBoardName();
     if(document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); }
-  else if(document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }
+  else if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  const bf=$('botFab'); if(bf) bf.style.display = open ? 'none' : 'flex'; if(open){ $('botPanel').classList.remove('open'); } }
 
 /* override board run label logic */
 function refreshBoard(){ if($('board').classList.contains('show')) renderBoardList(); }
@@ -1777,6 +1828,7 @@ function printStartSheet(){
   window.print();
 }
 const HELP=[
+ {t:"Hilfe-Assistent (Bot)", h:`<p>Unten rechts der Knopf <b>💬 Fragen?</b>: ein Assistent, dem jeder in eigenen Worten Fragen stellen kann („Wie verbinde ich die Lichtschranke?", „Wie sehen Zuschauer die Ergebnisse?"). Er antwortet sofort aus diesem Handbuch – <b>kostenlos, offline, ohne Anmeldung</b>.</p>`},
  {t:"Schnellstart", h:`<ol><li>Läufer in die <b>Startliste</b> eintragen (oder „Import" für viele auf einmal).</li>
    <li>Oben <b>Hardware verbinden</b> (Chrome/Edge) – oder <b>Simulation</b> zum Üben.</li>
    <li>Der erste Läufer ist automatisch „bereit". Beim Start-Impuls läuft die Zeit.</li>
@@ -1824,6 +1876,56 @@ function renderHelp(q){ q=(q||'').trim().toLowerCase();
   $('helpContent').innerHTML = items.length? items.map(s=>`<div class="help-sec"><h4>${esc(s.t)}</h4>${s.h}</div>`).join('')
     : '<div class="help-none">Nichts gefunden für „'+esc(q)+'". Tipp: andere Begriffe wie „Tablet", „Klassen", „Cloud".</div>';
 }
+/* ===== Hilfe-Bot: beantwortet Fragen aus dem eingebauten Hilfe-Wissen (offline, kostenlos) ===== */
+const BOT_FAQ=[
+ {t:"Preis / Lizenz", h:`<p>ALPIN TIMING PRO wird als <b>Lizenz je Saison</b> angeboten. Für aktuelle Preise &amp; Freischaltung bitte den Knopf <b>✉ Kontakt</b> nutzen – wir melden uns per E-Mail.</p>`},
+ {t:"Welche Zeitmessung passt?", h:`<p>Viele gängige Geräte per <b>seriell</b> (USB/RS-232) – z. B. TAG Heuer, Alge, Microgate, Brower, generische Lichtschranken – über das <b>Geräteprofil</b> in den Einstellungen ⚙. Oder per <b>WLAN</b> (eigenes ESP32-Modul). Nur Chrome/Edge am Computer. Frag „Lichtschranke verbinden" oder „ESP32" für Details.</p>`},
+ {t:"Ist es FIS-tauglich?", h:`<p><b>Nicht FIS-homologiert.</b> Es ist eine Zeitnahme-Hilfe für <b>Vereins-, Trainings- und Hobbyrennen</b>. Für gewertete FIS-Rennen gelten die Verbandsvorschriften (zertifizierte Hardware, redundante Anlage).</p>`}
+];
+const BOT_KB = HELP.concat(BOT_FAQ);
+const BOT_STOP = new Set("wie was wo wann warum wieso welche welcher welches ich du man wir ihr der die das ein eine einen und oder mit für den dem des ist sind kann muss soll will möchte gehts geht macht mir mich mein meine am im auf an zu bei von aus über unter nach vor wird werden habe hab haben es sich nicht noch mal bitte hilfe frage kann".split(" "));
+const BOT_SYN = {
+ lichtschranke:"hardware verbinden lichtschranke", fotozelle:"hardware lichtschranke", photozelle:"hardware lichtschranke", zeitmessgerät:"hardware verbinden",
+ beamer:"anzeigetafel beamer", projektor:"anzeigetafel", fernseher:"anzeigetafel",
+ zuschauer:"livetiming qr ergebnisse zuschauer", handy:"tablet qr handy", smartphone:"tablet qr", teilen:"livetiming qr",
+ urkunde:"drucken urkunde pdf", pdf:"drucken pdf", excel:"csv excel", exportieren:"csv export",
+ genau:"genauigkeit uhren", genauigkeit:"genauigkeit uhren sync", zeitstempel:"genauigkeit hardware",
+ esp32:"geräteprofile netzwerk wlan esp32", wlan:"netzwerk wlan", microgate:"geräteprofile microgate", brower:"geräteprofile brower", arduino:"geräteprofile esp32",
+ disqualifizieren:"dsq disqualifikation", disqualifiziert:"dsq disqualifikation", aufgabe:"dnf", tor:"dsq disqualifikation verpasst",
+ klasse:"altersklassen kategorien klasse", klassen:"altersklassen kategorien", kategorie:"altersklassen kategorien",
+ sponsor:"sponsoren logo", sponsoren:"sponsoren logo", logo:"sponsoren logo",
+ tablet:"start-ansicht startstation tablet start", start:"start bereit station startstation", startstation:"startstation bereit",
+ anmelden:"konto anmeldung registrieren", passwort:"passwort konto angemeldet", konto:"konto anmeldung",
+ sichern:"daten sichern backup", speichern:"daten sichern", backup:"handzeit daten sichern",
+ üben:"simulation üben testen", simulieren:"simulation", kosten:"preis lizenz kosten", kostet:"preis lizenz kosten", teuer:"preis lizenz", preis:"preis lizenz", kaufen:"preis lizenz", lizenz:"preis lizenz",
+ fis:"fis homologiert haftung", wetter:"wetter temperatur", zwischenzeit:"zwischenzeit", gesamt:"zwei läufe gesamtwertung", lauf:"zwei läufe gesamtwertung",
+ rückgängig:"korrigieren rückgängig", korrigieren:"korrigieren rückgängig", handzeit:"handzeit backup"
+};
+function botTokens(q){ let t=(q||"").toLowerCase().replace(/[^a-zäöüß0-9 ]/g," ").split(/\s+/).filter(w=>w.length>2 && !BOT_STOP.has(w));
+  let ex=[]; t.forEach(w=>{ if(BOT_SYN[w]) ex=ex.concat(BOT_SYN[w].split(" ")); }); return t.concat(ex); }
+function botAnswer(q){ const toks=botTokens(q); if(!toks.length) return null;
+  const scored=BOT_KB.map(s=>{ const title=s.t.toLowerCase(), body=helpText(s); let sc=0;
+    toks.forEach(w=>{ if(title.indexOf(w)>=0) sc+=4; else if(body.indexOf(w)>=0) sc+=1;
+      else if(w.length>6){ const st=w.slice(0,6); if(title.indexOf(st)>=0) sc+=2; else if(body.indexOf(st)>=0) sc+=0.5; } }); return {s,sc}; })
+    .filter(x=>x.sc>0).sort((a,b)=>b.sc-a.sc);
+  if(!scored.length || scored[0].sc<2) return null;
+  return { best:scored[0].s, more:scored.slice(1,3).filter(x=>x.sc>=2).map(x=>x.s) };
+}
+function botAddMsg(html, me){ const m=document.createElement("div"); m.className="bot-msg "+(me?"me":"bot"); m.innerHTML=html;
+  $("botMsgs").appendChild(m); $("botMsgs").scrollTop=$("botMsgs").scrollHeight; }
+function botAsk(q){ q=(q||"").trim(); if(!q) return; botAddMsg(esc(q), true); $("botInput").value="";
+  const r=botAnswer(q);
+  if(!r){ botAddMsg("Das habe ich nicht gefunden. 🤔 Versuch andere Worte – z. B. <b>Lichtschranke</b>, <b>Anzeigetafel</b>, <b>Tablet</b>, <b>Klassen</b>, <b>Drucken</b>, <b>ESP32</b>. Für persönliche Fragen: Knopf <b>✉ Kontakt</b>."); return; }
+  let html="<b>"+esc(r.best.t)+"</b>"+r.best.h;
+  if(r.more.length) html+='<div class="more">Auch dazu fragen: '+r.more.map(s=>'„'+esc(s.t)+'"').join(' · ')+'</div>';
+  setTimeout(()=>botAddMsg(html), 180);
+}
+function botOpen(){ $("botPanel").classList.add("open"); $("botFab").style.display="none";
+  if(!$("botMsgs").dataset.greeted){ $("botMsgs").dataset.greeted="1";
+    botAddMsg("Hallo! 👋 Ich bin dein <b>Alpin-Timing-Assistent</b>. Frag mich, wie etwas funktioniert – oder tippe unten auf einen Vorschlag."); }
+  setTimeout(()=>{ try{ $("botInput").focus(); }catch(e){} },60); }
+function botClose(){ $("botPanel").classList.remove("open"); $("botFab").style.display="flex"; }
+
 /* Hell-/Dunkelmodus */
 function applyTheme(t){ const light=(t==='light'); document.documentElement.setAttribute('data-theme', light?'light':'dark');
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.content=light?'#eef1f5':'#080b0f';
@@ -2393,6 +2495,11 @@ function init(){
   $('btnPrintStart').onclick=printStartSheet;
   $('btnTheme').onclick=toggleTheme; initTheme();
   $('btnAbout').onclick=openAbout; $('btnCloseAbout').onclick=closeAbout; $('aboutOverlay').onclick=closeAbout;
+  $('botFab').style.display='flex';
+  $('botFab').onclick=botOpen; $('botClose').onclick=botClose;
+  $('botSend').onclick=()=>botAsk($('botInput').value);
+  $('botInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); botAsk($('botInput').value); } });
+  $('botChips').addEventListener('click',e=>{ const c=e.target.closest('.bot-chip'); if(c) botAsk(c.textContent); });
   $('btnLegal').onclick=openLegal; $('legalClose').onclick=closeLegal; $('legalOverlay').onclick=closeLegal;
   $('btnContact').onclick=openContact; $('contactClose').onclick=closeContact; $('contactOverlay').onclick=closeContact; $('ctSend').onclick=sendContact;
   $('helpSearch').addEventListener('input',e=>renderHelp(e.target.value));
