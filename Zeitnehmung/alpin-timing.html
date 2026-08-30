@@ -253,6 +253,7 @@
   .res-row.out .tm{color:var(--red)}
   .src-tag{font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:4px;margin-left:5px}
   .src-tag.hw{color:var(--green);background:#0a2018}.src-tag.sw{color:var(--amber);background:#221a08}.src-tag.hand{color:var(--blue);background:#0c1626}
+  .src-tag.calc{color:#c9a3ff;background:#181026}
 
   .logwrap{margin-top:16px}
   .log{font-family:var(--mono);font-size:12px;line-height:1.7;max-height:140px;overflow:auto;color:var(--dim)}
@@ -966,7 +967,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.7";
+const VERSION="5.8";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1275,7 +1276,7 @@ function doFinish(sw,hw){
   logEvent(`ZIEL · Nr ${r.bib} ${r.name} → ${fmt(c.runMs)} [${c.src}]`,'ev-finish');
   flashBoard(`Ziel Nr ${r.bib} ${r.name}: ${fmt(c.runMs)}`);
   if(c.runMs!=null && $('board').classList.contains('show') && isNewLeader(r)){ leadFlash(); flashBoard(`★ BESTZEIT · Nr ${r.bib} ${r.name} · ${fmt(c.runMs)}`,true); }
-  renderAll(); persist();
+  recalcErsatz(S.activeRun); renderAll(); persist();
 }
 function bestInter(runIdx,exceptId){ let best=null; S.racers.forEach(r=>{ if(r.id===exceptId) return; const c=r.runs[runIdx];
   if(c.interMs!=null && (best==null||c.interMs<best)) best=c.interMs; }); return best; }
@@ -1299,17 +1300,17 @@ function setStatus(id,st){ setStatusRun(id,st,S.activeRun); }
 function setStatusRun(id,st,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null; }
-  c.state=st; c.runMs=null; c.src=null; c.hand=null; c.interMs=null; c.interSW=c.interHW=null;   // DSQ/DNF darf auch die beste Zwischenzeit nicht mehr verfaelschen
+  c.state=st; c.runMs=null; c.src=null; c.hand=null; c.calcMs=null; c.interMs=null; c.interSW=c.interHW=null;   // DSQ/DNF darf auch die beste Zwischenzeit nicht mehr verfaelschen
   logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-warn');
   if(runIdx===S.activeRun && S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
-  renderAll(); persist(); }
+  recalcErsatz(runIdx); renderAll(); persist(); }
 function reopen(id){ reopenRun(id,S.activeRun); }
 function reopenRun(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
-  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=c.hand=null; c.src=null;
+  c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=c.hand=c.calcMs=null; c.src=null;
   if(runIdx===S.activeRun) S.onCourse=S.onCourse.filter(x=>x!==id);
   logEvent(`Zurückgesetzt · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-info');
-  renderAll(); persist(); }
+  recalcErsatz(runIdx); renderAll(); persist(); }
 function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   const inp=prompt(`Handzeit für Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})\nFormat  SS,cc  oder  M:SS,cc  — leer = löschen:`, c.hand!=null?fmt(c.hand):'');
@@ -1318,12 +1319,33 @@ function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return
   else { const ms=parseTime(inp); if(ms==null){ toast("Ungültige Zeit"); return; } c.hand=ms; c.state='finished';
       if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null;
         if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); } } }
-  logEvent(`Handzeit Nr ${r.bib} (Lauf ${runIdx+1}): ${c.hand!=null?fmt(c.hand):'gelöscht'}`,'ev-info');
+  recalcErsatz(runIdx);
+  if(c.hand==null) logEvent(`Handzeit Nr ${r.bib} (Lauf ${runIdx+1}): gelöscht`,'ev-info');
+  else if(c.runMs!=null) logEvent(`Handzeit (Backup) Nr ${r.bib}: ${fmt(c.hand)} – elektronische Zeit gilt`,'ev-info');
+  else if(c.calcMs!=null) logEvent(`⏱ ERSATZZEIT Nr ${r.bib} (Lauf ${runIdx+1}): ${fmt(c.calcMs)}  (Hand ${fmt(c.hand)} + FIS-Korrektur aus Nachbarn)`,'ev-inter');
+  else logEvent(`Handzeit Nr ${r.bib} (Lauf ${runIdx+1}): ${fmt(c.hand)} – keine Nachbar-Referenz, Rohzeit gewertet`,'ev-warn');
   renderAll(); persist(); }
 
 /* effective time of a run (electronic, else hand backup) */
-function effRun(c){ if(c.state==='finished') return c.runMs!=null?c.runMs:c.hand; return null; }
-function effSrc(c){ if(c.runMs!=null) return c.src; if(c.hand!=null) return 'Hand'; return c.src; }
+function effRun(c){ if(c.state!=='finished') return null; return c.runMs!=null?c.runMs:(c.calcMs!=null?c.calcMs:c.hand); }
+function effSrc(c){ if(c.runMs!=null) return c.src; if(c.calcMs!=null) return 'Δ'; if(c.hand!=null) return 'Hand'; return c.src; }
+/* FIS-Ersatzzeit ("Hilfszeit"): Laeufer mit Handzeit, aber OHNE elektronische Zeit,
+   bekommen eine berechnete gueltige Zeit = Handzeit + Korrektur. Korrektur = Mittel
+   aus (elektronisch - Hand) der naechsten Nachbarn in Startreihenfolge, die BEIDES
+   gemessen haben. Ergebnis in c.calcMs (abgeschnitten), Quelle-Tag 'Δ'. Ohne
+   Nachbar-Referenz bleibt es die reine Handzeit. */
+function _refDiff(c){ return (c&&c.runMs!=null&&c.hand!=null)?(c.runMs-c.hand):null; }
+function recalcErsatz(runIdx){
+  const order=startOrderIds(runIdx);
+  order.forEach((r,idx)=>{ const c=r.runs[runIdx]; if(!c) return;
+    if(c.runMs!=null || c.hand==null){ c.calcMs=null; return; }
+    let before=null, after=null;
+    for(let j=idx-1;j>=0;j--){ const d=_refDiff(order[j].runs[runIdx]); if(d!=null){ before=d; break; } }
+    for(let j=idx+1;j<order.length;j++){ const d=_refDiff(order[j].runs[runIdx]); if(d!=null){ after=d; break; } }
+    let corr=(before!=null&&after!=null)?(before+after)/2:(before!=null?before:(after!=null?after:null));
+    c.calcMs = corr!=null ? truncMs(c.hand+corr) : null;
+  });
+}
 function withRanks(ranked){ const out=[]; ranked.forEach((e,i)=>{ const rank=(i>0 && ranked[i-1].t===e.t)? out[i-1].rank : i+1; out.push({e,rank}); }); return out; }
 function distinctClasses(){ const s=new Set(); S.racers.forEach(r=>{ const c=(r.cat||'').trim(); if(c) s.add(c); });
   return [...s].sort((a,b)=>a.localeCompare(b,'de',{numeric:true})); }
@@ -1424,7 +1446,7 @@ function renderResults(){
   const best=ranked.length?ranked[0].t:null;
   withRanks(ranked).forEach(({e,rank})=>{ const r=e.r; const c=combined?null:r.runs[S.resultView];
     const tr=document.createElement('tr'); tr.className='res-row'+(rank<=3?' p'+rank:'');
-    const src=combined?'':effSrc(c); const tag=src?`<span class="src-tag ${src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':'sw'}">${src}</span>`:'';
+    const src=combined?'':effSrc(c); const tag=src?`<span class="src-tag ${src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':src==='Δ'?'calc':'sw'}" title="${src==='Δ'?'Ersatzzeit (Hand + FIS-Korrektur)':src==='Hand'?'Handzeit':'elektronisch'}">${src}</span>`:'';
     const ha=combined?'':`data-hand="${r.id}" data-run="${S.resultView}"`;
     const dsq=combined?'':` <button class="ib dsq" data-dsq="${r.id}" data-run="${S.resultView}" title="Disqualifizieren (DSQ)">DSQ</button>`;
     tr.innerHTML=`<td class="rank">${rank}</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}${r.cat?` <span style="color:var(--dimmer);font-size:11px">${esc(r.cat)}</span>`:''} ${tag}</td>
