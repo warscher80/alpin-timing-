@@ -577,7 +577,7 @@
   <div class="grid">
     <section class="panel">
       <div class="phead"><h2>Startliste</h2><span class="count" id="slCount">0</span>
-        <div class="ph-actions"><button class="btn sm ghost" id="btnPrintStart" title="Startliste drucken">🖨</button><button class="btn sm ghost" id="btnImport">Import</button><button class="btn sm ghost" id="btnClearList">Leeren</button></div></div>
+        <div class="ph-actions"><button class="btn sm ghost" id="btnDraw" title="Startreihenfolge auslosen">🎲 Auslosen</button><button class="btn sm ghost" id="btnPrintStart" title="Startliste drucken">🖨</button><button class="btn sm ghost" id="btnImport">Import</button><button class="btn sm ghost" id="btnClearList">Leeren</button></div></div>
       <div class="pbody">
         <div class="add-row"><input id="inBib" placeholder="Nr" inputmode="numeric"><input id="inName" class="nm" placeholder="Name"><input id="inCat" placeholder="Kat." list="catList"><button class="btn sm primary" id="btnAdd">+</button></div>
         <datalist id="catList"><option value="U8"><option value="U10"><option value="U12"><option value="U14"><option value="U16"><option value="U18"><option value="U21"><option value="Herren"><option value="Damen"><option value="Senioren"></datalist>
@@ -893,6 +893,30 @@ F 1051110   → Ziel
   </div>
 </div>
 
+<div class="overlay" id="drawOverlay"></div>
+<div class="modal" id="drawModal">
+  <div class="dh"><h3>🎲 Auslosung / Startreihenfolge</h3><div class="spacer"></div><button class="btn ghost" id="drawClose">✕</button></div>
+  <div class="mb">
+    <p>Legt die <b>Startreihenfolge</b> für <b id="drawRunLbl">Lauf 1</b> fest. Die Läufer/Namen bleiben – nur die Reihenfolge ändert sich.</p>
+    <div class="fld"><label>Methode</label>
+      <div style="display:flex;flex-direction:column;gap:7px">
+        <label class="imp-opt"><input type="radio" name="drawMode" value="random" checked> <b>Zufall</b> – ganzes Feld gemischt</label>
+        <label class="imp-opt"><input type="radio" name="drawMode" value="class"> <b>Zufall je Klasse</b> – Klassen nacheinander, je Klasse gelost</label>
+        <label class="imp-opt"><input type="radio" name="drawMode" value="bib"> <b>Nach Startnummer</b> – Reihenfolge zurücksetzen</label>
+        <label class="imp-opt" id="drawFlipOpt" style="display:none"><input type="radio" name="drawMode" value="flip"> <b>Aus Ergebnis Lauf 1: Beste umkehren (BIBO)</b></label>
+      </div>
+    </div>
+    <div class="fld" id="drawFlipN" style="display:none"><label>Beste wie viele umkehren?</label>
+      <div style="display:flex;gap:8px;align-items:center"><input id="drawN" type="number" min="1" value="30" style="width:90px;background:var(--surface);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font-family:var(--mono)">
+      <span class="hint" style="margin:0">z. B. 30 = die 30 Schnellsten starten umgekehrt, Rest normal. Für „alle" eine hohe Zahl.</span></div></div>
+    <label class="imp-opt" id="drawRenumberWrap" style="margin-top:4px"><input type="checkbox" id="drawRenumber" checked> Startnummern 1…N in Auslos-Reihenfolge neu vergeben</label>
+    <div class="imp-foot" style="margin-top:12px">
+      <button class="btn primary" id="drawDo">Auslosen</button>
+      <button class="btn" id="drawCancel">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="spOverlay"></div>
 <div class="modal" id="spModal">
   <div class="dh"><h3>Sponsoren</h3><div class="spacer"></div><button class="btn ghost" id="spClose">✕</button></div>
@@ -942,7 +966,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.6";
+const VERSION="5.7";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -962,7 +986,7 @@ const S = {
 /* Laufzeit-Status für die LED-Anzeigetafel (serieller Ausgang) */
 const DISP={ port:null, writer:null, active:false, busy:false, _t:0, freeze:null };
 /* Sponsoren (lokal gespeichert, erscheinen auf der Anzeigetafel bei Leerlauf) */
-S.sponsors=[]; S.sponsorCfg={enabled:true, sec:6};
+S.sponsors=[]; S.sponsorCfg={enabled:true, sec:6}; S.startOrder={};
 
 const $=id=>document.getElementById(id);
 const now=()=>performance.now();
@@ -1075,7 +1099,7 @@ const LS_KEY="alpin_timing_pro_v1";
 let _persistFailed=false;   // true, sobald ein Autosave scheitert (z.B. Speicher voll) → sichtbare Warnung statt stummem Verlust
 function exportState(){ return JSON.stringify({v:VERSION,raceName:$('raceName').value,racers:S.racers,nextId:S.nextId,
   numRuns:S.numRuns,activeRun:S.activeRun,onCourse:S.onCourse,readyId:S.readyId,resultClass:S.resultClass,meta:S.meta,licensee:S.licensee,settings:S.settings,
-  history:S.history.slice(-100),startReadyRun:_startReadyRun}); }
+  history:S.history.slice(-100),startReadyRun:_startReadyRun,startOrder:S.startOrder}); }
 function persist(){
   try{ if(window.localStorage){ localStorage.setItem(LS_KEY,exportState()); if(_persistFailed){ _persistFailed=false; logEvent("✓ Autosave läuft wieder.",'ev-info'); } } }
   catch(e){ if(!_persistFailed){ _persistFailed=true;   // nur bei der ERSTEN Fehlermeldung warnen, sonst würde jeder Impuls den Log fluten
@@ -1096,6 +1120,7 @@ function importState(json){
     if(S.activeRun>=S.numRuns || S.activeRun<0) S.activeRun=0;   // gegen defekte/alte Stände absichern
     S.history=Array.isArray(d.history)?d.history:[];             // Undo bleibt nach Reload erhalten
     _startReadyRun=(typeof d.startReadyRun==='number')?d.startReadyRun:null;  // Start-Freigabe übersteht Reload
+    S.startOrder=(d.startOrder&&typeof d.startOrder==='object')?d.startOrder:{};   // Auslosung/Startreihenfolge übersteht Reload
     if(d.settings) Object.assign(S.settings,d.settings);
     if(d.meta) Object.assign(S.meta,d.meta); if(d.licensee!=null) S.licensee=d.licensee;
     if(d.raceName) $('raceName').value=d.raceName;
@@ -1142,7 +1167,59 @@ function setReady(id){ const r=S.racers.find(x=>x.id===id); if(!r) return; const
   if(c.state!=='idle' && c.state!=='DNS'){ toast("Läufer ist nicht am Start"); return; }
   if(S.readyId!=null){ const o=S.racers.find(x=>x.id===S.readyId); if(o&&cur(o).state==='ready') cur(o).state='idle'; }
   c.state='ready'; S.readyId=id; renderAll(); persist(); }
-function nextIdle(){ const idle=S.racers.filter(r=>cur(r).state==='idle').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)); return idle.length?idle[0].id:null; }
+function _byBib(a,b){ return (parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9); }
+/* Startreihenfolge pro Lauf (Auslosung). S.startOrder[runIdx] = [id,...]; nicht
+   gelistete Laeufer haengen nach ihrer Startnummer hinten an. Ohne Auslosung: nach Nr. */
+function startOrderIds(runIdx){
+  const ord=(S.startOrder&&S.startOrder[runIdx])||null;
+  if(ord&&ord.length){ const pos=new Map(); ord.forEach((id,i)=>pos.set(id,i));
+    return [...S.racers].sort((a,b)=>{ const pa=pos.has(a.id)?pos.get(a.id):1e6+(parseFloat(a.bib)||1e9), pb=pos.has(b.id)?pos.get(b.id):1e6+(parseFloat(b.bib)||1e9); return pa-pb; }); }
+  return [...S.racers].sort(_byBib);
+}
+function _shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function _drawRandomOrder(perClass){
+  if(!perClass) return _shuffle(S.racers.map(r=>r.id));
+  const groups={}; S.racers.forEach(r=>{ const k=(r.cat||'').trim()||'￿'; (groups[k]=groups[k]||[]).push(r.id); });
+  const keys=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'de',{numeric:true}));
+  const out=[]; keys.forEach(k=>{ _shuffle(groups[k]); out.push(...groups[k]); }); return out;
+}
+/* 2. Lauf (BIBO): die besten topN aus dem Vorlauf starten in UMGEKEHRTER Reihenfolge
+   (Langsamster der Top-N zuerst), dann die restlichen Finisher normal, DNF/DSQ ans Ende. */
+function _drawFlipOrder(run,topN){
+  const fin=rankedRun(run-1).map(e=>e.r.id);
+  const top=fin.slice(0,topN).reverse(), rest=fin.slice(topN);
+  const done=new Set(fin); const others=[...S.racers].filter(r=>!done.has(r.id)).sort(_byBib).map(r=>r.id);
+  return [...top,...rest,...others];
+}
+function applyDraw(run,mode,topN,renumber){
+  let order;
+  if(mode==='class') order=_drawRandomOrder(true);
+  else if(mode==='bib') order=[...S.racers].sort(_byBib).map(r=>r.id);
+  else if(mode==='flip') order=_drawFlipOrder(run,topN);
+  else order=_drawRandomOrder(false);
+  if(!S.startOrder) S.startOrder={}; S.startOrder[run]=order;
+  if(run===0 && mode!=='bib' && renumber){ order.forEach((id,i)=>{ const r=S.racers.find(x=>x.id===id); if(r) r.bib=String(i+1); }); }
+  // Vor dem ersten Impuls dieses Laufs: „bereit" neu nach der Auslosung setzen
+  const started=S.racers.some(r=>['running','finished','DNF','DSQ'].includes(cur(r).state));
+  if(!started){ if(S.readyId!=null){ const o=S.racers.find(x=>x.id===S.readyId); if(o&&cur(o).state==='ready') cur(o).state='idle'; } S.readyId=null;
+    if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); } }
+}
+function nextIdle(){ const idle=startOrderIds(S.activeRun).filter(r=>cur(r).state==='idle'); return idle.length?idle[0].id:null; }
+function _drawMode(){ const el=document.querySelector('input[name="drawMode"]:checked'); return el?el.value:'random'; }
+function _drawSyncUI(){ const flip=_drawMode()==='flip'; $('drawFlipN').style.display=flip?'':'none';
+  $('drawRenumberWrap').style.display=(S.activeRun===0 && _drawMode()!=='bib' && !flip)?'':'none'; }
+function openDraw(){ const run=S.activeRun; $('drawRunLbl').textContent='Lauf '+(run+1);
+  $('drawFlipOpt').style.display=run>0?'':'none';
+  const def=run>0?'flip':'random'; document.querySelectorAll('input[name="drawMode"]').forEach(el=>{ el.checked=(el.value===def); });
+  _drawSyncUI(); $('drawModal').classList.add('open'); $('drawOverlay').classList.add('show'); }
+function closeDraw(){ $('drawModal').classList.remove('open'); $('drawOverlay').classList.remove('show'); }
+function doDraw(){ const run=S.activeRun, mode=_drawMode();
+  if(!S.racers.length){ toast('Keine Läufer in der Startliste'); return; }
+  const topN=Math.max(1,parseInt($('drawN').value)||30), renum=$('drawRenumber').checked;
+  applyDraw(run,mode,topN,renum);
+  const nm={random:'Zufall',class:'Zufall je Klasse',bib:'nach Startnummer',flip:'Lauf-1-Umkehr'}[mode];
+  logEvent('🎲 Startreihenfolge ausgelost ('+nm+') – Lauf '+(run+1),'ev-info');
+  closeDraw(); renderAll(); persist(); toast('Startreihenfolge gesetzt: '+nm); }
 function recomputeRunState(){
   S.onCourse=S.racers.filter(r=>cur(r).state==='running').sort((a,b)=>(cur(a).startSW||0)-(cur(b).startSW||0)).map(r=>r.id);
   const rd=S.racers.find(r=>cur(r).state==='ready'); S.readyId=rd?rd.id:null;
@@ -1274,7 +1351,7 @@ function updateStartLock(){
 
 function renderStartList(){
   const body=$('startBody'); body.innerHTML='';
-  [...S.racers].sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).forEach(r=>{
+  startOrderIds(S.activeRun).forEach(r=>{
     const c=cur(r), tr=document.createElement('tr'); if(r.id===S.readyId) tr.className='next';
     if(r.id===S.editId){
       const ist='background:var(--surface);border:1px solid var(--green);color:var(--ink);border-radius:6px;padding:5px 6px;font-family:var(--mono);font-size:13px';
@@ -1823,7 +1900,7 @@ function printResultSheet(view){
   window.print();
 }
 function printStartSheet(){
-  const rows=[...S.racers].sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).map(r=>`<tr><td class="rk">${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td></tr>`).join('');
+  const rows=startOrderIds(S.activeRun).map(r=>`<tr><td class="rk">${esc(r.bib)}</td><td>${esc(r.name)}</td><td>${esc(r.cat)}</td></tr>`).join('');
   $('printsheet').innerHTML=sheetHeader('Startliste')+`<table><thead><tr><th class="rk">Nr</th><th>Name</th><th>Kat</th></tr></thead><tbody>${rows}</tbody></table>`+sheetFoot();
   window.print();
 }
@@ -2361,7 +2438,8 @@ function renderStartView(){
   const ready=d.racers.find(r=>r.id===d.readyId);
   $('svReadyBib').textContent=ready?ready.bib:''; 
   const nm=$('svReadyName'); nm.textContent=ready?ready.name:'— niemand bereit —'; nm.className='nm'+(ready?'':' empty');
-  const up=d.racers.filter(r=>svCur(r).state==='idle').sort((a,b)=>(parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9)).slice(0,6);
+  const _svOrd=(d.startOrder&&d.startOrder[d.activeRun])||null; const _svPos=_svOrd?new Map(_svOrd.map((id,i)=>[id,i])):null;
+  const up=d.racers.filter(r=>svCur(r).state==='idle').sort((a,b)=>{ if(_svPos){ const pa=_svPos.has(a.id)?_svPos.get(a.id):1e6+(parseFloat(a.bib)||1e9), pb=_svPos.has(b.id)?_svPos.get(b.id):1e6+(parseFloat(b.bib)||1e9); return pa-pb; } return (parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9); }).slice(0,6);
   $('svNext').innerHTML=up.length?up.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span></div>`).join(''):'<div class="sv-empty">—</div>';
   const oc=d.racers.filter(r=>svCur(r).state==='running').sort((a,b)=>(svCur(a).startWall||0)-(svCur(b).startWall||0));
   $('svCourse').innerHTML=oc.length?oc.map(r=>`<div class="sv-li"><span class="bb">${esc(r.bib)}</span><span class="nn">${esc(r.name)}</span><span class="tt" data-wall="${svCur(r).startWall||0}" data-st="${svCur(r).startServerT||''}">—</span></div>`).join(''):'<div class="sv-empty">niemand auf der Strecke</div>';
@@ -2469,6 +2547,8 @@ function init(){
   if($('btnNetDev')) $('btnNetDev').onclick=()=>{ if(NETDEV.on) netDevDisconnect(); else netDevConnect($('netDevUrl').value); };
   try{ const u=localStorage.getItem('alpin_netdev_url'); if(u && $('netDevUrl')) $('netDevUrl').value=u; }catch(e){}
   $('btnSponsors').onclick=openSponsors; $('spClose').onclick=closeSponsors; $('spOverlay').onclick=closeSponsors;
+  $('btnDraw').onclick=openDraw; $('drawClose').onclick=closeDraw; $('drawCancel').onclick=closeDraw; $('drawOverlay').onclick=closeDraw; $('drawDo').onclick=doDraw;
+  document.querySelectorAll('input[name="drawMode"]').forEach(el=>el.addEventListener('change',_drawSyncUI));
   $('spAddBtn').onclick=spAdd; $('spName').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); spAdd(); } });
   $('spFileBtn').onclick=()=>$('spFile').click();
   $('spFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; scaleImage(f,520,d=>{ spPendingImg=d||''; $('spFileName').textContent=d?('Logo bereit: '+(f.name||'Bild')):'Bild konnte nicht geladen werden'; }); e.target.value=''; };
