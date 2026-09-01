@@ -158,6 +158,34 @@
   .imv-tod-cell{font-weight:700;font-size:16px}
   .imv-empty{padding:40px 20px;text-align:center;color:var(--dim)}
 
+  /* ===== Hilfszeit-Fenster (manuelle Backup-Zeit) ===== */
+  #hilfszeitview{display:none;position:fixed;inset:0;z-index:1400;background:var(--bg,#05070a);color:var(--ink,#eaf2f7);flex-direction:column;font-family:var(--sans)}
+  #hilfszeitview.show{display:flex}
+  .hz-head{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line);flex:none;flex-wrap:wrap}
+  .hz-head h2{margin:0;font-size:20px;letter-spacing:.04em}
+  .hz-head .hz-run{color:var(--amber);font-weight:700}
+  .hz-clock{margin-left:auto;font-family:var(--mono);font-size:34px;font-weight:800;letter-spacing:.02em;color:var(--green)}
+  .hz-note{padding:8px 20px;border-bottom:1px solid var(--line);color:var(--dim);font-size:13px;flex:none}
+  .hz-wrap{flex:1;overflow:auto;padding:6px 0}
+  table.hz-tab{width:100%;border-collapse:collapse}
+  table.hz-tab th{position:sticky;top:0;background:var(--elev,#0c1117);color:var(--dim);text-align:left;padding:9px 16px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--line);z-index:1}
+  table.hz-tab td{padding:8px 16px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+  .hz-bib{font-family:var(--mono);font-weight:800;font-size:20px;min-width:42px}
+  .hz-name{font-size:16px}
+  .hz-stamp{font-family:var(--mono);font-size:14px;color:var(--dim)}
+  .hz-stamp.on{color:var(--ink)}
+  .hz-time{font-family:var(--mono);font-weight:800;font-size:20px}
+  .hz-time.set{color:var(--amber)}
+  .hz-btn{padding:10px 16px;font-size:15px;font-weight:700;border-radius:9px;border:1px solid var(--line);background:var(--elev);color:var(--ink);cursor:pointer;min-width:96px}
+  .hz-btn.start{border-color:var(--green);color:var(--green)}
+  .hz-btn.start.armed{background:var(--green);color:#04140d}
+  .hz-btn.fin{border-color:var(--amber);color:var(--amber)}
+  .hz-btn.fin:disabled{opacity:.35;cursor:not-allowed}
+  .hz-btn.mini{min-width:0;padding:7px 10px;font-size:13px;font-weight:600;color:var(--dim);border-color:var(--line)}
+  .hz-elec{font-family:var(--mono);font-size:13px;color:var(--green)}
+  .hz-empty{padding:40px 20px;text-align:center;color:var(--dim)}
+  .hz-running{color:var(--green);animation:pulse 1.2s infinite}
+
   button{font-family:var(--sans);cursor:pointer;border:none;border-radius:9px;font-weight:600}
   .btn{padding:9px 13px;font-size:13px;letter-spacing:.03em;background:var(--elev);color:var(--ink);border:1px solid var(--line)}
   .btn:hover{background:var(--elev2);border-color:var(--lineh)}
@@ -603,6 +631,7 @@
     <button class="btn warn" id="btnSim">Simulation</button>
     <button class="btn" id="btnBoard">Anzeigetafel</button>
     <button class="btn" id="btnImp" title="Impuls-Protokoll: alle Zeitmess-Impulse mit Kanal und Uhrzeit (eigenes Fenster)">⚡ Impulse</button>
+    <button class="btn" id="btnHz" title="Hilfszeit: manuelle Backup-Zeit (eigenes Fenster)">✋ Hilfszeit</button>
     <button class="btn" id="btnSponsors" title="Sponsoren auf der Anzeigetafel zeigen">★ Sponsoren</button>
     <button class="btn primary" id="btnLive" title="Öffentlichen Link zum Live-Timing erzeugen und teilen">🔗 LiveTiming</button>
     <button class="btn ghost" id="btnTheme" title="Hell-/Dunkelmodus">☀</button>
@@ -654,6 +683,21 @@
 
   <div class="foot">Tasten: <span class="kbd">␣</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎</span> Ziel · <span class="kbd">Z</span> rückgängig · <span class="kbd">B</span> Anzeigetafel · Zeit in Ergebnis anklicken = Handzeit eingeben</div>
   <div class="credit">Made by Nico Warscher · <span id="btnContact" style="cursor:pointer;text-decoration:underline">✉ Frage / Kontakt</span> · <span id="btnLegal" style="cursor:pointer;text-decoration:underline">Rechtliches (AGB · Datenschutz · Impressum)</span></div>
+</div>
+
+<!-- HILFSZEIT (manuelle Backup-Zeit, eigenes Fenster) -->
+<div id="hilfszeitview">
+  <div class="hz-head">
+    <h2>✋ Hilfszeit</h2>
+    <span class="hz-run" id="hzRun">Lauf 1</span>
+    <span class="hz-clock" id="hzClock">--:--:--</span>
+    <button class="btn ghost" id="hzFull" title="Vollbild">⛶ Vollbild</button>
+    <button class="btn" id="hzClose">Schließen</button>
+  </div>
+  <div class="hz-note">Manuelle Backup-Zeit (FIS-Absicherung). <b>Start</b> beim Losfahren, <b>Ziel</b> im Ziel – die Handzeit wird automatisch in die Wertung übernommen. Fällt die elektronische Zeit aus, zählt sie (mit FIS-Korrektur aus den Nachbarn). Oder Zeit direkt eintippen.</div>
+  <div class="hz-wrap">
+    <table class="hz-tab"><thead><tr><th style="width:60px">Nr</th><th>Name</th><th style="width:150px">Start</th><th style="width:120px">Ziel</th><th style="width:120px">Handzeit</th><th style="width:150px">elektr.</th><th style="width:120px"></th></tr></thead><tbody id="hzBody"></tbody></table>
+  </div>
 </div>
 
 <!-- IMPULS-PROTOKOLL (eigenes Fenster, Kanal-Monitor) -->
@@ -1019,7 +1063,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="6.1";
+const VERSION="6.2";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1363,12 +1407,12 @@ function reopenRun(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) retur
   if(runIdx===S.activeRun) S.onCourse=S.onCourse.filter(x=>x!==id);
   logEvent(`Zurückgesetzt · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-info');
   recalcErsatz(runIdx); renderAll(); persist(); }
-function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+/* Handzeit programmatisch setzen (ms=null loescht) - Kern von editHand,
+   auch vom Hilfszeit-Fenster ueber die Warteschlange genutzt. */
+function applyHandValue(id,runIdx,ms){ const r=S.racers.find(x=>x.id===id); if(!r) return false;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
-  const inp=prompt(`Handzeit für Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})\nFormat  SS,cc  oder  M:SS,cc  — leer = löschen:`, c.hand!=null?fmt(c.hand):'');
-  if(inp===null) return;
-  if(inp.trim()===''){ c.hand=null; if(c.runMs==null && c.state==='finished') c.state='idle'; }
-  else { const ms=parseTime(inp); if(ms==null){ toast("Ungültige Zeit"); return; } c.hand=ms; c.state='finished';
+  if(ms==null){ c.hand=null; if(c.runMs==null && c.state==='finished') c.state='idle'; }
+  else { c.hand=ms; c.state='finished';
       if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null;
         if(S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); } } }
   recalcErsatz(runIdx);
@@ -1376,7 +1420,24 @@ function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return
   else if(c.runMs!=null) logEvent(`Handzeit (Backup) Nr ${r.bib}: ${fmt(c.hand)} – elektronische Zeit gilt`,'ev-info');
   else if(c.calcMs!=null) logEvent(`⏱ ERSATZZEIT Nr ${r.bib} (Lauf ${runIdx+1}): ${fmt(c.calcMs)}  (Hand ${fmt(c.hand)} + FIS-Korrektur aus Nachbarn)`,'ev-inter');
   else logEvent(`Handzeit Nr ${r.bib} (Lauf ${runIdx+1}): ${fmt(c.hand)} – keine Nachbar-Referenz, Rohzeit gewertet`,'ev-warn');
-  renderAll(); persist(); }
+  renderAll(); persist(); return true; }
+function editHand(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
+  if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
+  const inp=prompt(`Handzeit für Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})\nFormat  SS,cc  oder  M:SS,cc  — leer = löschen:`, c.hand!=null?fmt(c.hand):'');
+  if(inp===null) return;
+  if(inp.trim()===''){ applyHandValue(id,runIdx,null); return; }
+  const ms=parseTime(inp); if(ms==null){ toast("Ungültige Zeit"); return; }
+  applyHandValue(id,runIdx,ms); }
+/* Hilfszeit-Warteschlange: das Hilfszeit-Fenster schreibt {bib,run,ms} hierher,
+   der Haupt-PC uebernimmt sie per storage-Event in die Wertung (ms=null loescht). */
+const HANDQ_KEY = LS_KEY + "_handq";
+function pushHandQueue(entry){ try{ const q=JSON.parse(localStorage.getItem(HANDQ_KEY)||'[]'); q.push(entry); localStorage.setItem(HANDQ_KEY, JSON.stringify(q.slice(-100))); }catch(e){} }
+function drainHandQueue(){ let q; try{ q=JSON.parse(localStorage.getItem(HANDQ_KEY)||'[]'); }catch(e){ return; }
+  if(!Array.isArray(q)||!q.length) return;
+  try{ localStorage.setItem(HANDQ_KEY,'[]'); }catch(e){}
+  q.forEach(en=>{ if(!en) return; const r=S.racers.find(x=>String(x.bib)===String(en.bib)); if(!r) return;
+    const ri=(en.run!=null&&!isNaN(en.run))?+en.run:S.activeRun;
+    applyHandValue(r.id, ri, (en.ms==null?null:+en.ms)); }); }
 
 /* effective time of a run (electronic, else hand backup) */
 function effRun(c){ if(c.state!=='finished') return null; return c.runMs!=null?c.runMs:(c.calcMs!=null?c.calcMs:c.hand); }
@@ -2675,11 +2736,82 @@ function imvExportCsv(){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
 
+/* ---- Hilfszeit-Fenster (#hilfszeit): manuelle Backup-Zeit, schreibt in die Wertung ----
+   Läuft auf demselben PC wie der Renn-Rechner (zweites Fenster/Monitor). Start/Ziel
+   stempeln die Wanduhr, die Laufzeit wird per Warteschlange als Handzeit übernommen. */
+const HZ={cap:{}};
+function openHilfszeitView(){
+  const url=location.href.split('#')[0]+'#hilfszeit';
+  const w=window.open(url,'alpinhilfszeit');
+  if(!w) toast("Bitte Pop-ups erlauben – oder die Adresse mit #hilfszeit am Ende separat öffnen.");
+}
+function hzNow(){ const d=new Date(); const cs=Math.floor(d.getMilliseconds()/10); return d.toLocaleTimeString('de-DE')+'.'+String(cs).padStart(2,'0'); }
+function initHilfszeitView(){
+  VIEWKIND='hilfszeit';
+  const wrap=document.querySelector('.wrap'); if(wrap) wrap.style.display='none';
+  $('hilfszeitview').classList.add('show');
+  $('hzClose').onclick=()=>window.close();
+  $('hzFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
+  $('hzBody').addEventListener('click',hzClick);
+  window.addEventListener('storage',e=>{ if(e.key===LS_KEY) hzRender(); });
+  setInterval(hzTick,80);
+  setInterval(hzRender,1500);
+  hzRender();
+}
+function hzTick(){ const cl=$('hzClock'); if(cl) cl.textContent=hzNow();
+  const wNow=Date.now(); document.querySelectorAll('#hzBody [data-armed]').forEach(el=>{ const s=+el.getAttribute('data-armed'); if(s) el.textContent=fmt(wNow-s); }); }
+function hzOrder(d){
+  const ar=d.activeRun||0;
+  const ord=(d.startOrder&&d.startOrder[ar])||null; const pos=ord?new Map(ord.map((id,i)=>[id,i])):null;
+  const cur=r=>r.runs[ar]||{}; const rank=r=>{ const st=cur(r).state; return st==='running'?0:st==='idle'?1:2; };
+  return d.racers.slice().sort((a,b)=>{ const ra=rank(a),rb=rank(b); if(ra!==rb) return ra-rb;
+    if(pos){ const pa=pos.has(a.id)?pos.get(a.id):1e6+(parseFloat(a.bib)||1e9), pb=pos.has(b.id)?pos.get(b.id):1e6+(parseFloat(b.bib)||1e9); return pa-pb; }
+    return (parseFloat(a.bib)||1e9)-(parseFloat(b.bib)||1e9); });
+}
+function hzRender(){
+  const d=viewState(); const body=$('hzBody'); if(!body) return;
+  if(!d){ body.innerHTML='<tr><td colspan="7" class="hz-empty">Keine Verbindung zum Renn-PC (dasselbe Fenster/denselben PC verwenden).</td></tr>'; return; }
+  if(d.settings&&d.settings.decimals!=null) S.settings.decimals=d.settings.decimals;
+  const rn=$('hzRun'); if(rn) rn.textContent='Lauf '+((d.activeRun||0)+1);
+  const ar=d.activeRun||0; const list=hzOrder(d);
+  if(!list.length){ body.innerHTML='<tr><td colspan="7" class="hz-empty">Keine Läufer. Läufer am Renn-PC hinzufügen.</td></tr>'; return; }
+  body.innerHTML=list.map(r=>{
+    const c=r.runs[ar]||{}; const bib=String(r.bib); const arm=HZ.cap[bib]&&HZ.cap[bib].start;
+    const startCell = arm
+      ? `<span class="hz-running" data-armed="${arm}">…</span>`
+      : `<button class="hz-btn start" data-act="start" data-bib="${esc(bib)}">Start</button>`;
+    const finBtn = `<button class="hz-btn fin" data-act="fin" data-bib="${esc(bib)}" ${arm?'':'disabled'}>Ziel</button>`;
+    const handTxt = c.hand!=null ? `<span class="hz-time set">${fmt(c.hand)}</span>` : `<span class="hz-time" style="color:var(--dim)">—</span>`;
+    const elec = c.runMs!=null ? `<span class="hz-elec">${fmt(c.runMs)} ✓</span>` : '<span class="hz-stamp">—</span>';
+    return `<tr>`+
+      `<td class="hz-bib">${esc(bib)}</td>`+
+      `<td class="hz-name">${esc(r.name||'')}</td>`+
+      `<td>${startCell}</td>`+
+      `<td>${finBtn}</td>`+
+      `<td>${handTxt}</td>`+
+      `<td>${elec}</td>`+
+      `<td><button class="hz-btn mini" data-act="type" data-bib="${esc(bib)}">eintippen</button>${c.hand!=null?` <button class="hz-btn mini" data-act="clr" data-bib="${esc(bib)}">✕</button>`:''}</td>`+
+    `</tr>`;
+  }).join('');
+}
+function hzClick(e){
+  const b=e.target.closest('button[data-act]'); if(!b) return;
+  const bib=b.getAttribute('data-bib'); const act=b.getAttribute('data-act');
+  const d=viewState(); const ar=(d&&d.activeRun)||0;
+  if(act==='start'){ HZ.cap[bib]={start:Date.now()}; hzRender(); }
+  else if(act==='fin'){ const cap=HZ.cap[bib]; if(!cap||!cap.start) return; const ms=Date.now()-cap.start; HZ.cap[bib]=null;
+      pushHandQueue({bib,run:ar,ms}); toast('Hilfszeit Nr '+bib+': '+fmt(ms)); hzRender(); setTimeout(hzRender,500); }
+  else if(act==='type'){ const inp=prompt('Handzeit für Nr '+bib+' (Lauf '+(ar+1)+')\nFormat SS,cc oder M:SS,cc — leer = abbrechen:',''); if(inp==null||inp.trim()==='') return;
+      const ms=parseTime(inp); if(ms==null){ toast('Ungültige Zeit'); return; } pushHandQueue({bib,run:ar,ms}); toast('Hilfszeit Nr '+bib+': '+fmt(ms)); setTimeout(hzRender,500); }
+  else if(act==='clr'){ if(confirm('Handzeit Nr '+bib+' löschen?')){ pushHandQueue({bib,run:ar,ms:null}); setTimeout(hzRender,500); } }
+}
+
 function init(){
   const hk=(location.hash||'').replace('#','');
   if(hk==='start'){ initStartView(); return; }
   if(hk==='results'){ initResultsView(); return; }
   if(hk==='impulse'){ initImpulseView(); return; }
+  if(hk==='hilfszeit'){ initHilfszeitView(); return; }
   loadNet();
   loadSponsors();
   refreshClubLogo();
@@ -2713,6 +2845,9 @@ function init(){
   $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
   $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
   $('btnImp').onclick=openImpulseView; { const li=$('lastImp'); if(li) li.onclick=openImpulseView; }
+  $('btnHz').onclick=openHilfszeitView;
+  window.addEventListener('storage',e=>{ if(e.key===HANDQ_KEY) drainHandQueue(); });
+  drainHandQueue();   // beim Start evtl. wartende Hilfszeiten uebernehmen
   if($('devProfile')) $('devProfile').onchange=()=>{ const v=$('devProfile').value; if(v) applyDeviceProfile(v); };
   if($('btnNetDev')) $('btnNetDev').onclick=()=>{ if(NETDEV.on) netDevDisconnect(); else netDevConnect($('netDevUrl').value); };
   try{ const u=localStorage.getItem('alpin_netdev_url'); if(u && $('netDevUrl')) $('netDevUrl').value=u; }catch(e){}
