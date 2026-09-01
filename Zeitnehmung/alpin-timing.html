@@ -124,6 +124,14 @@
   .dot.sim{background:var(--amber);box-shadow:0 0 12px var(--amber)}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
   .conn .label{font-size:12px;color:var(--dim);min-width:110px}
+  .lastimp{display:none;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--dim);
+    background:var(--surf2,#0c1117);border:1px solid var(--line);border-radius:20px;padding:3px 10px;max-width:230px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .lastimp.show{display:inline-flex}
+  .lastimp::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--dimmer);flex:none}
+  .lastimp.flash{border-color:var(--green);color:var(--ink)}
+  .lastimp.flash::before{background:var(--green);box-shadow:0 0 10px var(--green)}
+  @keyframes impflash{0%{background:rgba(0,229,138,.28)}100%{background:var(--surf2,#0c1117)}}
+  .lastimp.flash{animation:impflash .5s ease-out}
 
   button{font-family:var(--sans);cursor:pointer;border:none;border-radius:9px;font-weight:600}
   .btn{padding:9px 13px;font-size:13px;letter-spacing:.03em;background:var(--elev);color:var(--ink);border:1px solid var(--line)}
@@ -565,6 +573,7 @@
       <span class="wx-live" id="wxLiveDot" title="Live-Wetter"></span>
     </div>
     <div class="conn"><span class="dot" id="connDot"></span><span class="label" id="connLabel">Nicht verbunden</span></div>
+    <div class="lastimp" id="lastImp" title="Zuletzt empfangener Impuls von der Zeitmessung"></div>
     <button class="btn primary" id="btnConnect">Hardware verbinden</button>
     <button class="btn warn" id="btnSim">Simulation</button>
     <button class="btn" id="btnBoard">Anzeigetafel</button>
@@ -967,7 +976,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.9";
+const VERSION="6.0";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1733,6 +1742,7 @@ async function readLoop(){
   }
 }
 function parseSerialLine(line){
+  signalImpulse(line);   // jeden empfangenen Impuls sichtbar anzeigen (auch unbekannte)
   const up=line.toUpperCase().trim();
   const tokens=up.split(/[\s,;]+/).filter(Boolean);   // NICHT an ':' trennen -> Uhrzeit bleibt erhalten
   const first=tokens[0]||'';
@@ -1754,6 +1764,11 @@ function parseSerialLine(line){
 async function disconnectSerial(){ S.keepReading=false; try{ if(S.reader) await S.reader.cancel(); }catch(e){}
   try{ if(S.port) await S.port.close(); }catch(e){} S.port=null; S.reader=null; setConn(false,false,"Nicht verbunden"); logEvent("Hardware getrennt","ev-info"); }
 function setConn(on,sim,label){ $('connDot').className='dot'+(on?' on':'')+(sim?' sim':''); $('connLabel').textContent=label; $('btnConnect').textContent=on?"Trennen":"Hardware verbinden"; }
+/* Live-Anzeige "letzter Impuls": blinkt bei jedem empfangenen Signal (Seriell + Netzwerk) */
+function signalImpulse(raw){ const el=$('lastImp'); if(!el) return;
+  el.textContent='Impuls: '+String(raw).trim().slice(0,42);
+  el.classList.add('show'); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+  clearTimeout(signalImpulse._t); signalImpulse._t=setTimeout(()=>el.classList.remove('flash'), 600); }
 
 /* ===== LED-Anzeigetafel: serieller Ausgang (zweiter Port) ===== */
 function dispEscapes(s){ return String(s).replace(/\\r/g,'\r').replace(/\\n/g,'\n').replace(/\\t/g,'\t'); }
