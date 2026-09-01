@@ -967,7 +967,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="5.8";
+const VERSION="5.9";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1661,7 +1661,7 @@ async function autoConnectDetect(port){
 const DEVICE_PROFILES = {
   generic:  { baud:9600,   start:'S,START,C0,IMP1,A', inter:'Z,ZW,INT,C1,IMP2', finish:'F,FIN,ZIEL,C2,IMP3,B' },
   esp32:    { baud:115200, start:'S,START',           inter:'Z,ZW',            finish:'F,FIN,ZIEL' },
-  tagheuer: { baud:38400,  start:'S,C0,IMP1',         inter:'Z,C1,IMP2',       finish:'F,C2,IMP3,B' },
+  tagheuer: { baud:38400,  start:'M1,S,C0,IMP1',      inter:'M2,M3,Z,C1,IMP2', finish:'M4,F,C2,IMP3,B' },
   brower:   { baud:9600,   start:'S,START',           inter:'Z,SPLIT',         finish:'F,FINISH,STOP' },
   microgate:{ baud:9600,   start:'S,START',           inter:'Z,SPLIT',         finish:'F,STOP,FINISH' }
 };
