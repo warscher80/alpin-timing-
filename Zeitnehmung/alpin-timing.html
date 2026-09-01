@@ -132,6 +132,31 @@
   .lastimp.flash::before{background:var(--green);box-shadow:0 0 10px var(--green)}
   @keyframes impflash{0%{background:rgba(0,229,138,.28)}100%{background:var(--surf2,#0c1117)}}
   .lastimp.flash{animation:impflash .5s ease-out}
+  .lastimp{cursor:pointer}
+
+  /* ===== Impuls-Protokoll-Fenster (Kanal-Monitor, Vola-artig) ===== */
+  #impulseview{display:none;position:fixed;inset:0;z-index:1400;background:var(--bg,#05070a);color:var(--ink,#eaf2f7);flex-direction:column;font-family:var(--sans)}
+  #impulseview.show{display:flex}
+  .imv-head{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line);flex:none}
+  .imv-head h2{margin:0;font-size:20px;letter-spacing:.04em}
+  .imv-head .imv-sub{color:var(--dim);font-size:13px}
+  .imv-head .imv-tod{margin-left:auto;font-family:var(--mono);font-size:22px;font-weight:700}
+  .imv-head .btn{padding:8px 14px}
+  .imv-stats{display:flex;gap:18px;padding:8px 20px;border-bottom:1px solid var(--line);flex:none;font-family:var(--mono);font-size:13px;color:var(--dim);flex-wrap:wrap}
+  .imv-stats b{color:var(--ink);font-size:16px}
+  .imv-wrap{flex:1;overflow:auto;padding:0}
+  table.imv-tab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:15px}
+  table.imv-tab th{position:sticky;top:0;background:var(--elev,#0c1117);color:var(--dim);text-align:left;padding:10px 20px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--line);z-index:1}
+  table.imv-tab td{padding:9px 20px;border-bottom:1px solid rgba(255,255,255,.05);white-space:nowrap}
+  table.imv-tab tr:first-child td{animation:impflash .6s ease-out}
+  .imv-ch{display:inline-block;min-width:44px;text-align:center;padding:2px 8px;border-radius:6px;font-weight:700;font-size:13px}
+  .imv-k-start{background:rgba(0,229,138,.18);color:var(--green,#00e58a)}
+  .imv-k-inter{background:rgba(77,166,255,.18);color:var(--blue,#4da6ff)}
+  .imv-k-finish{background:rgba(255,178,64,.2);color:var(--amber,#ffb240)}
+  .imv-k-unknown{background:rgba(150,160,170,.15);color:var(--dim,#8a97a3)}
+  .imv-raw{color:var(--dim);font-size:13px}
+  .imv-tod-cell{font-weight:700;font-size:16px}
+  .imv-empty{padding:40px 20px;text-align:center;color:var(--dim)}
 
   button{font-family:var(--sans);cursor:pointer;border:none;border-radius:9px;font-weight:600}
   .btn{padding:9px 13px;font-size:13px;letter-spacing:.03em;background:var(--elev);color:var(--ink);border:1px solid var(--line)}
@@ -577,6 +602,7 @@
     <button class="btn primary" id="btnConnect">Hardware verbinden</button>
     <button class="btn warn" id="btnSim">Simulation</button>
     <button class="btn" id="btnBoard">Anzeigetafel</button>
+    <button class="btn" id="btnImp" title="Impuls-Protokoll: alle Zeitmess-Impulse mit Kanal und Uhrzeit (eigenes Fenster)">⚡ Impulse</button>
     <button class="btn" id="btnSponsors" title="Sponsoren auf der Anzeigetafel zeigen">★ Sponsoren</button>
     <button class="btn primary" id="btnLive" title="Öffentlichen Link zum Live-Timing erzeugen und teilen">🔗 LiveTiming</button>
     <button class="btn ghost" id="btnTheme" title="Hell-/Dunkelmodus">☀</button>
@@ -628,6 +654,23 @@
 
   <div class="foot">Tasten: <span class="kbd">␣</span> Start · <span class="kbd">M</span> Zwischenzeit · <span class="kbd">⏎</span> Ziel · <span class="kbd">Z</span> rückgängig · <span class="kbd">B</span> Anzeigetafel · Zeit in Ergebnis anklicken = Handzeit eingeben</div>
   <div class="credit">Made by Nico Warscher · <span id="btnContact" style="cursor:pointer;text-decoration:underline">✉ Frage / Kontakt</span> · <span id="btnLegal" style="cursor:pointer;text-decoration:underline">Rechtliches (AGB · Datenschutz · Impressum)</span></div>
+</div>
+
+<!-- IMPULS-PROTOKOLL (eigenes Fenster, Kanal-Monitor) -->
+<div id="impulseview">
+  <div class="imv-head">
+    <h2>⚡ Impuls-Protokoll</h2>
+    <span class="imv-sub" id="imvSub">alle Zeitmess-Impulse · live</span>
+    <span class="imv-tod" id="imvTod">--:--:--</span>
+    <button class="btn ghost" id="imvFull" title="Vollbild">⛶ Vollbild</button>
+    <button class="btn ghost" id="imvCsv" title="Impulse als CSV exportieren">CSV</button>
+    <button class="btn ghost" id="imvClear" title="Liste leeren">Leeren</button>
+    <button class="btn" id="imvClose">Schließen</button>
+  </div>
+  <div class="imv-stats" id="imvStats"></div>
+  <div class="imv-wrap">
+    <table class="imv-tab"><thead><tr><th style="width:60px">#</th><th style="width:150px">Uhrzeit (Gerät)</th><th style="width:110px">Kanal</th><th style="width:130px">Erkannt&nbsp;als</th><th>Rohzeile</th></tr></thead><tbody id="imvBody"></tbody></table>
+  </div>
 </div>
 
 <!-- SCOREBOARD -->
@@ -976,7 +1019,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="6.0";
+const VERSION="6.1";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1768,7 +1811,46 @@ function setConn(on,sim,label){ $('connDot').className='dot'+(on?' on':'')+(sim?
 function signalImpulse(raw){ const el=$('lastImp'); if(!el) return;
   el.textContent='Impuls: '+String(raw).trim().slice(0,42);
   el.classList.add('show'); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
-  clearTimeout(signalImpulse._t); signalImpulse._t=setTimeout(()=>el.classList.remove('flash'), 600); }
+  clearTimeout(signalImpulse._t); signalImpulse._t=setTimeout(()=>el.classList.remove('flash'), 600);
+  recordImpulse(raw); }
+
+/* ===== Impuls-Protokoll (Kanal-Monitor, eigenes Fenster #impulse) =====
+   Jeder empfangene Impuls (Seriell + Netzwerk) wird mit Kanal + Geraete-Uhrzeit
+   dauerhaft protokolliert - unabhaengig davon, ob er einem Laeufer zugeordnet
+   wurde. Profi-/FIS-Anforderung (Rohdaten-Trace). Sync ins Fenster ueber localStorage. */
+const IMP_KEY = LS_KEY + "_imp";
+let IMPULSES = imvLoad();
+function imvLoad(){ try{ const a=JSON.parse(localStorage.getItem(IMP_KEY)||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function imvSave(){ try{ localStorage.setItem(IMP_KEY, JSON.stringify(IMPULSES.slice(-400))); }catch(e){} }
+function imvClassify(line){
+  const up=String(line).toUpperCase().trim();
+  const tokens=up.split(/[\s,;]+/).filter(Boolean); const first=tokens[0]||'';
+  const st=(S.settings&&S.settings.startKeys)||[], it=(S.settings&&S.settings.interKeys)||[], fi=(S.settings&&S.settings.finishKeys)||[];
+  const match=keys=>keys.some(k=>k&&(tokens.includes(k)||first.startsWith(k)));
+  let kind='unknown';
+  if(match(st)) kind='start';
+  else if(S.settings&&S.settings.hasInter&&match(it)) kind='inter';
+  else if(match(fi)) kind='finish';
+  let ch='—';
+  for(const t of tokens){ if(/^(M\d|C\d|IMP\d|K\d|CH\d)$/.test(t)||/^(S|F|Z|A|B|START|FIN|FINISH|ZIEL|STOP|SPLIT|INT|ZW)$/.test(t)){ ch=t; break; } }
+  const tm=up.match(/(\d{1,2}):(\d{2}):(\d{2})(?:[.,](\d{1,4}))?/);
+  const tod=tm?tm[0].replace(',','.'):'';
+  return {kind,ch,tod};
+}
+function recordImpulse(raw){
+  const line=String(raw).trim(); if(!line) return;
+  const c=imvClassify(line);
+  const n=IMPULSES.length?(IMPULSES[IMPULSES.length-1].n||IMPULSES.length)+1:1;
+  IMPULSES.push({n,t:Date.now(),tod:c.tod,ch:c.ch,kind:c.kind,raw:line.slice(0,120)});
+  if(IMPULSES.length>400) IMPULSES=IMPULSES.slice(-400);
+  imvSave();
+  if(VIEWKIND==='impulse') imvRender();
+}
+function openImpulseView(){
+  const url=location.href.split('#')[0]+'#impulse';
+  const w=window.open(url,'alpinimpulse');
+  if(!w) toast("Bitte Pop-ups erlauben – oder die Adresse mit #impulse am Ende separat öffnen.");
+}
 
 /* ===== LED-Anzeigetafel: serieller Ausgang (zweiter Port) ===== */
 function dispEscapes(s){ return String(s).replace(/\\r/g,'\r').replace(/\\n/g,'\n').replace(/\\t/g,'\t'); }
@@ -2544,10 +2626,60 @@ function renderResultsView(){
 function updateResultsClocks(){ const d=_sv.data; if(!d) return; const wNow=Date.now();
   document.querySelectorAll('#rvCourse [data-wall]').forEach(el=>{ const w=+el.getAttribute('data-wall'); el.textContent=w?fmt(wNow-w):'—'; }); }
 
+/* ---- Impuls-Protokoll-Fenster (#impulse), liest live aus localStorage ---- */
+const IMV_LABEL={start:'▶ Start',inter:'⏲ Zwischen',finish:'⏱ Ziel',unknown:'· roh'};
+function initImpulseView(){
+  VIEWKIND='impulse';
+  const wrap=document.querySelector('.wrap'); if(wrap) wrap.style.display='none';
+  $('impulseview').classList.add('show');
+  $('imvClose').onclick=()=>window.close();
+  $('imvFull').onclick=()=>{ try{ if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }catch(e){} };
+  $('imvClear').onclick=()=>{ if(confirm('Impuls-Protokoll wirklich leeren?')){ IMPULSES=[]; imvSave(); imvRender(); } };
+  $('imvCsv').onclick=imvExportCsv;
+  window.addEventListener('storage',e=>{ if(e.key===IMP_KEY){ IMPULSES=imvLoad(); imvRender(); } });
+  setInterval(()=>{ IMPULSES=imvLoad(); imvRender(); },2000);
+  setInterval(()=>{ $('imvTod').textContent=new Date().toLocaleTimeString('de-DE'); },1000);
+  $('imvTod').textContent=new Date().toLocaleTimeString('de-DE');
+  IMPULSES=imvLoad(); imvRender();
+}
+function imvRender(){
+  const body=$('imvBody'); if(!body) return;
+  const arr=IMPULSES.slice(-400);
+  if(!arr.length){ body.innerHTML='<tr><td colspan="5" class="imv-empty">Noch keine Impulse. Löse an der Zeitmessung aus (Kanal 1 = Start, 4 = Ziel).</td></tr>';
+    if($('imvStats')) $('imvStats').innerHTML=''; return; }
+  let s=0,i=0,f=0,u=0;
+  arr.forEach(x=>{ if(x.kind==='start')s++;else if(x.kind==='inter')i++;else if(x.kind==='finish')f++;else u++; });
+  const st=$('imvStats'); if(st) st.innerHTML=
+    `Impulse gesamt <b>${arr.length}</b>`+
+    ` · <span class="imv-ch imv-k-start">Start ${s}</span>`+
+    ` <span class="imv-ch imv-k-inter">Zwischen ${i}</span>`+
+    ` <span class="imv-ch imv-k-finish">Ziel ${f}</span>`+
+    ` <span class="imv-ch imv-k-unknown">roh ${u}</span>`;
+  body.innerHTML=arr.slice().reverse().map(x=>{
+    const wallT=new Date(x.t).toLocaleTimeString('de-DE');
+    return `<tr>`+
+      `<td>${x.n}</td>`+
+      `<td class="imv-tod-cell">${esc(x.tod||wallT)}</td>`+
+      `<td><span class="imv-ch imv-k-${x.kind}">${esc(x.ch||'—')}</span></td>`+
+      `<td>${IMV_LABEL[x.kind]||'· roh'}</td>`+
+      `<td class="imv-raw">${esc(x.raw||'')}</td>`+
+    `</tr>`;
+  }).join('');
+}
+function imvExportCsv(){
+  const rows=[['Nr','Uhrzeit_Geraet','Empfangen','Kanal','Erkannt_als','Rohzeile']];
+  IMPULSES.forEach(x=>rows.push([x.n,x.tod||'',new Date(x.t).toLocaleTimeString('de-DE'),x.ch||'',x.kind,'"'+String(x.raw||'').replace(/"/g,'""')+'"']));
+  const csv=rows.map(r=>r.join(';')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='impuls-protokoll.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+
 function init(){
   const hk=(location.hash||'').replace('#','');
   if(hk==='start'){ initStartView(); return; }
   if(hk==='results'){ initResultsView(); return; }
+  if(hk==='impulse'){ initImpulseView(); return; }
   loadNet();
   loadSponsors();
   refreshClubLogo();
@@ -2580,6 +2712,7 @@ function init(){
 
   $('trigStart').onclick=()=>{handleImpulse('start',null);}; $('trigInter').onclick=()=>{handleImpulse('inter',null);}; $('trigFinish').onclick=()=>{handleImpulse('finish',null);};
   $('btnConnect').onclick=connectSerial; $('btnSim').onclick=toggleSim; $('btnBoard').onclick=toggleBoard; $('bdClose').onclick=toggleBoard;
+  $('btnImp').onclick=openImpulseView; { const li=$('lastImp'); if(li) li.onclick=openImpulseView; }
   if($('devProfile')) $('devProfile').onchange=()=>{ const v=$('devProfile').value; if(v) applyDeviceProfile(v); };
   if($('btnNetDev')) $('btnNetDev').onclick=()=>{ if(NETDEV.on) netDevDisconnect(); else netDevConnect($('netDevUrl').value); };
   try{ const u=localStorage.getItem('alpin_netdev_url'); if(u && $('netDevUrl')) $('netDevUrl').value=u; }catch(e){}
