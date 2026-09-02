@@ -315,6 +315,8 @@
   .src-tag{font-family:var(--mono);font-size:9px;padding:1px 4px;border-radius:4px;margin-left:5px}
   .src-tag.hw{color:var(--green);background:#0a2018}.src-tag.sw{color:var(--amber);background:#221a08}.src-tag.hand{color:var(--blue);background:#0c1626}
   .src-tag.calc{color:#c9a3ff;background:#181026}
+  .src-tag.bsys{color:#4da6ff;background:#0c1626}
+  .src-tag.abdiff{color:#ff6b6b;background:#2a1012;font-weight:700}
 
   .logwrap{margin-top:16px}
   .log{font-family:var(--mono);font-size:12px;line-height:1.7;max-height:140px;overflow:auto;color:var(--dim)}
@@ -713,7 +715,7 @@
   </div>
   <div class="imv-stats" id="imvStats"></div>
   <div class="imv-wrap">
-    <table class="imv-tab"><thead><tr><th style="width:60px">#</th><th style="width:150px">Uhrzeit (Gerät)</th><th style="width:110px">Kanal</th><th style="width:130px">Erkannt&nbsp;als</th><th>Rohzeile</th></tr></thead><tbody id="imvBody"></tbody></table>
+    <table class="imv-tab"><thead><tr><th style="width:60px">#</th><th style="width:150px">Uhrzeit (Gerät)</th><th style="width:70px">System</th><th style="width:110px">Kanal</th><th style="width:130px">Erkannt&nbsp;als</th><th>Rohzeile</th></tr></thead><tbody id="imvBody"></tbody></table>
   </div>
 </div>
 
@@ -850,6 +852,13 @@
     <div class="fld"><label>Geräte-Adresse (WebSocket)</label><input id="netDevUrl" placeholder="ws://192.168.4.1:81" spellcheck="false">
       <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn sm" id="btnNetDev">Verbinden</button><span id="netDevStatus" class="hint" style="margin:0">nicht verbunden</span></div>
       <div class="hint">Das Gerät sendet je Impuls eine Textzeile, z. B. <code>S 1043920</code> (Start + Zeitstempel), <code>F 1051110</code> (Ziel). Verbindet bei Abriss automatisch neu.</div></div>
+    <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Redundanz (System B · FIS A/B)</label>
+      <div class="hint">Zweite, <b>unabhängige</b> Zeitmessung als Absicherung – läuft parallel über einen zweiten Netzwerk-Eingang (eigene Brücke/zweites Gerät). Die App ordnet die B-Impulse den Startnummern zu, <b>vergleicht A und B automatisch</b>, warnt bei Abweichung über der Toleranz und nutzt B, falls A ausfällt. Gleiche Schlüsselwörter/Format wie System A. <i>(Handzeit ✋ bleibt die dritte Absicherung.)</i></div></div>
+    <div class="fld"><label>System B – Geräte-Adresse (WebSocket)</label><input id="sbUrl" placeholder="ws://localhost:8900" spellcheck="false">
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button class="btn sm" id="btnSbDev">Verbinden</button><span id="sbStatus" class="hint" style="margin:0">nicht verbunden</span></div></div>
+    <div class="fld"><label>A/B-Toleranz (Sekunden)</label><input id="sbTol" inputmode="decimal" placeholder="0,05" style="max-width:120px">
+      <div class="hint">Weicht die Zeit von System B um mehr als diesen Wert von System A ab, kommt eine Warnung (Protokoll + Ton). Standard 0,05 s.</div></div>
+    <div class="toggle"><span>System B simulieren (Demo)<br><small style="color:var(--dimmer)">ohne zweites Gerät: die Simulation erzeugt B-Zeiten mit leichtem Versatz – so siehst du den A/B-Abgleich</small></span><div class="sw" id="swSbSim"></div></div>
     <div class="fld" style="border-top:1px solid var(--line);padding-top:14px"><label style="color:var(--green)">▣ Vernetzung (Internet) & Konto</label></div>
     <div class="fld"><label>Konto</label><div id="netAuth"></div><div class="hint">Mit demselben Konto an Ziel und (optional) Start anmelden – keine PIN nötig. Zuschauer brauchen kein Konto.</div></div>
     <div class="toggle"><span>Diesen PC als Master senden (Ziel)<br><small style="color:var(--dimmer)">überträgt das Rennen live an die Anzeigen</small></span><div class="sw" id="swMaster"></div></div>
@@ -1063,7 +1072,7 @@ F 1051110   → Ziel
    Status (DNF/DNS/DSQ), Anzeigetafel. Hardware via Web Serial (Chrome/Edge).
    Genauigkeit: Hardware-Zeitstempel bevorzugt, sonst performance.now(). */
 
-const VERSION="6.2";
+const VERSION="6.3";
 const emptyRun = () => ({startSW:null,startHW:null,startWall:null,startServerT:null,interSW:null,interHW:null,finSW:null,finHW:null,finServerT:null,
   runMs:null,interMs:null,src:null,hand:null,state:'idle'});
 
@@ -1338,6 +1347,7 @@ function doStart(sw,hw){
   const r=S.racers.find(x=>x.id===S.readyId);
   if(!r){ logEvent("Start ohne bereiten Läufer – verworfen","ev-warn"); toast("Niemand am Start!"); return; }
   const c=cur(r); c.state='running'; c.startSW=sw; c.startHW=(hw??null); c.startWall=Date.now(); c.startServerT=serverNow(); c.startLocal=true; S.onCourse.push(r.id);
+  sbNoteA('start', r.id, hw);   // Redundanz: B-Startimpuls dieser Startnummer zuordnen
   S.history.push({type:'start',id:r.id,run:S.activeRun});
   logEvent(`START · Nr ${r.bib} ${r.name}`+(hw!=null?` (HW ${hw})`:''),'ev-start');
   S.readyId=null; if(S.settings.autoNext){ const n=nextIdle(); if(n!=null) setReady(n); }
@@ -1368,6 +1378,7 @@ function doFinish(sw,hw){
   else { c.runMs=c.finSW-c.startSW; c.src='SW'; }
   if(c.runMs<0) c.runMs=null;
   c.state='finished'; S.onCourse.shift(); S.history.push({type:'finish',id:r.id,run:S.activeRun});
+  sbNoteA('finish', r.id, hw);   // Redundanz: B-Zielimpuls dieser Startnummer zuordnen + vergleichen
   if(DISP.active && c.runMs!=null) DISP.freeze={bib:String(r.bib),time:c.runMs,until:now()+(S.settings.disp.holdMs||5000)};
   logEvent(`ZIEL · Nr ${r.bib} ${r.name} → ${fmt(c.runMs)} [${c.src}]`,'ev-finish');
   flashBoard(`Ziel Nr ${r.bib} ${r.name}: ${fmt(c.runMs)}`);
@@ -1386,8 +1397,8 @@ function undoLast(){
   const h=S.history.pop(); if(!h) return;
   const r=S.racers.find(x=>x.id===h.id); if(!r) return; const c=r.runs[h.run];
   const wasActive=S.activeRun; S.activeRun=h.run;
-  if(h.type==='finish'){ c.state='running'; c.finSW=c.finHW=c.runMs=null; c.src=null; }
-  else if(h.type==='start'){ c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=null; }
+  if(h.type==='finish'){ c.state='running'; c.finSW=c.finHW=c.runMs=null; c.src=null; c.finHWB=c.runMsB=c.abDiff=c.abFlag=null; }
+  else if(h.type==='start'){ c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=null; c.startHWB=null; }
   S.activeRun=wasActive; recomputeRunState();
   logEvent(`↩ ${h.type==='finish'?'Ziel':'Start'} zurückgenommen · Nr ${r.bib} (Lauf ${h.run+1})`,'ev-info');
   renderAll(); persist();
@@ -1396,7 +1407,7 @@ function setStatus(id,st){ setStatusRun(id,st,S.activeRun); }
 function setStatusRun(id,st,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   if(runIdx===S.activeRun){ S.onCourse=S.onCourse.filter(x=>x!==id); if(S.readyId===id) S.readyId=null; }
-  c.state=st; c.runMs=null; c.src=null; c.hand=null; c.calcMs=null; c.interMs=null; c.interSW=c.interHW=null;   // DSQ/DNF darf auch die beste Zwischenzeit nicht mehr verfaelschen
+  c.state=st; c.runMs=null; c.src=null; c.hand=null; c.calcMs=null; c.interMs=null; c.interSW=c.interHW=null; c.runMsB=c.startHWB=c.finHWB=c.abDiff=c.abFlag=null;   // DSQ/DNF darf auch die beste Zwischenzeit nicht mehr verfaelschen
   logEvent(`${st} · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-warn');
   if(runIdx===S.activeRun && S.settings.autoNext && S.readyId==null){ const n=nextIdle(); if(n!=null) setReady(n); }
   recalcErsatz(runIdx); renderAll(); persist(); }
@@ -1404,6 +1415,7 @@ function reopen(id){ reopenRun(id,S.activeRun); }
 function reopenRun(id,runIdx){ const r=S.racers.find(x=>x.id===id); if(!r) return;
   if(runIdx==null||isNaN(runIdx)) runIdx=S.activeRun; const c=r.runs[runIdx];
   c.state='idle'; c.startSW=c.startHW=c.interSW=c.interHW=c.interMs=c.finSW=c.finHW=c.runMs=c.hand=c.calcMs=null; c.src=null;
+  c.startHWB=c.finHWB=c.runMsB=c.abDiff=c.abFlag=null;
   if(runIdx===S.activeRun) S.onCourse=S.onCourse.filter(x=>x!==id);
   logEvent(`Zurückgesetzt · Nr ${r.bib} ${r.name} (Lauf ${runIdx+1})`,'ev-info');
   recalcErsatz(runIdx); renderAll(); persist(); }
@@ -1439,9 +1451,11 @@ function drainHandQueue(){ let q; try{ q=JSON.parse(localStorage.getItem(HANDQ_K
     const ri=(en.run!=null&&!isNaN(en.run))?+en.run:S.activeRun;
     applyHandValue(r.id, ri, (en.ms==null?null:+en.ms)); }); }
 
-/* effective time of a run (electronic, else hand backup) */
-function effRun(c){ if(c.state!=='finished') return null; return c.runMs!=null?c.runMs:(c.calcMs!=null?c.calcMs:c.hand); }
-function effSrc(c){ if(c.runMs!=null) return c.src; if(c.calcMs!=null) return 'Δ'; if(c.hand!=null) return 'Hand'; return c.src; }
+/* effektive Zeit eines Laufs: System A (elektronisch), sonst System B (Redundanz),
+   sonst FIS-Ersatzzeit, sonst reine Handzeit. */
+function effRun(c){ if(c.state!=='finished') return null;
+  return c.runMs!=null?c.runMs:(c.runMsB!=null?c.runMsB:(c.calcMs!=null?c.calcMs:c.hand)); }
+function effSrc(c){ if(c.runMs!=null) return c.src; if(c.runMsB!=null) return 'B'; if(c.calcMs!=null) return 'Δ'; if(c.hand!=null) return 'Hand'; return c.src; }
 /* FIS-Ersatzzeit ("Hilfszeit"): Laeufer mit Handzeit, aber OHNE elektronische Zeit,
    bekommen eine berechnete gueltige Zeit = Handzeit + Korrektur. Korrektur = Mittel
    aus (elektronisch - Hand) der naechsten Nachbarn in Startreihenfolge, die BEIDES
@@ -1559,10 +1573,14 @@ function renderResults(){
   const best=ranked.length?ranked[0].t:null;
   withRanks(ranked).forEach(({e,rank})=>{ const r=e.r; const c=combined?null:r.runs[S.resultView];
     const tr=document.createElement('tr'); tr.className='res-row'+(rank<=3?' p'+rank:'');
-    const src=combined?'':effSrc(c); const tag=src?`<span class="src-tag ${src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':src==='Δ'?'calc':'sw'}" title="${src==='Δ'?'Ersatzzeit (Hand + FIS-Korrektur)':src==='Hand'?'Handzeit':'elektronisch'}">${src}</span>`:'';
+    const src=combined?'':effSrc(c);
+    const _cls=src==='HW'?'hw':src==='Hand'?'hand':src==='NET'?'net':src==='Δ'?'calc':src==='B'?'bsys':'sw';
+    const _ti=src==='Δ'?'Ersatzzeit (Hand + FIS-Korrektur)':src==='Hand'?'Handzeit':src==='B'?'System B (Redundanz) – System A ohne Zeit':'elektronisch';
+    const tag=src?`<span class="src-tag ${_cls}" title="${_ti}">${src}</span>`:'';
+    const abWarn=(!combined && c && c.abFlag==='diff' && c.abDiff!=null)?` <span class="src-tag abdiff" title="A/B-Abweichung – System A: ${fmt(c.runMs)} · System B: ${fmt(c.runMsB)} · Δ ${fmt(c.abDiff)}">⚠ Δ${fmt(c.abDiff)}</span>`:'';
     const ha=combined?'':`data-hand="${r.id}" data-run="${S.resultView}"`;
     const dsq=combined?'':` <button class="ib dsq" data-dsq="${r.id}" data-run="${S.resultView}" title="Disqualifizieren (DSQ)">DSQ</button>`;
-    tr.innerHTML=`<td class="rank">${rank}</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}${r.cat?` <span style="color:var(--dimmer);font-size:11px">${esc(r.cat)}</span>`:''} ${tag}</td>
+    tr.innerHTML=`<td class="rank">${rank}</td><td class="bib">${esc(r.bib)}</td><td>${esc(r.name)}${r.cat?` <span style="color:var(--dimmer);font-size:11px">${esc(r.cat)}</span>`:''} ${tag}${abWarn}</td>
       <td class="tm" ${ha}>${fmt(e.t)}</td><td class="diff">${e.t===best?'':fmtDelta(e.t-best)}${dsq}</td>`;
     body.appendChild(tr);
   });
@@ -1808,6 +1826,66 @@ function netDevConnect(url){ url=String(url||'').trim(); if(!url){ toast('WebSoc
 function netDevDisconnect(){ NETDEV.on=false; clearTimeout(NETDEV._t); if(NETDEV.ws){ try{ NETDEV.ws.close(); }catch(e){} } NETDEV.ws=null;
   if(!S.port){ $('connDot').className='dot'; $('connLabel').textContent='Nicht verbunden'; } netDevStatus('nicht verbunden',false); logEvent('Netzwerk-Zeitmessung getrennt','ev-info'); }
 
+/* ===== Redundanz System B (unabhaengige Parallel-Zeitmessung, FIS A/B) =====
+   System A (Seriell/Netz oben) bleibt die massgebliche Messung und wird NICHT
+   veraendert. System B laeuft parallel ueber einen zweiten Netzwerk-Eingang.
+   B-Impulse werden in Reihenfolge den von A vergebenen Startnummern zugepaart,
+   die B-Laufzeit unabhaengig berechnet und mit A verglichen (Abweichungswarnung
+   ueber Toleranz). Faellt A's Zeit aus, springt B automatisch ein (Quelle 'B'). */
+const SB = { on:false, sim:false, url:'', ws:null, _t:0, tolMs:50, aQ:{start:[],finish:[]}, bQ:{start:[],finish:[]} };
+function sbStatus(txt, ok){ const s=$('sbStatus'), b=$('btnSbDev');
+  if(s) s.innerHTML = ok?'<span style="color:var(--green)">● '+esc(txt)+'</span>':esc(txt);
+  if(b) b.textContent = SB.on ? 'Trennen' : 'Verbinden'; }
+function sbOpen(){
+  if(SB.ws){ try{ SB.ws.close(); }catch(e){} }
+  let ws; try{ ws=new WebSocket(SB.url); }catch(e){ sbStatus('ungültige Adresse',false); return; }
+  SB.ws=ws;
+  ws.onopen=()=>{ sbStatus('System B verbunden · '+SB.url,true); logEvent('Redundanz System B verbunden: '+SB.url,'ev-info'); };
+  ws.onmessage=ev=>{ String(ev.data).split(/[\r\n]+/).forEach(l=>{ l=l.trim(); if(l) parseSerialLineB(l); }); };
+  ws.onclose=()=>{ sbStatus('getrennt',false); if(SB.on){ clearTimeout(SB._t); SB._t=setTimeout(sbOpen,2000); logEvent('System B getrennt – verbinde neu…','ev-warn'); } };
+  ws.onerror=()=>{};
+}
+function sbConnect(url){ url=String(url||'').trim(); if(!url){ toast('WebSocket-Adresse für System B eingeben (ws://…)'); return; }
+  if(!/^wss?:\/\//i.test(url)) url='ws://'+url;
+  SB.url=url; SB.on=true; try{ localStorage.setItem('alpin_sb_url',url); }catch(e){}
+  sbStatus('verbinde…',false); sbOpen(); }
+function sbDisconnect(){ SB.on=false; clearTimeout(SB._t); if(SB.ws){ try{ SB.ws.close(); }catch(e){} } SB.ws=null; sbStatus('nicht verbunden',false); logEvent('Redundanz System B getrennt','ev-info'); }
+function sbSetTol(sec){ const s=parseFloat(String(sec).replace(',','.')); if(!isNaN(s)&&s>=0){ SB.tolMs=Math.round(s*1000); try{ localStorage.setItem('alpin_sb_tol',String(SB.tolMs)); }catch(e){} } }
+/* System-B-Zeile klassifizieren (gleiche Schluesselwoerter wie System A) und
+   als Start/Ziel einreihen. Zwischenzeiten werden fuer B (noch) nicht gepaart. */
+function parseSerialLineB(line){
+  recordImpulse(line,'B');
+  const up=String(line).toUpperCase().trim(); const tokens=up.split(/[\s,;]+/).filter(Boolean); const first=tokens[0]||'';
+  let hwTs=null; const tm=up.match(/(\d{1,2}):(\d{2}):(\d{2})(?:[.,](\d{1,4}))?/);
+  if(tm){ const h=+tm[1],m=+tm[2],s=+tm[3]; const frac=((tm[4]||'')+'000').slice(0,3); hwTs=((h*3600+m*60+s)*1000)+(+frac); }
+  else { for(let i=tokens.length-1;i>=0;i--){ if(/^\d+$/.test(tokens[i])){ hwTs=parseInt(tokens[i],10); break; } } }
+  const match=keys=>keys.some(k=>k&&(tokens.includes(k)||first.startsWith(k)));
+  if(match(S.settings.startKeys)) sbNoteB('start',hwTs);
+  else if(match(S.settings.finishKeys)) sbNoteB('finish',hwTs);
+}
+function sbNoteA(kind,id,hw){ if(!SB.on) return; if(kind!=='start'&&kind!=='finish') return; SB.aQ[kind].push({id,run:S.activeRun,hw}); sbPair(kind); }
+function sbNoteB(kind,hw){ SB.bQ[kind].push({hw,t:now()}); sbPair(kind); }
+function sbPair(kind){
+  const aQ=SB.aQ[kind], bQ=SB.bQ[kind]; let changed=false;
+  while(aQ.length && bQ.length){
+    const a=aQ.shift(), b=bQ.shift();
+    const r=S.racers.find(x=>x.id===a.id); if(!r) continue; const c=r.runs[a.run]; if(!c) continue;
+    if(kind==='start'){ c.startHWB=(b.hw??null); }
+    else { c.finHWB=(b.hw??null);
+      if(c.startHWB!=null && c.finHWB!=null){ let ms=c.finHWB-c.startHWB; if(ms<0) ms+=86400000; c.runMsB=(ms>=0?ms:null); }
+      sbCompare(r,a.run); }
+    changed=true;
+  }
+  if(changed){ renderAll(); persist(); }
+}
+function sbCompare(r,run){ const c=r.runs[run];
+  if(c.runMs==null && c.runMsB!=null){ c.abFlag='bOnly'; logEvent(`⚠ System A ohne Zeit für Nr ${r.bib} – System B ${fmt(c.runMsB)} zählt`,'ev-warn'); toast(`Nr ${r.bib}: System B springt ein (${fmt(c.runMsB)})`); return; }
+  if(c.runMs==null||c.runMsB==null) return;
+  const d=Math.abs(c.runMs-c.runMsB); c.abDiff=d;
+  if(d>SB.tolMs){ c.abFlag='diff'; logEvent(`⚠ A/B-Abweichung Nr ${r.bib}: A ${fmt(c.runMs)} · B ${fmt(c.runMsB)} · Δ ${fmt(d)} (> Toleranz ${fmt(SB.tolMs)})`,'ev-warn'); toast(`A/B-Abweichung Nr ${r.bib}: Δ ${fmt(d)}`); beep(440); }
+  else { c.abFlag='ok'; logEvent(`✓ A/B ok Nr ${r.bib}: A ${fmt(c.runMs)} · B ${fmt(c.runMsB)} · Δ ${fmt(d)}`,'ev-info'); }
+}
+
 async function connectSerial(){
   if(_scan.active){ _scan.cancel=true; return; }        // laufende Suche abbrechen
   if(S.port){ await disconnectSerial(); return; }
@@ -1898,11 +1976,11 @@ function imvClassify(line){
   const tod=tm?tm[0].replace(',','.'):'';
   return {kind,ch,tod};
 }
-function recordImpulse(raw){
+function recordImpulse(raw,sys){
   const line=String(raw).trim(); if(!line) return;
   const c=imvClassify(line);
   const n=IMPULSES.length?(IMPULSES[IMPULSES.length-1].n||IMPULSES.length)+1:1;
-  IMPULSES.push({n,t:Date.now(),tod:c.tod,ch:c.ch,kind:c.kind,raw:line.slice(0,120)});
+  IMPULSES.push({n,t:Date.now(),tod:c.tod,ch:c.ch,kind:c.kind,sys:(sys||'A'),raw:line.slice(0,120)});
   if(IMPULSES.length>400) IMPULSES=IMPULSES.slice(-400);
   imvSave();
   if(VIEWKIND==='impulse') imvRender();
@@ -1978,11 +2056,17 @@ function simStartOne(){
   const base=Math.floor(Date.now()%1e7); handleImpulse('start', S.settings.useHwTs?base:null);
   const r=S.racers.find(x=>x.id===S.onCourse[S.onCourse.length-1]); if(!r) return; const c=cur(r);
   const interT=1000+Math.random()*1500, run=4000+Math.random()*3500;
+  /* Redundanz-Demo: System B mit leichtem Versatz simulieren (meist <Toleranz,
+     gelegentlich darüber -> zeigt die A/B-Abweichungswarnung). */
+  const bBase = base + Math.round(Math.random()*20-10);
+  const bJit = (Math.random()<0.18) ? Math.round(Math.random()*140-70) : Math.round(Math.random()*40-20);
+  if(SB.on && SB.sim) sbNoteB('start', bBase);
   if(S.settings.hasInter) S.simTimers.push(setTimeout(()=>{ if(S.sim&&c.state==='running') handleImpulse('inter', c.startHW!=null?c.startHW+Math.round(interT):null); }, interT));
   const tryFinish=()=>{ if(!S.sim) return;
     if(!S.onCourse.length) return; const id=S.onCourse[0];
     if(Math.random()<0.08){ setStatus(id,'DNF'); }                    // gelegentliche Aufgabe – fürs „drum und dran"
-    else { const lead=cur(S.racers.find(x=>x.id===id)); handleImpulse('finish', lead.startHW!=null?lead.startHW+Math.round(run):null); }
+    else { const lead=cur(S.racers.find(x=>x.id===id)); handleImpulse('finish', lead.startHW!=null?lead.startHW+Math.round(run):null);
+      if(SB.on && SB.sim) sbNoteB('finish', bBase+Math.round(run)+bJit); }
   };
   S.simTimers.push(setTimeout(tryFinish, run));
 }
@@ -2706,7 +2790,7 @@ function initImpulseView(){
 function imvRender(){
   const body=$('imvBody'); if(!body) return;
   const arr=IMPULSES.slice(-400);
-  if(!arr.length){ body.innerHTML='<tr><td colspan="5" class="imv-empty">Noch keine Impulse. Löse an der Zeitmessung aus (Kanal 1 = Start, 4 = Ziel).</td></tr>';
+  if(!arr.length){ body.innerHTML='<tr><td colspan="6" class="imv-empty">Noch keine Impulse. Löse an der Zeitmessung aus (Kanal 1 = Start, 4 = Ziel).</td></tr>';
     if($('imvStats')) $('imvStats').innerHTML=''; return; }
   let s=0,i=0,f=0,u=0;
   arr.forEach(x=>{ if(x.kind==='start')s++;else if(x.kind==='inter')i++;else if(x.kind==='finish')f++;else u++; });
@@ -2718,9 +2802,11 @@ function imvRender(){
     ` <span class="imv-ch imv-k-unknown">roh ${u}</span>`;
   body.innerHTML=arr.slice().reverse().map(x=>{
     const wallT=new Date(x.t).toLocaleTimeString('de-DE');
+    const sys=x.sys||'A'; const sysCol = sys==='B' ? 'var(--blue,#4da6ff)' : 'var(--green,#00e58a)';
     return `<tr>`+
       `<td>${x.n}</td>`+
       `<td class="imv-tod-cell">${esc(x.tod||wallT)}</td>`+
+      `<td><span class="imv-ch" style="background:rgba(120,140,160,.12);color:${sysCol}">${esc(sys)}</span></td>`+
       `<td><span class="imv-ch imv-k-${x.kind}">${esc(x.ch||'—')}</span></td>`+
       `<td>${IMV_LABEL[x.kind]||'· roh'}</td>`+
       `<td class="imv-raw">${esc(x.raw||'')}</td>`+
@@ -2728,8 +2814,8 @@ function imvRender(){
   }).join('');
 }
 function imvExportCsv(){
-  const rows=[['Nr','Uhrzeit_Geraet','Empfangen','Kanal','Erkannt_als','Rohzeile']];
-  IMPULSES.forEach(x=>rows.push([x.n,x.tod||'',new Date(x.t).toLocaleTimeString('de-DE'),x.ch||'',x.kind,'"'+String(x.raw||'').replace(/"/g,'""')+'"']));
+  const rows=[['Nr','Uhrzeit_Geraet','Empfangen','System','Kanal','Erkannt_als','Rohzeile']];
+  IMPULSES.forEach(x=>rows.push([x.n,x.tod||'',new Date(x.t).toLocaleTimeString('de-DE'),x.sys||'A',x.ch||'',x.kind,'"'+String(x.raw||'').replace(/"/g,'""')+'"']));
   const csv=rows.map(r=>r.join(';')).join('\r\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='impuls-protokoll.csv';
@@ -2851,6 +2937,10 @@ function init(){
   if($('devProfile')) $('devProfile').onchange=()=>{ const v=$('devProfile').value; if(v) applyDeviceProfile(v); };
   if($('btnNetDev')) $('btnNetDev').onclick=()=>{ if(NETDEV.on) netDevDisconnect(); else netDevConnect($('netDevUrl').value); };
   try{ const u=localStorage.getItem('alpin_netdev_url'); if(u && $('netDevUrl')) $('netDevUrl').value=u; }catch(e){}
+  if($('btnSbDev')) $('btnSbDev').onclick=()=>{ if(SB.on) sbDisconnect(); else sbConnect($('sbUrl').value); };
+  try{ const u=localStorage.getItem('alpin_sb_url'); if(u && $('sbUrl')) $('sbUrl').value=u; }catch(e){}
+  try{ const t=localStorage.getItem('alpin_sb_tol'); if(t){ SB.tolMs=+t||50; } }catch(e){}
+  if($('sbTol')){ $('sbTol').value=String(SB.tolMs/1000).replace('.',','); $('sbTol').onchange=()=>sbSetTol($('sbTol').value); }
   $('btnSponsors').onclick=openSponsors; $('spClose').onclick=closeSponsors; $('spOverlay').onclick=closeSponsors;
   $('btnDraw').onclick=openDraw; $('drawClose').onclick=closeDraw; $('drawCancel').onclick=closeDraw; $('drawOverlay').onclick=closeDraw; $('drawDo').onclick=doDraw;
   document.querySelectorAll('input[name="drawMode"]').forEach(el=>el.addEventListener('change',_drawSyncUI));
@@ -2939,6 +3029,9 @@ function init(){
   $('swRequireReady').onclick=()=>{ S.settings.requireReady=!S.settings.requireReady; $('swRequireReady').classList.toggle('on'); persist(); updateStartLock(); };
   $('swBeep').onclick=()=>{ S.settings.beep=!S.settings.beep; $('swBeep').classList.toggle('on'); persist(); };
   $('swAutoSerial').onclick=()=>{ S.settings.autoSerial=!S.settings.autoSerial; $('swAutoSerial').classList.toggle('on'); persist(); if(S.settings.autoSerial) autoConnectSerial(); };
+  if($('swSbSim')) $('swSbSim').onclick=()=>{ SB.sim=!SB.sim; $('swSbSim').classList.toggle('on',SB.sim); SB.on = SB.sim || !!SB.ws;
+    if(SB.sim){ sbStatus('Demo: System B simuliert','ok'); logEvent('Redundanz-Demo aktiv – System B wird simuliert','ev-info'); }
+    else { if(!SB.ws) sbStatus('nicht verbunden',false); } };
 
   document.addEventListener('keydown',e=>{ const tag=(e.target.tagName||'').toLowerCase(); if(tag==='input'||tag==='textarea'||tag==='select') return;
     if(e.code==='Space'){ e.preventDefault(); handleImpulse('start',null); flash('trigStart'); }
